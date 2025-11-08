@@ -6,17 +6,17 @@ interface OnboardingScreenProps {
 
 const onboardingSlides = [
   {
-    image: 'https://picsum.photos/seed/healthyfood/400/300',
+    image: 'https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FSlide%20Image%2FPerson%20on%20health%20food.png?alt=media&token=28737d8c-043a-45bf-8c72-bbb28120a143',
     title: 'Personalized Meal Plans',
     caption: 'Get personalized meal plans for your cancer journey.',
   },
   {
-    image: 'https://picsum.photos/seed/mobilecharts/400/300',
+    image: 'https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FSlide%20Image%2Fphone%20with%20charts.png?alt=media&token=e44dce9a-0354-4dcd-9ec3-125fa4fe7426',
     title: 'Track Your Progress',
     caption: 'Track your progress and get daily tips.',
   },
   {
-    image: 'https://picsum.photos/seed/doctorvideo/400/300',
+    image: 'https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FSlide%20Image%2Fdoctor%20on%20phone.png?alt=media&token=afc9b7e2-717a-455d-96b2-47774b046185',
     title: 'Chat With Your Doctor',
     caption: 'Chat with your doctor anytime (Premium).',
   },

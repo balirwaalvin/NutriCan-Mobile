@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
-import { UserProfile, DashboardPage, MealPlan, FoodSafetyStatus, FoodSafetyResult } from '../types';
-import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon } from './Icons';
-import { checkFoodSafety, generateMealPlan } from '../services/geminiService';
+import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal } from '../types';
+import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon } from './Icons';
+import { checkFoodSafety, generateMealPlan, swapMeal } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ThemeContext } from '../contexts/ThemeContext';
 
@@ -61,13 +62,41 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
         { name: 'Progress Journal', action: () => setModal(<ProgressJournalScreen />) },
         { name: 'Reminders & Alerts', action: () => setModal(<RemindersScreen />) },
     ];
+    
+    const imageUrls = [
+        'https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FVegetable%20loop%2Fvegetable1.png?alt=media&token=ad8be5e6-c143-4ea9-9029-1421423b37d9',
+        'https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FVegetable%20loop%2Fvegetable2.png?alt=media&token=18a1998d-e0ba-4a48-aa16-1764525ba9ab',
+        'https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FVegetable%20loop%2Fvegetable3.png?alt=media&token=8aa3463d-e850-4bc1-8d86-5ea8d457eb1b',
+    ];
+
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            setCurrentImageIndex(prevIndex => (prevIndex + 1) % imageUrls.length);
+        }, 3000); // Change image every 3 seconds
+
+        return () => clearInterval(intervalId); // Cleanup on component unmount
+    }, [imageUrls.length]);
+    
     return (
         <div className="p-4 animate-fade-in">
             <div className="bg-soft-lavender p-4 rounded-xl mb-6 dark:bg-gray-700">
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Hello, {userProfile.name}!</h1>
                 <p className="text-gray-600 dark:text-gray-300">Here's today's plan.</p>
             </div>
-            <img src="https://picsum.photos/seed/vegetables/400/200" alt="Fresh vegetables" className="rounded-xl mb-6 w-full h-32 object-cover"/>
+            <div className="relative rounded-xl mb-6 w-full h-32 overflow-hidden">
+                {imageUrls.map((url, index) => (
+                    <img
+                        key={url}
+                        src={url}
+                        alt="Fresh vegetables"
+                        className={`absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
+                            index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+                        }`}
+                    />
+                ))}
+            </div>
             <div className="grid grid-cols-2 gap-4 animate-stagger-children">
                 {features.map((feature, index) => (
                     <button key={feature.name} onClick={feature.action} className="bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition text-center dark:bg-gray-700 dark:hover:shadow-purple-800/50" style={{ animationDelay: `${index * 100}ms` }}>
@@ -89,9 +118,46 @@ const Modal: React.FC<{ children: React.ReactNode; closeModal: () => void }> = (
 );
 
 
+const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () => void, isSwapping: boolean }> = ({ meal, title, delay, onSwap, isSwapping }) => {
+    const categoryIcon = {
+        Protein: <ProteinIcon className="w-5 h-5" />,
+        Carbs: <CarbsIcon className="w-5 h-5" />,
+        Balanced: <BalancedIcon className="w-5 h-5" />,
+        Veggies: <BowlIcon className="w-5 h-5" />,
+    }[meal.category] || <BowlIcon className="w-5 h-5" />;
+
+    return (
+        <div className="bg-white rounded-xl shadow-md overflow-hidden dark:bg-gray-800 animate-fade-in-up" style={{ animationDelay: `${delay}ms` }}>
+            <div className="relative">
+                <img src={meal.photoUrl} alt={meal.name} className="w-full h-32 object-cover"/>
+                {isSwapping && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><LogoIcon className="animate-spin h-8 w-8 text-white" /></div>}
+            </div>
+            <div className="p-4">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">{title}</h3>
+                        <p className="font-semibold text-brand-purple">{meal.name}</p>
+                    </div>
+                    <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-1 text-sm">
+                        {categoryIcon}
+                        <span className="dark:text-gray-300">{meal.category}</span>
+                    </div>
+                </div>
+                <p className="text-gray-600 text-sm mt-1 dark:text-gray-400">{meal.description}</p>
+                <button onClick={onSwap} disabled={isSwapping} className="text-sm bg-gray-200 px-3 py-1 rounded-full mt-3 hover:bg-gray-300 disabled:opacity-50 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                    Swap Meal
+                </button>
+            </div>
+        </div>
+    );
+};
+
+
 const MealPlanScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
-  const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
+  const [mealPlan, setMealPlan] = useState<WeeklyMealPlan | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedDayIndex, setSelectedDayIndex] = useState((new Date().getDay() + 6) % 7);
+  const [swappingState, setSwappingState] = useState<{dayIndex: number, mealType: string} | null>(null);
 
   const fetchMealPlan = useCallback(async () => {
     setLoading(true);
@@ -104,27 +170,69 @@ const MealPlanScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile })
     fetchMealPlan();
   }, [fetchMealPlan]);
 
+  const handleSwapMeal = async (dayIndex: number, mealType: 'breakfast' | 'lunch' | 'dinner') => {
+    if (!mealPlan) return;
+    setSwappingState({ dayIndex, mealType });
+    const mealToSwap = mealPlan[dayIndex][mealType];
+    const newMeal = await swapMeal(userProfile, mealToSwap, mealPlan[dayIndex].day, mealType);
+    if (newMeal && mealPlan) {
+      const updatedPlan = [...mealPlan];
+      updatedPlan[dayIndex] = { ...updatedPlan[dayIndex], [mealType]: newMeal };
+      setMealPlan(updatedPlan);
+    } else {
+        alert("Sorry, we couldn't find a replacement meal. Please try again.");
+    }
+    setSwappingState(null);
+  };
+
   if (loading) return <div className="p-4 text-center dark:text-gray-300">Generating your personalized meal plan... <LogoIcon className="animate-spin h-8 w-8 mx-auto mt-4 text-brand-purple" /></div>;
   if (!mealPlan) return <div className="p-4 text-center dark:text-gray-300">Could not generate a meal plan. Please try again later.</div>;
 
-  const MealCard: React.FC<{ meal: any, title: string, delay: number }> = ({ meal, title, delay }) => (
-      <div className="bg-white rounded-xl shadow-md overflow-hidden mb-4 dark:bg-gray-800 animate-fade-in-up" style={{ animationDelay: `${delay}ms` }}>
-          <img src={meal.photoUrl} alt={meal.name} className="w-full h-32 object-cover"/>
-          <div className="p-4">
-              <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">{title}</h3>
-              <p className="font-semibold text-brand-purple">{meal.name}</p>
-              <p className="text-gray-600 text-sm mt-1 dark:text-gray-400">{meal.description}</p>
-              <button onClick={fetchMealPlan} className="text-sm bg-gray-200 px-3 py-1 rounded-full mt-3 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Swap Meal</button>
-          </div>
-      </div>
-  );
+  const dayShortNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const selectedDayData = mealPlan[selectedDayIndex];
 
   return (
     <div className="p-6 bg-gray-50 min-h-full dark:bg-gray-900">
-      <h2 className="text-2xl font-bold mb-4 dark:text-white animate-fade-in">Today's Meal Plan</h2>
-      <MealCard meal={mealPlan.breakfast} title="Breakfast" delay={100} />
-      <MealCard meal={mealPlan.lunch} title="Lunch" delay={200} />
-      <MealCard meal={mealPlan.dinner} title="Dinner" delay={300} />
+      <h2 className="text-2xl font-bold mb-4 dark:text-white animate-fade-in">Weekly Meal Plan</h2>
+      
+      <div className="flex justify-around mb-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+        {dayShortNames.map((day, index) => (
+          <button 
+            key={day}
+            onClick={() => setSelectedDayIndex(index)}
+            className={`px-3 py-2 rounded-lg font-semibold text-sm w-full transition-colors ${selectedDayIndex === index ? 'bg-brand-purple text-white shadow' : 'text-gray-700 dark:text-gray-300'}`}
+          >
+            {day}
+          </button>
+        ))}
+      </div>
+
+      <div key={selectedDayIndex} className="animate-fade-in">
+        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2 text-center">{selectedDayData.day}</h3>
+        <div className="space-y-4">
+            <MealCard 
+              meal={selectedDayData.breakfast} 
+              title="Breakfast" 
+              delay={100} 
+              onSwap={() => handleSwapMeal(selectedDayIndex, 'breakfast')} 
+              isSwapping={swappingState?.dayIndex === selectedDayIndex && swappingState?.mealType === 'breakfast'}
+            />
+            <MealCard 
+              meal={selectedDayData.lunch} 
+              title="Lunch" 
+              delay={200} 
+              onSwap={() => handleSwapMeal(selectedDayIndex, 'lunch')} 
+              isSwapping={swappingState?.dayIndex === selectedDayIndex && swappingState?.mealType === 'lunch'}
+            />
+            <MealCard 
+              meal={selectedDayData.dinner} 
+              title="Dinner" 
+              delay={300} 
+              onSwap={() => handleSwapMeal(selectedDayIndex, 'dinner')} 
+              isSwapping={swappingState?.dayIndex === selectedDayIndex && swappingState?.mealType === 'dinner'}
+            />
+        </div>
+      </div>
     </div>
   );
 };

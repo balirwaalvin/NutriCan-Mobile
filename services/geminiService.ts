@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { UserProfile, FoodSafetyResult, FoodSafetyStatus, MealPlan } from '../types';
+import { UserProfile, FoodSafetyResult, FoodSafetyStatus, WeeklyMealPlan, Meal } from '../types';
 
 if (!process.env.API_KEY) {
   console.warn("API_KEY environment variable not set. Gemini API calls will fail.");
@@ -51,17 +51,22 @@ export const checkFoodSafety = async (foodName: string, userProfile: UserProfile
 };
 
 
-export const generateMealPlan = async (userProfile: UserProfile): Promise<MealPlan | null> => {
+export const generateMealPlan = async (userProfile: UserProfile): Promise<WeeklyMealPlan | null> => {
     const conditions = [userProfile.cancerType, ...userProfile.otherConditions].join(', ');
     const prompt = `
-      Generate a one-day meal plan (breakfast, lunch, dinner) for a patient with ${conditions}.
-      For each meal, provide a "name" and a "description".
-      Respond in a JSON object with keys "breakfast", "lunch", and "dinner".
-      Each key should be an object with "name" and "description" strings.
-      Example: {
-        "breakfast": {"name": "Oatmeal with Berries", "description": "A warm and fiber-rich start to the day."},
-        "lunch": {"name": "Grilled Chicken Salad", "description": "Lean protein with fresh greens and a light vinaigrette."},
-        "dinner": {"name": "Baked Salmon with Quinoa", "description": "Omega-3 rich fish with a complete protein side."}
+      Generate a 7-day weekly meal plan for a patient with ${conditions} and Cervical Cancer.
+      The meals should be based on local Ugandan cuisine.
+      Crucially, the plan must EXCLUDE sugary foods (like sodas, sweets), pastries, and any deep-fried items. Meals should be healthy and low in fat.
+      For each meal (breakfast, lunch, dinner) of each day, provide a "name", a brief "description", and a "category".
+      The "category" must be one of the following strings: "Protein", "Carbs", "Balanced", "Veggies".
+      Respond in a single JSON object with a single key "weekPlan". The value should be an array of 7 day-objects.
+      Each day-object should have a "day" (e.g., "Monday") and keys for "breakfast", "lunch", and "dinner".
+      Example for one day-object in the array:
+      {
+        "day": "Monday",
+        "breakfast": {"name": "Katogo", "description": "Matoke cooked with beef, a hearty start.", "category": "Balanced"},
+        "lunch": {"name": "Steamed Fish with Greens", "description": "Fresh tilapia steamed in banana leaves with dodo.", "category": "Protein"},
+        "dinner": {"name": "Groundnut Stew with Sweet Potatoes", "description": "Rich and savory g-nut sauce served with boiled sweet potatoes.", "category": "Balanced"}
       }
     `;
 
@@ -75,14 +80,15 @@ export const generateMealPlan = async (userProfile: UserProfile): Promise<MealPl
         });
         
         const jsonString = response.text.trim();
-        const plan = JSON.parse(jsonString);
+        const result = JSON.parse(jsonString);
 
-        if (plan.breakfast && plan.lunch && plan.dinner) {
-            return {
-                breakfast: { ...plan.breakfast, photoUrl: `https://picsum.photos/seed/${plan.breakfast.name.replace(/\s/g, '')}/400/300`, nutrients: {protein: 20, carbs: 40, fat: 10} },
-                lunch: { ...plan.lunch, photoUrl: `https://picsum.photos/seed/${plan.lunch.name.replace(/\s/g, '')}/400/300`, nutrients: {protein: 35, carbs: 30, fat: 15} },
-                dinner: { ...plan.dinner, photoUrl: `https://picsum.photos/seed/${plan.dinner.name.replace(/\s/g, '')}/400/300`, nutrients: {protein: 30, carbs: 50, fat: 20} },
-            };
+        if (result.weekPlan && Array.isArray(result.weekPlan) && result.weekPlan.length === 7) {
+            return result.weekPlan.map((dayPlan: any) => ({
+                ...dayPlan,
+                breakfast: { ...dayPlan.breakfast, photoUrl: `https://picsum.photos/seed/${dayPlan.breakfast.name.replace(/\s/g, '')}/400/300` },
+                lunch: { ...dayPlan.lunch, photoUrl: `https://picsum.photos/seed/${dayPlan.lunch.name.replace(/\s/g, '')}/400/300` },
+                dinner: { ...dayPlan.dinner, photoUrl: `https://picsum.photos/seed/${dayPlan.dinner.name.replace(/\s/g, '')}/400/300` },
+            }));
         }
         throw new Error("Invalid meal plan format from API.");
     } catch (error) {
@@ -90,3 +96,37 @@ export const generateMealPlan = async (userProfile: UserProfile): Promise<MealPl
         return null;
     }
 };
+
+export const swapMeal = async (userProfile: UserProfile, mealToSwap: Meal, day: string, mealType: string): Promise<Meal | null> => {
+    const conditions = [userProfile.cancerType, ...userProfile.otherConditions].join(', ');
+    const prompt = `
+        A patient with ${conditions} needs a replacement for their ${mealType} on ${day}.
+        The current meal is "${mealToSwap.name}".
+        Suggest a different, healthy Ugandan local dish.
+        The new meal MUST NOT be sugary, a pastry, or deep-fried. It should be low-fat.
+        Provide a "name", "description", and "category" ("Protein", "Carbs", "Balanced", or "Veggies").
+        Respond in a single JSON object.
+        Example: {"name": "Boiled Chicken and Yams", "description": "Simple, clean protein and complex carbs.", "category": "Protein"}
+    `;
+    try {
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+            }
+        });
+        const jsonString = response.text.trim();
+        const newMealData = JSON.parse(jsonString);
+        if (newMealData.name && newMealData.description && newMealData.category) {
+            return {
+                ...newMealData,
+                photoUrl: `https://picsum.photos/seed/${newMealData.name.replace(/\s/g, '')}/400/300`,
+            };
+        }
+        throw new Error("Invalid swap meal format from API.");
+    } catch (error) {
+        console.error("Error swapping meal:", error);
+        return null;
+    }
+}

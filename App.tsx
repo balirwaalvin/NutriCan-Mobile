@@ -40,9 +40,10 @@ const App: React.FC = () => {
                 age: 30,
                 email: '',
                 gender: 'Prefer not to say',
-                cancerType: CancerType.BREAST,
+                cancerType: CancerType.CERVICAL,
                 cancerStage: CancerStage.EARLY,
-                otherConditions: []
+                otherConditions: [],
+                treatmentStages: [],
               });
             }}
           />

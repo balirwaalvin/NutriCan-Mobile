@@ -5,8 +5,6 @@ export type DashboardPage = 'home' | 'tracker' | 'library' | 'premium' | 'profil
 
 export enum CancerType {
   CERVICAL = 'Cervical',
-  BREAST = 'Breast',
-  PROSTATE = 'Prostate',
 }
 
 export enum CancerStage {
@@ -17,6 +15,15 @@ export enum CancerStage {
 export enum OtherCondition {
   DIABETES = 'Diabetes',
   HYPERTENSION = 'Hypertension',
+  HYPOTENSION = 'Hypotension',
+  OVERWEIGHT = 'Overweight',
+  UNDERWEIGHT = 'Underweight',
+}
+
+export enum TreatmentStage {
+    CHEMOTHERAPY = 'Chemotherapy',
+    RADIOTHERAPY = 'Radiotherapy',
+    POST_RECOVERY = 'Post Recovery',
 }
 
 export interface UserProfile {
@@ -27,20 +34,26 @@ export interface UserProfile {
   cancerType: CancerType;
   cancerStage: CancerStage;
   otherConditions: OtherCondition[];
+  treatmentStages: TreatmentStage[];
 }
+
+export type MealCategory = 'Protein' | 'Carbs' | 'Balanced' | 'Veggies';
 
 export interface Meal {
   name: string;
   description: string;
   photoUrl: string;
-  nutrients: { protein: number; carbs: number; fat: number };
+  category: MealCategory;
 }
 
-export interface MealPlan {
-  breakfast: Meal;
-  lunch: Meal;
-  dinner: Meal;
+export interface DailyMealPlan {
+    day: string;
+    breakfast: Meal;
+    lunch: Meal;
+    dinner: Meal;
 }
+
+export type WeeklyMealPlan = DailyMealPlan[];
 
 export enum FoodSafetyStatus {
   SAFE = "Safe",
