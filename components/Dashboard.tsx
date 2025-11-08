@@ -1,9 +1,10 @@
 
+
 import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
-import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal } from '../types';
-import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon } from './Icons';
-import { checkFoodSafety, generateMealPlan, swapMeal } from '../services/geminiService';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry } from '../types';
+import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, FatigueIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon } from './Icons';
+import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips } from '../services/geminiService';
+import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ThemeContext } from '../contexts/ThemeContext';
 
 // --- Reusable UI Components ---
@@ -13,7 +14,7 @@ const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: Das
     { page: 'home' as DashboardPage, icon: HomeIcon, label: 'Home' },
     { page: 'tracker' as DashboardPage, icon: ChartIcon, label: 'Tracker' },
     { page: 'library' as DashboardPage, icon: BookIcon, label: 'Library' },
-    { page: 'premium' as DashboardPage, icon: PremiumIcon, label: 'Premium' },
+    { page: 'doctor-connect' as DashboardPage, icon: PremiumIcon, label: 'Doctor' },
     { page: 'profile' as DashboardPage, icon: UserIcon, label: 'Profile' },
   ];
 
@@ -293,16 +294,42 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
 };
 
 const NutrientTrackerScreen: React.FC = () => {
-    const data = [
-        { name: 'Calories', value: 1200, goal: 2000, color: '#8B5CF6' },
-        { name: 'Sugar', value: 45, goal: 50, color: '#EC4899' },
-        { name: 'Salt', value: 1.8, goal: 2.3, color: '#3B82F6' },
+    const [nutrients, setNutrients] = useState<NutrientInfo>({ calories: 0, sugar: 0, salt: 0 });
+    const [isAddMealModalOpen, setIsAddMealModalOpen] = useState(false);
+    const [mealName, setMealName] = useState('');
+    const [isAddingMeal, setIsAddingMeal] = useState(false);
+
+    const nutrientData = [
+        { name: 'Calories', value: nutrients.calories, goal: 2000, unit: 'kcal', color: '#8B5CF6' },
+        { name: 'Sugar', value: nutrients.sugar, goal: 50, unit: 'g', color: '#EC4899' },
+        { name: 'Salt', value: nutrients.salt, goal: 2.3, unit: 'g', color: '#3B82F6' },
     ];
+    
+    const handleAddMeal = async () => {
+        if (!mealName.trim()) return;
+        setIsAddingMeal(true);
+        const result = await getNutrientInfo(mealName);
+        if (result) {
+            setNutrients(prev => ({
+                calories: prev.calories + result.calories,
+                sugar: prev.sugar + result.sugar,
+                salt: prev.salt + result.salt,
+            }));
+            setMealName('');
+            setIsAddMealModalOpen(false);
+        } else {
+            alert("Could not get nutrient information for this meal. Please try again.");
+        }
+        setIsAddingMeal(false);
+    };
+
+    const isOverAnyLimit = nutrientData.some(item => item.value > item.goal);
+
     return (
-        <div className="p-6 animate-fade-in">
+        <div className="p-6 animate-fade-in relative min-h-full">
             <h2 className="text-2xl font-bold mb-4 dark:text-white">Nutrient Tracker</h2>
             <div className="grid grid-cols-3 gap-4 text-center">
-                {data.map(item => {
+                {nutrientData.map(item => {
                     const percentage = Math.min((item.value / item.goal) * 100, 100);
                     const isOver = item.value > item.goal;
                     return (
@@ -316,36 +343,237 @@ const NutrientTrackerScreen: React.FC = () => {
                                 </PieChart>
                             </ResponsiveContainer>
                             <p className="font-semibold dark:text-gray-200">{item.name}</p>
-                            <p className={`text-sm ${isOver ? 'text-red-500' : 'text-gray-600 dark:text-gray-400'}`}>{item.value} / {item.goal}</p>
+                            <p className={`text-sm ${isOver ? 'text-red-500 font-bold' : 'text-gray-600 dark:text-gray-400'}`}>
+                                {item.value.toFixed(1)} / {item.goal} {item.unit}
+                            </p>
                         </div>
                     )
                 })}
             </div>
-             <div className="mt-6 p-4 bg-soft-mint rounded-lg text-center text-brand-mint font-semibold dark:bg-brand-mint/20">
-                <p>Great job staying on track today!</p>
+            
+            <div className={`mt-6 p-4 rounded-lg text-center font-semibold flex items-center justify-center gap-2 ${isOverAnyLimit 
+                ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300' 
+                : 'bg-soft-mint text-brand-mint dark:bg-brand-mint/20'}`
+            }>
+                {!isOverAnyLimit && <img src="https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2Fsmiling-apple.png?alt=media&token=e9d05f31-5a0a-42d3-832f-5cb0f56a591e" alt="Smiling Apple" className="w-8 h-8"/>}
+                <p>
+                    {isOverAnyLimit 
+                        ? "You've exceeded some limits. Let's aim for balance tomorrow!" 
+                        : "Great job staying on track today!"}
+                </p>
             </div>
+            
+            <button 
+                onClick={() => setIsAddMealModalOpen(true)}
+                className="absolute bottom-6 right-6 bg-brand-purple text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg hover:bg-brand-purple/90 transition-transform transform hover:scale-110"
+                aria-label="Add Meal"
+            >
+                <PlusIcon className="w-8 h-8"/>
+            </button>
+
+            {isAddMealModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in" onClick={() => setIsAddMealModalOpen(false)}>
+                    <div className="bg-white p-6 rounded-lg shadow-xl text-center w-full max-w-xs dark:bg-gray-800 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                        <h2 className="text-xl font-bold mb-4 dark:text-white">Add a Meal</h2>
+                        <input
+                            type="text"
+                            value={mealName}
+                            onChange={(e) => setMealName(e.target.value)}
+                            placeholder="e.g., A plate of matoke"
+                            className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white mb-4"
+                        />
+                        <button 
+                            onClick={handleAddMeal} 
+                            disabled={isAddingMeal}
+                            className="w-full bg-brand-purple text-white py-2 rounded-lg disabled:bg-gray-400"
+                        >
+                            {isAddingMeal ? 'Analyzing...' : 'Add Meal'}
+                        </button>
+                        <button onClick={() => setIsAddMealModalOpen(false)} className="mt-2 text-gray-600 dark:text-gray-400 text-sm">Cancel</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
 const SymptomTipsScreen: React.FC = () => {
-    const symptoms = [{name: 'Nausea', icon: '🤢'}, {name: 'Fatigue', icon: '⚡'}];
-    return <div className="p-6 animate-fade-in"><h2 className="text-2xl font-bold dark:text-white">Symptom-Based Tips</h2><p className="text-gray-500 mt-2 dark:text-gray-400">Feature coming soon.</p></div>;
+    const SYMPTOM_STORAGE_KEY = 'nutrican_saved_symptom_tips';
+
+    const [viewingSymptom, setViewingSymptom] = useState<SymptomType | null>(null);
+    const [currentTips, setCurrentTips] = useState<RecommendedFood[] | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [savedTips, setSavedTips] = useState<Record<string, RecommendedFood[]>>(() => {
+        try {
+            const saved = localStorage.getItem(SYMPTOM_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : {};
+        } catch (error) {
+            console.error("Failed to parse saved tips:", error);
+            return {};
+        }
+    });
+
+    const symptomConfig = useMemo(() => ({
+        [SymptomType.NAUSEA]: { icon: NauseaIcon, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/50' },
+        [SymptomType.FATIGUE]: { icon: FatigueIcon, color: 'text-yellow-600', bg: 'bg-yellow-100 dark:bg-yellow-900/50' },
+        [SymptomType.MOUTH_SORES]: { icon: MouthSoreIcon, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/50' },
+    }), []);
+
+    const fetchAndSetTips = useCallback(async (symptom: SymptomType) => {
+        setLoading(true);
+        setCurrentTips(null);
+        const tips = await getSymptomTips(symptom);
+        setCurrentTips(tips);
+        setLoading(false);
+    }, []);
+
+    useEffect(() => {
+        if (!viewingSymptom || (savedTips[viewingSymptom])) return;
+        fetchAndSetTips(viewingSymptom);
+    }, [viewingSymptom, savedTips, fetchAndSetTips]);
+
+    const handleSaveTips = () => {
+        if (!viewingSymptom || !currentTips) return;
+        const newSavedTips = { ...savedTips, [viewingSymptom]: currentTips };
+        setSavedTips(newSavedTips);
+        localStorage.setItem(SYMPTOM_STORAGE_KEY, JSON.stringify(newSavedTips));
+        alert("Tips saved!");
+    };
+    
+    const handleViewSymptom = (symptom: SymptomType) => {
+        if (savedTips[symptom]) {
+            setCurrentTips(savedTips[symptom]);
+        }
+        setViewingSymptom(symptom);
+    };
+
+    const isCurrentTipSaved = viewingSymptom && savedTips[viewingSymptom] && JSON.stringify(savedTips[viewingSymptom]) === JSON.stringify(currentTips);
+
+    if (viewingSymptom) {
+        return (
+            <div className="p-6 animate-fade-in min-h-full">
+                <button onClick={() => setViewingSymptom(null)} className="mb-4 text-brand-purple font-semibold flex items-center gap-1">&larr; Back to Symptoms</button>
+                <h2 className="text-2xl font-bold mb-4 dark:text-white">Tips for {viewingSymptom}</h2>
+                {loading && <div className="text-center p-8"><LogoIcon className="animate-spin h-8 w-8 mx-auto text-brand-purple" /></div>}
+                
+                {currentTips && (
+                    <div className="space-y-3 animate-fade-in-up">
+                        {currentTips.map((food, index) => (
+                            <div key={index} className="flex items-start bg-white p-3 rounded-lg shadow-sm dark:bg-gray-800">
+                                <img src={food.photoUrl} alt={food.name} className="w-16 h-16 rounded-md object-cover mr-4" />
+                                <div>
+                                    <h3 className="font-bold text-gray-800 dark:text-gray-100">{food.name}</h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">{food.description}</p>
+                                </div>
+                            </div>
+                        ))}
+                        <button 
+                            onClick={handleSaveTips}
+                            disabled={isCurrentTipSaved}
+                            className="w-full font-bold py-3 rounded-xl mt-4 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed bg-brand-purple text-white hover:bg-brand-purple/90"
+                        >
+                            {isCurrentTipSaved ? 'Saved' : 'Save for Later'}
+                        </button>
+                    </div>
+                )}
+                
+                {!loading && !currentTips && <p className="text-center text-red-500 p-8">Could not load tips. Please try again.</p>}
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-6 animate-fade-in">
+            <h2 className="text-2xl font-bold mb-4 dark:text-white">Symptom-Based Tips</h2>
+            <p className="text-gray-500 mb-6 dark:text-gray-400">Get food recommendations to help manage common symptoms.</p>
+            <div className="space-y-4">
+                {Object.values(SymptomType).map(symptom => {
+                    const config = symptomConfig[symptom];
+                    return (
+                        <button 
+                            key={symptom} 
+                            onClick={() => handleViewSymptom(symptom)}
+                            className={`flex items-center w-full text-left p-4 rounded-xl shadow-sm hover:shadow-md transition ${config.bg}`}
+                        >
+                            <config.icon className={`w-8 h-8 mr-4 ${config.color}`} />
+                            <span className={`font-semibold flex-grow ${config.color}`}>{symptom}</span>
+                            <span className={config.color}>&rarr;</span>
+                        </button>
+                    )
+                })}
+            </div>
+
+            {Object.keys(savedTips).length > 0 && (
+                <div className="mt-8">
+                    <h3 className="text-xl font-bold mb-3 dark:text-white">Your Saved Tips</h3>
+                    <div className="space-y-2">
+                        {Object.keys(savedTips).map(symptom => (
+                            <button 
+                                key={symptom} 
+                                onClick={() => handleViewSymptom(symptom as SymptomType)}
+                                className="w-full text-left bg-gray-100 p-3 rounded-lg dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                            >
+                                View saved tips for {symptom}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
 
 const ProgressJournalScreen: React.FC = () => {
-    const data = [
-        { name: 'Mon', weight: 70, energy: 7 },
-        { name: 'Tue', weight: 70.2, energy: 6 },
-        { name: 'Wed', weight: 70.1, energy: 8 },
-        { name: 'Thu', weight: 69.9, energy: 7 },
-        { name: 'Fri', weight: 69.8, energy: 9 },
+    const initialJournalData: JournalEntry[] = [
+        { name: 'Mon', weight: 70, energy: 7, bp: 120 },
+        { name: 'Tue', weight: 70.2, energy: 6, bp: 122 },
+        { name: 'Wed', weight: 70.1, energy: 8, bp: 118 },
+        { name: 'Thu', weight: 69.9, energy: 7, bp: 121 },
+        { name: 'Fri', weight: 69.8, energy: 9, bp: 119 },
     ];
+
+    const [journalData, setJournalData] = useState<JournalEntry[]>(initialJournalData);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [newEntry, setNewEntry] = useState({ weight: '', bp: '', energy: '' });
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setNewEntry(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleAddEntry = (e: React.FormEvent) => {
+        e.preventDefault();
+        const weight = parseFloat(newEntry.weight);
+        const bp = parseInt(newEntry.bp, 10);
+        const energy = parseInt(newEntry.energy, 10);
+
+        if (isNaN(weight) || isNaN(bp) || isNaN(energy) || energy < 1 || energy > 10) {
+            alert("Please enter valid numbers for all fields. Energy must be between 1 and 10.");
+            return;
+        }
+
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const lastEntryName = journalData.length > 0 ? journalData[journalData.length - 1].name : 'Sun';
+        const lastDayIndex = dayNames.indexOf(lastEntryName);
+        const nextDayName = dayNames[(lastDayIndex + 1) % 7];
+
+        const entry: JournalEntry = {
+            name: nextDayName,
+            weight,
+            bp,
+            energy
+        };
+
+        setJournalData(prevData => [...prevData, entry].slice(-7));
+        setNewEntry({ weight: '', bp: '', energy: '' });
+        setIsModalOpen(false);
+    };
+
     return (
         <div className="p-6 animate-fade-in">
             <h2 className="text-2xl font-bold mb-4 dark:text-white">Progress Journal</h2>
             <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={data}>
+                <ComposedChart data={journalData}>
                     <XAxis dataKey="name" />
                     <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
                     <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
@@ -353,18 +581,170 @@ const ProgressJournalScreen: React.FC = () => {
                     <Legend />
                     <Bar yAxisId="left" dataKey="weight" fill="#8884d8" name="Weight (kg)" isAnimationActive={true}/>
                     <Bar yAxisId="right" dataKey="energy" fill="#82ca9d" name="Energy (1-10)" isAnimationActive={true}/>
-                </BarChart>
+                    <Line yAxisId="left" type="monotone" dataKey="bp" stroke="#ff7300" name="Blood Pressure" isAnimationActive={true} />
+                </ComposedChart>
             </ResponsiveContainer>
              <div className="mt-6 p-4 bg-yellow-100 rounded-lg text-center text-yellow-800 font-semibold dark:bg-yellow-900/50 dark:text-yellow-300">
                 <p>You're improving! Keep going!</p>
             </div>
-            <button className="w-full bg-brand-purple text-white font-bold py-3 rounded-xl mt-4 dark:bg-brand-purple/80 dark:hover:bg-brand-purple">Add New Entry</button>
+            <button onClick={() => setIsModalOpen(true)} className="w-full bg-brand-purple text-white font-bold py-3 rounded-xl mt-4 dark:bg-brand-purple/80 dark:hover:bg-brand-purple">Add New Entry</button>
+        
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in" onClick={() => setIsModalOpen(false)}>
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-xs dark:bg-gray-800 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                        <h2 className="text-xl font-bold mb-4 dark:text-white text-center">Add New Entry</h2>
+                        <form onSubmit={handleAddEntry} className="space-y-4">
+                            <div>
+                                <label htmlFor="weight" className="block text-sm font-medium text-gray-700 dark:text-gray-300 text-left">Weight (kg)</label>
+                                <input
+                                    type="number"
+                                    id="weight"
+                                    name="weight"
+                                    value={newEntry.weight}
+                                    onChange={handleInputChange}
+                                    className="w-full p-2 border rounded-lg mt-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    required
+                                    step="0.1"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="bp" className="block text-sm font-medium text-gray-700 dark:text-gray-300 text-left">Blood Pressure (Systolic)</label>
+                                <input
+                                    type="number"
+                                    id="bp"
+                                    name="bp"
+                                    value={newEntry.bp}
+                                    onChange={handleInputChange}
+                                    className="w-full p-2 border rounded-lg mt-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="energy" className="block text-sm font-medium text-gray-700 dark:text-gray-300 text-left">Energy Level (1-10)</label>
+                                <input
+                                    type="number"
+                                    id="energy"
+                                    name="energy"
+                                    value={newEntry.energy}
+                                    onChange={handleInputChange}
+                                    className="w-full p-2 border rounded-lg mt-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    required
+                                    min="1"
+                                    max="10"
+                                />
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="w-full bg-gray-200 text-gray-700 font-bold py-2 rounded-xl hover:bg-gray-300 transition dark:bg-gray-600 dark:text-gray-200">
+                                    Cancel
+                                </button>
+                                <button type="submit" className="w-full bg-brand-purple text-white font-bold py-2 rounded-xl hover:bg-brand-purple/90 transition">
+                                    Save Entry
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
+const ToggleSwitch: React.FC<{ isEnabled: boolean; onToggle: () => void; color: string; }> = ({ isEnabled, onToggle, color }) => {
+    return (
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" checked={isEnabled} onChange={onToggle} className="sr-only peer" />
+          <div className={`w-11 h-6 bg-gray-300 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isEnabled ? color : ''}`}></div>
+        </label>
+    );
+};
+
+const ReminderCard: React.FC<{
+    title: string;
+    description: string;
+    isEnabled: boolean;
+    onToggle: () => void;
+    colorClasses: string;
+    toggleColor: string;
+}> = ({ title, description, isEnabled, onToggle, colorClasses, toggleColor }) => (
+    <div className={`p-4 rounded-xl flex items-center justify-between shadow-sm ${colorClasses}`}>
+        <div className="flex items-center">
+            <BellIcon className="w-8 h-8 mr-4" />
+            <div>
+                <h3 className="font-bold">{title}</h3>
+                <p className="text-sm opacity-80">{description}</p>
+            </div>
+        </div>
+        <ToggleSwitch isEnabled={isEnabled} onToggle={onToggle} color={toggleColor} />
+    </div>
+);
+
 const RemindersScreen: React.FC = () => {
-    return <div className="p-6 animate-fade-in"><h2 className="text-2xl font-bold dark:text-white">Reminders & Alerts</h2><p className="text-gray-500 mt-2 dark:text-gray-400">Feature coming soon.</p></div>;
+    const REMINDERS_STORAGE_KEY = 'nutrican_reminders_settings';
+
+    const [reminders, setReminders] = useState(() => {
+        try {
+            const saved = localStorage.getItem(REMINDERS_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : { meal: false, water: false, medication: false };
+        } catch (error) {
+            console.error("Failed to parse reminder settings:", error);
+            return { meal: false, water: false, medication: false };
+        }
+    });
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
+        } catch (error) {
+            console.error("Failed to save reminder settings:", error);
+        }
+    }, [reminders]);
+
+    const handleToggle = (reminderType: 'meal' | 'water' | 'medication') => {
+        setReminders(prev => ({ ...prev, [reminderType]: !prev[reminderType] }));
+    };
+    
+    const reminderConfig = [
+        {
+            key: 'meal' as const,
+            title: "Set Meal Reminders",
+            description: "Reminders are set for every 3 hours.",
+            colorClasses: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300",
+            toggleColor: "bg-purple-500",
+        },
+        {
+            key: 'water' as const,
+            title: "Set Water Reminders",
+            description: "Stay hydrated throughout the day.",
+            colorClasses: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
+            toggleColor: "bg-blue-500",
+        },
+        {
+            key: 'medication' as const,
+            title: "Set Medication Reminders",
+            description: "Never miss a dose.",
+            colorClasses: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300",
+            toggleColor: "bg-green-500",
+        },
+    ];
+
+    return (
+        <div className="p-6 animate-fade-in">
+            <h2 className="text-2xl font-bold mb-6 dark:text-white">Reminders & Alerts</h2>
+            <div className="space-y-4">
+                {reminderConfig.map(config => (
+                    <ReminderCard
+                        key={config.key}
+                        title={config.title}
+                        description={config.description}
+                        isEnabled={reminders[config.key]}
+                        onToggle={() => handleToggle(config.key)}
+                        colorClasses={config.colorClasses}
+                        toggleColor={config.toggleColor}
+                    />
+                ))}
+            </div>
+        </div>
+    );
 };
 
 const LibraryScreen: React.FC = () => {
@@ -389,16 +769,52 @@ const LibraryScreen: React.FC = () => {
   );
 };
 
-const PremiumScreen: React.FC = () => (
-  <div className="p-6 text-center flex flex-col items-center justify-center h-full animate-fade-in">
-    <div className="border-2 border-brand-purple border-dashed p-8 rounded-xl dark:border-brand-purple/50">
-      <PremiumIcon className="w-16 h-16 text-brand-purple mx-auto mb-4" />
-      <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Need extra guidance?</h2>
-      <p className="text-gray-600 mt-2 dark:text-gray-400">Upgrade to chat with a certified nutritionist.</p>
-      <button className="mt-6 bg-brand-purple text-white font-bold py-2 px-6 rounded-lg">Upgrade Now</button>
-    </div>
-  </div>
-);
+const DoctorConnectScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
+    if (userProfile.plan === 'Premium') {
+        // Premium View
+        return (
+            <div className="p-6 h-full flex flex-col justify-center animate-fade-in">
+                <h1 className="text-2xl font-bold mb-6 dark:text-white text-center">Doctor Connect</h1>
+                <div className="space-y-4 animate-stagger-children">
+                    <button className="w-full bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center dark:bg-gray-700">
+                        <ChatBubbleIcon className="w-8 h-8 text-brand-purple mr-4" />
+                        <div>
+                            <p className="font-semibold text-lg text-gray-800 dark:text-gray-100 text-left">Chat</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 text-left">Message your nutritionist</p>
+                        </div>
+                    </button>
+                    <button className="w-full bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center dark:bg-gray-700">
+                        <VideoCallIcon className="w-8 h-8 text-brand-purple mr-4" />
+                        <div>
+                             <p className="font-semibold text-lg text-gray-800 dark:text-gray-100 text-left">Video Call</p>
+                             <p className="text-sm text-gray-500 dark:text-gray-400 text-left">Schedule a live session</p>
+                        </div>
+                    </button>
+                    <button className="w-full bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center dark:bg-gray-700">
+                        <ShareIcon className="w-8 h-8 text-brand-purple mr-4" />
+                        <div>
+                            <p className="font-semibold text-lg text-gray-800 dark:text-gray-100 text-left">Share Progress</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 text-left">Send logs and reports</p>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Free View (Teaser)
+    return (
+        <div className="p-6 text-center flex flex-col items-center justify-center h-full animate-fade-in">
+            <h1 className="text-2xl font-bold mb-6 dark:text-white">Doctor Connect</h1>
+            <div className="border-2 border-brand-purple border-dashed p-8 rounded-xl dark:border-brand-purple/50 w-full">
+                <PremiumIcon className="w-16 h-16 text-brand-purple mx-auto mb-4" />
+                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Need extra guidance?</h2>
+                <p className="text-gray-600 mt-2 dark:text-gray-400">Upgrade to chat with a certified nutritionist.</p>
+                <button className="mt-6 bg-brand-purple text-white font-bold py-2 px-6 rounded-lg">Upgrade Now</button>
+            </div>
+        </div>
+    );
+};
 
 
 const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void }> = ({ userProfile, onLogout }) => {
@@ -463,7 +879,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     home: <HomeScreen userProfile={userProfile} setActivePage={setActivePage} setModal={setModalContent} />,
     tracker: <ProgressJournalScreen />, // Changed to show the graph page
     library: <LibraryScreen />,
-    premium: <PremiumScreen />,
+    'doctor-connect': <DoctorConnectScreen userProfile={userProfile} />,
     profile: <ProfileScreen userProfile={userProfile} onLogout={onLogout} />,
   }), [userProfile, onLogout]);
 

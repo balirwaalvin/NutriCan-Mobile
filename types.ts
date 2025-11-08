@@ -1,7 +1,8 @@
 
+
 export type Page = 'splash' | 'terms' | 'onboarding' | 'auth' | 'dashboard';
 
-export type DashboardPage = 'home' | 'tracker' | 'library' | 'premium' | 'profile';
+export type DashboardPage = 'home' | 'tracker' | 'library' | 'doctor-connect' | 'profile';
 
 export enum CancerType {
   CERVICAL = 'Cervical',
@@ -35,6 +36,7 @@ export interface UserProfile {
   cancerStage: CancerStage;
   otherConditions: OtherCondition[];
   treatmentStages: TreatmentStage[];
+  plan: 'Free' | 'Premium';
 }
 
 export type MealCategory = 'Protein' | 'Carbs' | 'Balanced' | 'Veggies';
@@ -64,4 +66,34 @@ export enum FoodSafetyStatus {
 export interface FoodSafetyResult {
   status: FoodSafetyStatus;
   reason: string;
+}
+
+export interface NutrientInfo {
+  calories: number;
+  sugar: number; // in grams
+  salt: number; // in grams
+}
+
+export interface JournalEntry {
+  name: string; // e.g., 'Mon', 'Tue' or a date
+  weight: number;
+  energy: number; // 1-10
+  bp: number; // Systolic blood pressure
+}
+
+export enum SymptomType {
+  NAUSEA = 'Nausea',
+  FATIGUE = 'Fatigue',
+  MOUTH_SORES = 'Oral Mucositis',
+}
+
+export interface RecommendedFood {
+  name: string;
+  description: string;
+  photoUrl: string;
+}
+
+export interface SymptomTip {
+  symptom: SymptomType;
+  foods: RecommendedFood[];
 }

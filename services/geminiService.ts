@@ -1,6 +1,7 @@
 
+
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { UserProfile, FoodSafetyResult, FoodSafetyStatus, WeeklyMealPlan, Meal } from '../types';
+import { UserProfile, FoodSafetyResult, FoodSafetyStatus, WeeklyMealPlan, Meal, NutrientInfo, SymptomType, RecommendedFood } from '../types';
 
 if (!process.env.API_KEY) {
   console.warn("API_KEY environment variable not set. Gemini API calls will fail.");
@@ -130,3 +131,82 @@ export const swapMeal = async (userProfile: UserProfile, mealToSwap: Meal, day: 
         return null;
     }
 }
+
+export const getNutrientInfo = async (mealName: string): Promise<NutrientInfo | null> => {
+    const prompt = `
+      Analyze the food "${mealName}" and provide its estimated nutritional values for a standard serving.
+      Respond in JSON format with three keys: "calories" (number), "sugar" (number, in grams), and "salt" (number, in grams).
+      Only return the JSON object, with no other text or markdown.
+      Example: {"calories": 350, "sugar": 5, "salt": 0.5}
+    `;
+
+    try {
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+            }
+        });
+
+        const jsonString = response.text.trim();
+        const result = JSON.parse(jsonString);
+        
+        if (typeof result.calories === 'number' && typeof result.sugar === 'number' && typeof result.salt === 'number') {
+            return {
+                calories: result.calories,
+                sugar: result.sugar,
+                salt: result.salt,
+            };
+        }
+        
+        throw new Error("Invalid response format from Gemini API for nutrient info.");
+
+    } catch (error) {
+        console.error("Error getting nutrient info:", error);
+        return null;
+    }
+};
+
+export const getSymptomTips = async (symptom: SymptomType): Promise<RecommendedFood[] | null> => {
+    const prompt = `
+        Generate a list of recommended local Ugandan foods for a patient with cervical cancer experiencing ${symptom}.
+        The foods should be easy to digest, healthy, and help alleviate the symptom.
+        Avoid sugary, fried, spicy, or very fatty foods.
+        Respond ONLY with a JSON object. The object should have a single key "recommendations", which is an array of objects.
+        Each object in the array should have a "name" (string) and a "description" (string, max 20 words).
+        Provide 3 to 5 recommendations.
+        Example for Nausea:
+        {
+          "recommendations": [
+            {"name": "Ginger Tea (Tangawizi)", "description": "Soothes the stomach and is known to effectively reduce nausea."},
+            {"name": "Plain Posho", "description": "A bland, easy-to-digest carbohydrate that provides energy without upsetting the stomach."}
+          ]
+        }
+    `;
+
+    try {
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+            }
+        });
+
+        const jsonString = response.text.trim();
+        const result = JSON.parse(jsonString);
+
+        if (result.recommendations && Array.isArray(result.recommendations)) {
+            return result.recommendations.map((food: any) => ({
+                name: food.name,
+                description: food.description,
+                photoUrl: `https://picsum.photos/seed/${food.name.replace(/\s/g, '')}/400/300`,
+            }));
+        }
+        throw new Error("Invalid tips format from API.");
+    } catch (error) {
+        console.error("Error generating symptom tips:", error);
+        return null;
+    }
+};

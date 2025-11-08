@@ -44,6 +44,7 @@ const App: React.FC = () => {
                 cancerStage: CancerStage.EARLY,
                 otherConditions: [],
                 treatmentStages: [],
+                plan: 'Free',
               });
             }}
           />

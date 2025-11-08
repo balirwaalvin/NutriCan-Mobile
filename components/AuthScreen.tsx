@@ -61,15 +61,16 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
       ...formData,
       age: parseInt(formData.age, 10),
       gender: formData.gender,
+      plan: 'Free',
     });
   };
   
   const handleSignInSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // For demonstration, successful sign-in will use guest profile data.
-    // In a real app, you would verify credentials against a backend.
+    // For demonstration, successful sign-in will use a premium profile to showcase features.
+    // In a real app, you would verify credentials and fetch user plan from a backend.
     onAuthSuccess({
-      name: 'Guest User',
+      name: 'Premium User',
       age: 30,
       email: formData.email,
       gender: 'Prefer not to say',
@@ -77,6 +78,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
       cancerStage: CancerStage.EARLY,
       otherConditions: [],
       treatmentStages: [],
+      plan: 'Premium',
     });
   };
 
