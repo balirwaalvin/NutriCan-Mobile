@@ -58,8 +58,8 @@ const App: React.FC = () => {
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen bg-soft-lavender/20 font-sans dark:bg-gray-900">
-        <div className="max-w-sm mx-auto bg-white min-h-screen shadow-2xl shadow-purple-200 dark:bg-gray-800 dark:shadow-purple-900/50">
+      <div className="bg-gradient-background-light dark:bg-gradient-background-dark font-sans">
+        <div className="max-w-sm mx-auto bg-transparent min-h-screen shadow-2xl shadow-rose-900/20 dark:shadow-orange-900/50">
           {renderPage()}
         </div>
       </div>

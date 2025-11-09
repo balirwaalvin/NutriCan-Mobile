@@ -1,10 +1,8 @@
-
-
 import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry } from '../types';
 import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, FatigueIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips } from '../services/geminiService';
-import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { ThemeContext } from '../contexts/ThemeContext';
 
 // --- Reusable UI Components ---
@@ -19,13 +17,18 @@ const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: Das
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 max-w-sm mx-auto bg-white border-t border-gray-200 flex justify-around p-2 dark:bg-gray-800 dark:border-gray-700">
-      {navItems.map(item => (
-        <button key={item.page} onClick={() => onNavigate(item.page)} className="flex flex-col items-center justify-center w-16 h-16">
-          <item.icon className={`w-6 h-6 mb-1 ${activePage === item.page ? 'text-brand-purple' : 'text-gray-400'}`} />
-          <span className={`text-xs ${activePage === item.page ? 'text-brand-purple font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>{item.label}</span>
-        </button>
-      ))}
+    <div className="fixed bottom-0 left-0 right-0 max-w-sm mx-auto bg-white/70 backdrop-blur-xl border-t border-gray-200 flex justify-around p-2 dark:bg-slate-900/70 dark:border-slate-700">
+      {navItems.map(item => {
+          const isActive = activePage === item.page;
+          return (
+            <button key={item.page} onClick={() => onNavigate(item.page)} className="flex flex-col items-center justify-center w-16 h-16 rounded-lg transition-all transform hover:scale-110">
+              <div className="relative">
+                <item.icon className={`w-6 h-6 mb-1 transition-colors ${isActive ? 'text-brand-orange' : 'text-gray-400 dark:text-slate-500'}`} style={{filter: isActive ? 'drop-shadow(0 0 5px #F97316)' : 'none'}} />
+              </div>
+              <span className={`text-xs transition-colors ${isActive ? 'text-brand-orange font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>{item.label}</span>
+            </button>
+          )
+      })}
     </div>
   );
 };
@@ -34,12 +37,12 @@ const EmergencyButton: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   return (
     <>
-      <button onClick={() => setShowModal(true)} className="fixed bottom-20 right-4 bg-red-500 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg text-lg font-bold z-50">
+      <button onClick={() => setShowModal(true)} className="fixed bottom-24 right-4 bg-red-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg shadow-red-500/50 text-lg font-bold z-50 animate-pulse transition-transform hover:scale-110">
         SOS
       </button>
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowModal(false)}>
-          <div className="bg-white p-6 rounded-lg shadow-xl text-center dark:bg-gray-800 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowModal(false)}>
+          <div className="bg-white p-6 rounded-lg shadow-xl text-center dark:bg-slate-800 animate-fade-in-up" onClick={e => e.stopPropagation()}>
             <h2 className="text-xl font-bold mb-4 dark:text-white">Emergency Contact</h2>
             <button className="w-full bg-red-500 text-white py-2 rounded-lg mb-2">Call Hospital</button>
             <button className="w-full bg-blue-500 text-white py-2 rounded-lg">Call Caregiver</button>
@@ -75,32 +78,34 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
     useEffect(() => {
         const intervalId = setInterval(() => {
             setCurrentImageIndex(prevIndex => (prevIndex + 1) % imageUrls.length);
-        }, 3000); // Change image every 3 seconds
+        }, 5000); // Change image every 5 seconds for a smoother effect
 
         return () => clearInterval(intervalId); // Cleanup on component unmount
     }, [imageUrls.length]);
     
     return (
         <div className="p-4 animate-fade-in">
-            <div className="bg-soft-lavender p-4 rounded-xl mb-6 dark:bg-gray-700">
+            <div className="bg-gradient-header-light p-4 rounded-xl mb-6 dark:bg-gradient-header-dark shadow-lg">
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Hello, {userProfile.name}!</h1>
                 <p className="text-gray-600 dark:text-gray-300">Here's today's plan.</p>
             </div>
-            <div className="relative rounded-xl mb-6 w-full h-32 overflow-hidden">
+            <div className="relative rounded-xl mb-6 w-full h-40 overflow-hidden shadow-lg">
                 {imageUrls.map((url, index) => (
                     <img
                         key={url}
                         src={url}
                         alt="Fresh vegetables"
-                        className={`absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
+                        className={`absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out animate-ken-burns ${
                             index === currentImageIndex ? 'opacity-100' : 'opacity-0'
                         }`}
                     />
                 ))}
+                 <div className="absolute inset-0 bg-black/30"></div>
+                 <div className="absolute bottom-3 left-4 text-white font-bold text-lg drop-shadow-lg">Stay strong, eat well.</div>
             </div>
             <div className="grid grid-cols-2 gap-4 animate-stagger-children">
                 {features.map((feature, index) => (
-                    <button key={feature.name} onClick={feature.action} className="bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition text-center dark:bg-gray-700 dark:hover:shadow-purple-800/50" style={{ animationDelay: `${index * 100}ms` }}>
+                    <button key={feature.name} onClick={feature.action} className="bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition text-center dark:bg-slate-800/80 hover:-translate-y-1 duration-300 dark:hover:shadow-orange-700/30 dark:border dark:border-slate-700" style={{ animationDelay: `${index * 100}ms` }}>
                         <span className="font-semibold text-gray-700 dark:text-gray-200">{feature.name}</span>
                     </button>
                 ))}
@@ -110,9 +115,9 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
 };
 
 const Modal: React.FC<{ children: React.ReactNode; closeModal: () => void }> = ({ children, closeModal }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center animate-fade-in" onClick={closeModal}>
-        <div className="bg-white max-w-sm w-full h-full overflow-y-auto dark:bg-gray-900 animate-fade-in-up" onClick={e => e.stopPropagation()}>
-            <button onClick={closeModal} className="absolute top-4 right-4 text-2xl font-bold text-gray-600 dark:text-gray-400 z-10">&times;</button>
+    <div className="fixed inset-0 bg-black bg-opacity-60 z-40 flex items-center justify-center animate-fade-in" onClick={closeModal}>
+        <div className="bg-white max-w-sm w-full h-full overflow-y-auto dark:bg-slate-900 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+            <button onClick={closeModal} className="absolute top-4 right-4 text-3xl font-bold text-gray-600 dark:text-gray-400 z-10">&times;</button>
             {children}
         </div>
     </div>
@@ -128,24 +133,23 @@ const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () 
     }[meal.category] || <BowlIcon className="w-5 h-5" />;
 
     return (
-        <div className="bg-white rounded-xl shadow-md overflow-hidden dark:bg-gray-800 animate-fade-in-up" style={{ animationDelay: `${delay}ms` }}>
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden dark:bg-slate-800 animate-fade-in-up border-b-4 border-brand-orange" style={{ animationDelay: `${delay}ms` }}>
             <div className="relative">
                 <img src={meal.photoUrl} alt={meal.name} className="w-full h-32 object-cover"/>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                 {isSwapping && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><LogoIcon className="animate-spin h-8 w-8 text-white" /></div>}
+                <p className="absolute bottom-2 left-4 font-bold text-lg text-white drop-shadow-md">{meal.name}</p>
             </div>
             <div className="p-4">
                 <div className="flex justify-between items-start">
-                    <div>
-                        <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">{title}</h3>
-                        <p className="font-semibold text-brand-purple">{meal.name}</p>
-                    </div>
-                    <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-1 text-sm">
+                    <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">{title}</h3>
+                    <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-700 rounded-full px-3 py-1 text-sm text-brand-orange">
                         {categoryIcon}
                         <span className="dark:text-gray-300">{meal.category}</span>
                     </div>
                 </div>
                 <p className="text-gray-600 text-sm mt-1 dark:text-gray-400">{meal.description}</p>
-                <button onClick={onSwap} disabled={isSwapping} className="text-sm bg-gray-200 px-3 py-1 rounded-full mt-3 hover:bg-gray-300 disabled:opacity-50 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                <button onClick={onSwap} disabled={isSwapping} className="text-sm bg-gray-200 px-3 py-1 rounded-full mt-3 hover:bg-gray-300 disabled:opacity-50 dark:bg-slate-600 dark:text-gray-200 dark:hover:bg-slate-500">
                     Swap Meal
                 </button>
             </div>
@@ -186,22 +190,22 @@ const MealPlanScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile })
     setSwappingState(null);
   };
 
-  if (loading) return <div className="p-4 text-center dark:text-gray-300">Generating your personalized meal plan... <LogoIcon className="animate-spin h-8 w-8 mx-auto mt-4 text-brand-purple" /></div>;
+  if (loading) return <div className="p-4 text-center dark:text-gray-300">Generating your personalized meal plan... <LogoIcon className="animate-spin h-8 w-8 mx-auto mt-4 text-brand-orange" /></div>;
   if (!mealPlan) return <div className="p-4 text-center dark:text-gray-300">Could not generate a meal plan. Please try again later.</div>;
 
   const dayShortNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const selectedDayData = mealPlan[selectedDayIndex];
 
   return (
-    <div className="p-6 bg-gray-50 min-h-full dark:bg-gray-900">
-      <h2 className="text-2xl font-bold mb-4 dark:text-white animate-fade-in">Weekly Meal Plan</h2>
+    <div className="p-6 bg-transparent min-h-full">
+      <h2 className="text-3xl font-bold mb-4 dark:text-white animate-fade-in text-transparent bg-clip-text bg-gradient-primary">Weekly Meal Plan</h2>
       
-      <div className="flex justify-around mb-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+      <div className="flex justify-around mb-4 bg-gray-100 dark:bg-slate-800 p-1 rounded-xl">
         {dayShortNames.map((day, index) => (
           <button 
             key={day}
             onClick={() => setSelectedDayIndex(index)}
-            className={`px-3 py-2 rounded-lg font-semibold text-sm w-full transition-colors ${selectedDayIndex === index ? 'bg-brand-purple text-white shadow' : 'text-gray-700 dark:text-gray-300'}`}
+            className={`px-3 py-2 rounded-lg font-semibold text-sm w-full transition-all duration-300 ${selectedDayIndex === index ? 'bg-gradient-primary text-white shadow-md' : 'text-gray-700 dark:text-gray-300'}`}
           >
             {day}
           </button>
@@ -254,35 +258,44 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
         setLoading(false);
     };
 
-    const statusColors = {
-        [FoodSafetyStatus.SAFE]: 'bg-green-100 text-green-800 border-green-400 dark:bg-green-900/50 dark:text-green-300 dark:border-green-600',
-        [FoodSafetyStatus.LIMIT]: 'bg-yellow-100 text-yellow-800 border-yellow-400 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-600',
-        [FoodSafetyStatus.AVOID]: 'bg-red-100 text-red-800 border-red-400 dark:bg-red-900/50 dark:text-red-300 dark:border-red-600',
+    const statusStyles = {
+        [FoodSafetyStatus.SAFE]: {
+            base: 'bg-emerald-50 text-emerald-800 border-emerald-400 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-600',
+            shadow: 'shadow-glow-emerald',
+        },
+        [FoodSafetyStatus.LIMIT]: {
+            base: 'bg-yellow-50 text-yellow-800 border-yellow-400 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-600',
+            shadow: 'shadow-glow-yellow',
+        },
+        [FoodSafetyStatus.AVOID]: {
+            base: 'bg-red-50 text-red-800 border-red-400 dark:bg-red-900/50 dark:text-red-300 dark:border-red-600',
+            shadow: 'shadow-glow-red',
+        },
     };
 
     return (
         <div className="p-6 animate-fade-in">
-            <h2 className="text-2xl font-bold mb-4 dark:text-white">Food Safety Checker</h2>
+            <h2 className="text-3xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-primary">Food Safety Checker</h2>
             <form onSubmit={handleSearch} className="flex gap-2 mb-4">
                 <input 
                     type="text"
                     value={food}
                     onChange={(e) => setFood(e.target.value)}
                     placeholder="e.g., Avocado"
-                    className="flex-grow p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    className="flex-grow p-3 border rounded-lg bg-transparent border-slate-300 dark:border-slate-700 dark:text-white focus:ring-brand-orange focus:border-brand-orange focus:shadow-glow-primary transition-shadow"
                 />
-                <button type="submit" className="bg-brand-purple text-white p-3 rounded-lg">
+                <button type="submit" className="bg-gradient-primary text-white p-3 rounded-lg hover:shadow-glow-primary transition-shadow">
                     <SearchIcon className="w-6 h-6"/>
                 </button>
             </form>
 
-            {loading && <p className="dark:text-gray-300">Checking...</p>}
+            {loading && <div className="text-center p-8"><LogoIcon className="animate-spin h-8 w-8 mx-auto text-brand-orange" /></div>}
             {result && (
-                <div className={`p-4 rounded-lg border-2 ${statusColors[result.status]} animate-fade-in`}>
+                <div className={`p-4 rounded-lg border-2 shadow-lg ${statusStyles[result.status].base} ${statusStyles[result.status].shadow} animate-fade-in`}>
                     <div className="flex items-center">
-                        <img src={`https://picsum.photos/seed/${food}/100/100`} alt={food} className="w-16 h-16 rounded-lg mr-4 object-cover"/>
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_and_magnifying_glass.jpg/1024px-Apple_and_magnifying_glass.jpg" alt={food} className="w-16 h-16 rounded-lg mr-4 object-cover"/>
                         <div>
-                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusColors[result.status]}`}>{result.status}</span>
+                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusStyles[result.status].base}`}>{result.status}</span>
                             <p className="font-semibold text-lg mt-1 dark:text-gray-100">{food}</p>
                         </div>
                     </div>
@@ -300,8 +313,8 @@ const NutrientTrackerScreen: React.FC = () => {
     const [isAddingMeal, setIsAddingMeal] = useState(false);
 
     const nutrientData = [
-        { name: 'Calories', value: nutrients.calories, goal: 2000, unit: 'kcal', color: '#8B5CF6' },
-        { name: 'Sugar', value: nutrients.sugar, goal: 50, unit: 'g', color: '#EC4899' },
+        { name: 'Calories', value: nutrients.calories, goal: 2000, unit: 'kcal', color: '#F97316' },
+        { name: 'Sugar', value: nutrients.sugar, goal: 50, unit: 'g', color: '#F43F5E' },
         { name: 'Salt', value: nutrients.salt, goal: 2.3, unit: 'g', color: '#3B82F6' },
     ];
     
@@ -327,7 +340,7 @@ const NutrientTrackerScreen: React.FC = () => {
 
     return (
         <div className="p-6 animate-fade-in relative min-h-full">
-            <h2 className="text-2xl font-bold mb-4 dark:text-white">Nutrient Tracker</h2>
+            <h2 className="text-3xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-primary">Nutrient Tracker</h2>
             <div className="grid grid-cols-3 gap-4 text-center">
                 {nutrientData.map(item => {
                     const percentage = Math.min((item.value / item.goal) * 100, 100);
@@ -338,7 +351,7 @@ const NutrientTrackerScreen: React.FC = () => {
                                 <PieChart>
                                     <Pie data={[{ value: percentage }, { value: 100 - percentage }]} dataKey="value" cx="50%" cy="50%" innerRadius={30} outerRadius={40} startAngle={90} endAngle={-270} paddingAngle={0} cornerRadius={20} isAnimationActive={true}>
                                         <Cell fill={isOver ? '#EF4444' : item.color} />
-                                        <Cell fill="#E5E7EB" />
+                                        <Cell fill="#475569" />
                                     </Pie>
                                 </PieChart>
                             </ResponsiveContainer>
@@ -353,7 +366,7 @@ const NutrientTrackerScreen: React.FC = () => {
             
             <div className={`mt-6 p-4 rounded-lg text-center font-semibold flex items-center justify-center gap-2 ${isOverAnyLimit 
                 ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300' 
-                : 'bg-soft-mint text-brand-mint dark:bg-brand-mint/20'}`
+                : 'bg-emerald-100 text-brand-emerald dark:bg-brand-emerald/20'}`
             }>
                 {!isOverAnyLimit && <img src="https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2Fsmiling-apple.png?alt=media&token=e9d05f31-5a0a-42d3-832f-5cb0f56a591e" alt="Smiling Apple" className="w-8 h-8"/>}
                 <p>
@@ -365,27 +378,27 @@ const NutrientTrackerScreen: React.FC = () => {
             
             <button 
                 onClick={() => setIsAddMealModalOpen(true)}
-                className="absolute bottom-6 right-6 bg-brand-purple text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg hover:bg-brand-purple/90 transition-transform transform hover:scale-110"
+                className="absolute bottom-6 right-6 bg-gradient-primary text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg hover:shadow-glow-primary transition-all transform hover:scale-110 animate-pulse-glow"
                 aria-label="Add Meal"
             >
                 <PlusIcon className="w-8 h-8"/>
             </button>
 
             {isAddMealModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in" onClick={() => setIsAddMealModalOpen(false)}>
-                    <div className="bg-white p-6 rounded-lg shadow-xl text-center w-full max-w-xs dark:bg-gray-800 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fade-in" onClick={() => setIsAddMealModalOpen(false)}>
+                    <div className="bg-white p-6 rounded-lg shadow-xl text-center w-full max-w-xs dark:bg-slate-800 animate-fade-in-up" onClick={e => e.stopPropagation()}>
                         <h2 className="text-xl font-bold mb-4 dark:text-white">Add a Meal</h2>
                         <input
                             type="text"
                             value={mealName}
                             onChange={(e) => setMealName(e.target.value)}
                             placeholder="e.g., A plate of matoke"
-                            className="w-full p-3 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white mb-4"
+                            className="w-full p-3 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white mb-4 focus:ring-brand-orange focus:border-brand-orange"
                         />
                         <button 
                             onClick={handleAddMeal} 
                             disabled={isAddingMeal}
-                            className="w-full bg-brand-purple text-white py-2 rounded-lg disabled:bg-gray-400"
+                            className="w-full bg-gradient-primary text-white py-2 rounded-lg disabled:bg-gray-400"
                         >
                             {isAddingMeal ? 'Analyzing...' : 'Add Meal'}
                         </button>
@@ -414,9 +427,9 @@ const SymptomTipsScreen: React.FC = () => {
     });
 
     const symptomConfig = useMemo(() => ({
-        [SymptomType.NAUSEA]: { icon: NauseaIcon, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/50' },
+        [SymptomType.NAUSEA]: { icon: NauseaIcon, color: 'text-emerald-600', bg: 'bg-emerald-100 dark:bg-emerald-900/50' },
         [SymptomType.FATIGUE]: { icon: FatigueIcon, color: 'text-yellow-600', bg: 'bg-yellow-100 dark:bg-yellow-900/50' },
-        [SymptomType.MOUTH_SORES]: { icon: MouthSoreIcon, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/50' },
+        [SymptomType.MOUTH_SORES]: { icon: MouthSoreIcon, color: 'text-sky-600', bg: 'bg-sky-100 dark:bg-sky-900/50' },
     }), []);
 
     const fetchAndSetTips = useCallback(async (symptom: SymptomType) => {
@@ -452,14 +465,14 @@ const SymptomTipsScreen: React.FC = () => {
     if (viewingSymptom) {
         return (
             <div className="p-6 animate-fade-in min-h-full">
-                <button onClick={() => setViewingSymptom(null)} className="mb-4 text-brand-purple font-semibold flex items-center gap-1">&larr; Back to Symptoms</button>
+                <button onClick={() => setViewingSymptom(null)} className="mb-4 text-brand-orange font-semibold flex items-center gap-1">&larr; Back to Symptoms</button>
                 <h2 className="text-2xl font-bold mb-4 dark:text-white">Tips for {viewingSymptom}</h2>
-                {loading && <div className="text-center p-8"><LogoIcon className="animate-spin h-8 w-8 mx-auto text-brand-purple" /></div>}
+                {loading && <div className="text-center p-8"><LogoIcon className="animate-spin h-8 w-8 mx-auto text-brand-orange" /></div>}
                 
                 {currentTips && (
                     <div className="space-y-3 animate-fade-in-up">
                         {currentTips.map((food, index) => (
-                            <div key={index} className="flex items-start bg-white p-3 rounded-lg shadow-sm dark:bg-gray-800">
+                            <div key={index} className="flex items-start bg-white p-3 rounded-lg shadow-sm dark:bg-slate-800">
                                 <img src={food.photoUrl} alt={food.name} className="w-16 h-16 rounded-md object-cover mr-4" />
                                 <div>
                                     <h3 className="font-bold text-gray-800 dark:text-gray-100">{food.name}</h3>
@@ -470,7 +483,7 @@ const SymptomTipsScreen: React.FC = () => {
                         <button 
                             onClick={handleSaveTips}
                             disabled={isCurrentTipSaved}
-                            className="w-full font-bold py-3 rounded-xl mt-4 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed bg-brand-purple text-white hover:bg-brand-purple/90"
+                            className="w-full font-bold py-3 rounded-xl mt-4 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed bg-gradient-primary text-white hover:shadow-glow-primary"
                         >
                             {isCurrentTipSaved ? 'Saved' : 'Save for Later'}
                         </button>
@@ -484,7 +497,7 @@ const SymptomTipsScreen: React.FC = () => {
 
     return (
         <div className="p-6 animate-fade-in">
-            <h2 className="text-2xl font-bold mb-4 dark:text-white">Symptom-Based Tips</h2>
+            <h2 className="text-3xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-primary">Symptom-Based Tips</h2>
             <p className="text-gray-500 mb-6 dark:text-gray-400">Get food recommendations to help manage common symptoms.</p>
             <div className="space-y-4">
                 {Object.values(SymptomType).map(symptom => {
@@ -493,7 +506,7 @@ const SymptomTipsScreen: React.FC = () => {
                         <button 
                             key={symptom} 
                             onClick={() => handleViewSymptom(symptom)}
-                            className={`flex items-center w-full text-left p-4 rounded-xl shadow-sm hover:shadow-md transition ${config.bg}`}
+                            className={`flex items-center w-full text-left p-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 ${config.bg}`}
                         >
                             <config.icon className={`w-8 h-8 mr-4 ${config.color}`} />
                             <span className={`font-semibold flex-grow ${config.color}`}>{symptom}</span>
@@ -511,7 +524,7 @@ const SymptomTipsScreen: React.FC = () => {
                             <button 
                                 key={symptom} 
                                 onClick={() => handleViewSymptom(symptom as SymptomType)}
-                                className="w-full text-left bg-gray-100 p-3 rounded-lg dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                                className="w-full text-left bg-gray-100 p-3 rounded-lg dark:bg-slate-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-slate-600"
                             >
                                 View saved tips for {symptom}
                             </button>
@@ -571,27 +584,36 @@ const ProgressJournalScreen: React.FC = () => {
 
     return (
         <div className="p-6 animate-fade-in">
-            <h2 className="text-2xl font-bold mb-4 dark:text-white">Progress Journal</h2>
+            <h2 className="text-3xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-primary">Progress Journal</h2>
             <ResponsiveContainer width="100%" height={200}>
-                <ComposedChart data={journalData}>
+                <AreaChart data={journalData}>
+                    <defs>
+                        <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#F97316" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#F97316" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorEnergy" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                        </linearGradient>
+                    </defs>
                     <XAxis dataKey="name" />
-                    <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                    <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
+                    <YAxis yAxisId="left" orientation="left" stroke="#F97316" />
+                    <YAxis yAxisId="right" orientation="right" stroke="#10B981" />
                     <Tooltip />
                     <Legend />
-                    <Bar yAxisId="left" dataKey="weight" fill="#8884d8" name="Weight (kg)" isAnimationActive={true}/>
-                    <Bar yAxisId="right" dataKey="energy" fill="#82ca9d" name="Energy (1-10)" isAnimationActive={true}/>
-                    <Line yAxisId="left" type="monotone" dataKey="bp" stroke="#ff7300" name="Blood Pressure" isAnimationActive={true} />
-                </ComposedChart>
+                    <Area yAxisId="left" type="monotone" dataKey="weight" stroke="#F97316" fill="url(#colorWeight)" name="Weight (kg)" isAnimationActive={true}/>
+                    <Area yAxisId="right" type="monotone" dataKey="energy" stroke="#10B981" fill="url(#colorEnergy)" name="Energy (1-10)" isAnimationActive={true}/>
+                </AreaChart>
             </ResponsiveContainer>
-             <div className="mt-6 p-4 bg-yellow-100 rounded-lg text-center text-yellow-800 font-semibold dark:bg-yellow-900/50 dark:text-yellow-300">
+             <div className="mt-6 p-4 bg-emerald-100 rounded-lg text-center text-emerald-800 font-semibold dark:bg-emerald-900/50 dark:text-emerald-300">
                 <p>You're improving! Keep going!</p>
             </div>
-            <button onClick={() => setIsModalOpen(true)} className="w-full bg-brand-purple text-white font-bold py-3 rounded-xl mt-4 dark:bg-brand-purple/80 dark:hover:bg-brand-purple">Add New Entry</button>
+            <button onClick={() => setIsModalOpen(true)} className="btn-primary mt-4">Add New Entry</button>
         
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in" onClick={() => setIsModalOpen(false)}>
-                    <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-xs dark:bg-gray-800 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fade-in" onClick={() => setIsModalOpen(false)}>
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-xs dark:bg-slate-800 animate-fade-in-up" onClick={e => e.stopPropagation()}>
                         <h2 className="text-xl font-bold mb-4 dark:text-white text-center">Add New Entry</h2>
                         <form onSubmit={handleAddEntry} className="space-y-4">
                             <div>
@@ -602,7 +624,7 @@ const ProgressJournalScreen: React.FC = () => {
                                     name="weight"
                                     value={newEntry.weight}
                                     onChange={handleInputChange}
-                                    className="w-full p-2 border rounded-lg mt-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    className="w-full p-2 border rounded-lg mt-1 dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-orange focus:border-brand-orange"
                                     required
                                     step="0.1"
                                 />
@@ -615,7 +637,7 @@ const ProgressJournalScreen: React.FC = () => {
                                     name="bp"
                                     value={newEntry.bp}
                                     onChange={handleInputChange}
-                                    className="w-full p-2 border rounded-lg mt-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    className="w-full p-2 border rounded-lg mt-1 dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-orange focus:border-brand-orange"
                                     required
                                 />
                             </div>
@@ -627,17 +649,17 @@ const ProgressJournalScreen: React.FC = () => {
                                     name="energy"
                                     value={newEntry.energy}
                                     onChange={handleInputChange}
-                                    className="w-full p-2 border rounded-lg mt-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    className="w-full p-2 border rounded-lg mt-1 dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-orange focus:border-brand-orange"
                                     required
                                     min="1"
                                     max="10"
                                 />
                             </div>
                             <div className="flex gap-2 pt-2">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="w-full bg-gray-200 text-gray-700 font-bold py-2 rounded-xl hover:bg-gray-300 transition dark:bg-gray-600 dark:text-gray-200">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="w-full bg-gray-200 text-gray-700 font-bold py-2 rounded-xl hover:bg-gray-300 transition dark:bg-slate-600 dark:text-gray-200">
                                     Cancel
                                 </button>
-                                <button type="submit" className="w-full bg-brand-purple text-white font-bold py-2 rounded-xl hover:bg-brand-purple/90 transition">
+                                <button type="submit" className="w-full bg-gradient-primary text-white font-bold py-2 rounded-xl hover:shadow-glow-primary transition">
                                     Save Entry
                                 </button>
                             </div>
@@ -653,7 +675,7 @@ const ToggleSwitch: React.FC<{ isEnabled: boolean; onToggle: () => void; color: 
     return (
         <label className="relative inline-flex items-center cursor-pointer">
           <input type="checkbox" checked={isEnabled} onChange={onToggle} className="sr-only peer" />
-          <div className={`w-11 h-6 bg-gray-300 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isEnabled ? color : ''}`}></div>
+          <div className={`w-11 h-6 bg-gray-300 rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isEnabled ? color : ''}`}></div>
         </label>
     );
 };
@@ -708,28 +730,28 @@ const RemindersScreen: React.FC = () => {
             key: 'meal' as const,
             title: "Set Meal Reminders",
             description: "Reminders are set for every 3 hours.",
-            colorClasses: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300",
-            toggleColor: "bg-purple-500",
+            colorClasses: "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300",
+            toggleColor: "bg-brand-orange",
         },
         {
             key: 'water' as const,
             title: "Set Water Reminders",
             description: "Stay hydrated throughout the day.",
-            colorClasses: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300",
-            toggleColor: "bg-blue-500",
+            colorClasses: "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-300",
+            toggleColor: "bg-sky-500",
         },
         {
             key: 'medication' as const,
             title: "Set Medication Reminders",
             description: "Never miss a dose.",
-            colorClasses: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300",
-            toggleColor: "bg-green-500",
+            colorClasses: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300",
+            toggleColor: "bg-brand-emerald",
         },
     ];
 
     return (
         <div className="p-6 animate-fade-in">
-            <h2 className="text-2xl font-bold mb-6 dark:text-white">Reminders & Alerts</h2>
+            <h2 className="text-3xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-primary">Reminders & Alerts</h2>
             <div className="space-y-4">
                 {reminderConfig.map(config => (
                     <ReminderCard
@@ -749,16 +771,16 @@ const RemindersScreen: React.FC = () => {
 
 const LibraryScreen: React.FC = () => {
   const articles = [
-    { title: "Healthy Recipes for Chemo", img: "https://picsum.photos/seed/recipes/200/100" },
-    { title: "Managing Side Effects", img: "https://picsum.photos/seed/manage/200/100" },
-    { title: "The Power of Hydration", img: "https://picsum.photos/seed/water/200/100" },
+    { title: "Healthy Recipes for Chemo", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Vegetable_Stir-Fry.jpg/1280px-Vegetable_Stir-Fry.jpg" },
+    { title: "Managing Side Effects", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Tea_in_glass_cup.jpg/1024px-Tea_in_glass_cup.jpg" },
+    { title: "The Power of Hydration", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/A_glass_of_water.jpg/800px-A_glass_of_water.jpg" },
   ];
   return (
     <div className="p-4 animate-fade-in">
-      <h1 className="text-2xl font-bold mb-4 dark:text-white">Offline Library</h1>
+      <h1 className="text-3xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-primary">Offline Library</h1>
       <div className="space-y-4 animate-stagger-children">
         {articles.map((article, index) => (
-          <div key={article.title} className="flex items-center bg-white p-3 rounded-lg shadow-sm dark:bg-gray-800" style={{ animationDelay: `${index * 100}ms` }}>
+          <div key={article.title} className="flex items-center bg-white p-3 rounded-lg shadow-sm dark:bg-slate-800 transition-transform hover:-translate-y-1" style={{ animationDelay: `${index * 100}ms` }}>
             <img src={article.img} alt={article.title} className="w-24 h-16 rounded-md object-cover mr-4" />
             <span className="font-semibold text-gray-700 flex-grow dark:text-gray-300">{article.title}</span>
             <button className="text-gray-400 dark:text-gray-500">&#x2B07;</button>
@@ -774,24 +796,24 @@ const DoctorConnectScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         // Premium View
         return (
             <div className="p-6 h-full flex flex-col justify-center animate-fade-in">
-                <h1 className="text-2xl font-bold mb-6 dark:text-white text-center">Doctor Connect</h1>
+                <h1 className="text-3xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-primary text-center">Doctor Connect</h1>
                 <div className="space-y-4 animate-stagger-children">
-                    <button className="w-full bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center dark:bg-gray-700">
-                        <ChatBubbleIcon className="w-8 h-8 text-brand-purple mr-4" />
+                    <button className="w-full bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center dark:bg-slate-800/80 hover:-translate-y-1 duration-300 dark:hover:shadow-orange-700/30">
+                        <ChatBubbleIcon className="w-8 h-8 text-brand-orange mr-4" />
                         <div>
                             <p className="font-semibold text-lg text-gray-800 dark:text-gray-100 text-left">Chat</p>
                             <p className="text-sm text-gray-500 dark:text-gray-400 text-left">Message your nutritionist</p>
                         </div>
                     </button>
-                    <button className="w-full bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center dark:bg-gray-700">
-                        <VideoCallIcon className="w-8 h-8 text-brand-purple mr-4" />
+                    <button className="w-full bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center dark:bg-slate-800/80 hover:-translate-y-1 duration-300 dark:hover:shadow-orange-700/30">
+                        <VideoCallIcon className="w-8 h-8 text-brand-orange mr-4" />
                         <div>
                              <p className="font-semibold text-lg text-gray-800 dark:text-gray-100 text-left">Video Call</p>
                              <p className="text-sm text-gray-500 dark:text-gray-400 text-left">Schedule a live session</p>
                         </div>
                     </button>
-                    <button className="w-full bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center dark:bg-gray-700">
-                        <ShareIcon className="w-8 h-8 text-brand-purple mr-4" />
+                    <button className="w-full bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center dark:bg-slate-800/80 hover:-translate-y-1 duration-300 dark:hover:shadow-orange-700/30">
+                        <ShareIcon className="w-8 h-8 text-brand-orange mr-4" />
                         <div>
                             <p className="font-semibold text-lg text-gray-800 dark:text-gray-100 text-left">Share Progress</p>
                             <p className="text-sm text-gray-500 dark:text-gray-400 text-left">Send logs and reports</p>
@@ -805,12 +827,12 @@ const DoctorConnectScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfi
     // Free View (Teaser)
     return (
         <div className="p-6 text-center flex flex-col items-center justify-center h-full animate-fade-in">
-            <h1 className="text-2xl font-bold mb-6 dark:text-white">Doctor Connect</h1>
-            <div className="border-2 border-brand-purple border-dashed p-8 rounded-xl dark:border-brand-purple/50 w-full">
-                <PremiumIcon className="w-16 h-16 text-brand-purple mx-auto mb-4" />
+            <h1 className="text-3xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-primary">Doctor Connect</h1>
+            <div className="border-2 border-brand-orange border-dashed p-8 rounded-xl dark:border-brand-orange/50 w-full">
+                <PremiumIcon className="w-16 h-16 text-brand-orange mx-auto mb-4" />
                 <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Need extra guidance?</h2>
                 <p className="text-gray-600 mt-2 dark:text-gray-400">Upgrade to chat with a certified nutritionist.</p>
-                <button className="mt-6 bg-brand-purple text-white font-bold py-2 px-6 rounded-lg">Upgrade Now</button>
+                <button className="btn-primary mt-6">Upgrade Now</button>
             </div>
         </div>
     );
@@ -831,21 +853,21 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void }
     return (
         <div className="p-6 animate-fade-in">
             <div className="flex flex-col items-center mb-6 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-                <UserIcon className="w-24 h-24 text-gray-400 bg-gray-200 rounded-full p-4 mb-4 dark:bg-gray-700 dark:text-gray-400" />
+                <UserIcon className="w-24 h-24 text-gray-400 bg-gray-200 rounded-full p-4 mb-4 dark:bg-slate-700 dark:text-gray-400" />
                 <h2 className="text-2xl font-bold dark:text-white">{userProfile.name}</h2>
-                <p className="text-gray-500 dark:text-gray-400">{userProfile.email}</p>
+                <p className="text-gray-500 dark:text-gray-400">{userProfile.email || 'guest@nutrican.app'}</p>
             </div>
             <div className="space-y-3 animate-stagger-children">
                 {menuItems.map((item, index) => (
                     <button 
                         key={item.label}
                         onClick={item.action} 
-                        className="w-full text-left bg-gray-100 p-3 rounded-lg flex justify-between items-center dark:bg-gray-700 dark:text-gray-200"
+                        className="w-full text-left bg-gray-100 p-3 rounded-lg flex justify-between items-center dark:bg-slate-800 dark:text-gray-200 transition-transform hover:bg-gray-200 dark:hover:bg-slate-700 hover:scale-105"
                         style={{ animationDelay: `${200 + index * 100}ms` }}
                     >
                         <span>{item.label}</span>
                         {item.isToggle && (
-                            <span className="capitalize bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-md text-sm">
+                            <span className="capitalize bg-gray-200 dark:bg-slate-600 px-2 py-1 rounded-md text-sm">
                                 {theme === 'dark' ? '🌙 Dark' : '☀️ Light'}
                             </span>
                         )}
@@ -853,7 +875,7 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void }
                 ))}
                 <button 
                   onClick={onLogout} 
-                  className="w-full text-left bg-red-100 text-red-600 p-3 rounded-lg font-semibold dark:bg-red-900/50 dark:text-red-400"
+                  className="w-full text-left bg-red-100 text-red-600 p-3 rounded-lg font-semibold dark:bg-red-900/50 dark:text-red-400 transition-transform hover:scale-105"
                   style={{ animationDelay: `${200 + menuItems.length * 100}ms` }}
                 >
                   Logout
@@ -886,7 +908,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
   const CurrentPage = pages[activePage] || pages.home;
 
   return (
-    <div className="pb-20 relative min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="pb-24 relative min-h-screen bg-transparent">
       <div className="pt-4">{CurrentPage}</div>
       <EmergencyButton />
       <BottomNavBar activePage={activePage} onNavigate={setActivePage} />

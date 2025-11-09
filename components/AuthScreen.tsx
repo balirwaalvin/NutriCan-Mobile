@@ -82,21 +82,23 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
     });
   };
 
+  const commonInputClasses = "w-full p-3 border rounded-lg bg-transparent border-slate-300 dark:border-slate-700 dark:text-white focus:ring-brand-orange focus:border-brand-orange focus:shadow-glow-primary transition-shadow";
+
   const renderSignUpStep1 = () => (
     <form onSubmit={handleNextStep} className="space-y-4">
       <h1 className="text-2xl font-bold text-gray-800 text-center dark:text-gray-100">Create Your Account</h1>
-      <input type="text" name="name" placeholder="Nickname" value={formData.name} onChange={handleChange} className="w-full p-3 border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white" required />
-      <input type="number" name="age" placeholder="Age" value={formData.age} onChange={handleChange} className="w-full p-3 border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white" required />
-      <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} className="w-full p-3 border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white" required />
-      <input type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} className="w-full p-3 border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white" required />
-      <select name="gender" value={formData.gender} onChange={handleChange} className="w-full p-3 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+      <input type="text" name="name" placeholder="Nickname" value={formData.name} onChange={handleChange} className={commonInputClasses} required />
+      <input type="number" name="age" placeholder="Age" value={formData.age} onChange={handleChange} className={commonInputClasses} required />
+      <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} className={commonInputClasses} required />
+      <input type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} className={commonInputClasses} required />
+      <select name="gender" value={formData.gender} onChange={handleChange} className={commonInputClasses}>
         <option>Female</option>
         <option>Male</option>
       </select>
-      <button type="submit" className="w-full bg-brand-purple text-white font-bold py-3 rounded-xl mt-4">Next</button>
+      <button type="submit" className="btn-primary mt-4">Next</button>
       <p className="text-center text-sm text-gray-600 dark:text-gray-400">
         Already have an account?{' '}
-        <button type="button" onClick={() => setView('signIn')} className="font-semibold text-brand-purple">Sign In</button>
+        <button type="button" onClick={() => setView('signIn')} className="font-semibold text-brand-orange">Sign In</button>
       </p>
     </form>
   );
@@ -107,12 +109,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
       <img 
         src="https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FCervical.png?alt=media&token=a93b20a3-e750-40d9-a8c0-8822dd560e9c" 
         alt="Cervical Cancer Information" 
-        className="rounded-xl mx-auto my-4 w-full max-w-xs"
+        className="rounded-xl mx-auto my-4 w-full max-w-xs shadow-lg"
       />
       <p className="text-gray-500 mb-6 dark:text-gray-400">
         Please note that NutriCan is currently focused on providing support for individuals with Cervical Cancer.
       </p>
-      <button onClick={handleNextStepClick} className="w-full bg-brand-purple text-white font-bold py-3 rounded-xl mt-4">Continue</button>
+      <button onClick={handleNextStepClick} className="btn-primary mt-4">Continue</button>
     </div>
   );
 
@@ -123,13 +125,13 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
       
       <div className="space-y-2 pt-2">
         {Object.values(OtherCondition).map(cond => (
-          <label key={cond} className="flex items-center space-x-3 p-3 border rounded-lg dark:border-gray-700 dark:text-gray-300 has-[:checked]:bg-purple-50 has-[:checked]:border-brand-purple dark:has-[:checked]:bg-purple-900/50 dark:has-[:checked]:border-brand-purple">
-            <input type="checkbox" checked={formData.otherConditions.includes(cond)} onChange={() => handleCheckboxChange(cond)} className="h-5 w-5 text-brand-purple focus:ring-brand-purple rounded bg-gray-100 border-gray-300 dark:bg-gray-700 dark:border-gray-600" />
+          <label key={cond} className="flex items-center space-x-3 p-3 border-2 rounded-lg dark:border-slate-700 dark:text-gray-300 has-[:checked]:bg-rose-50 has-[:checked]:border-brand-rose dark:has-[:checked]:bg-rose-900/50 dark:has-[:checked]:border-brand-rose transition-colors">
+            <input type="checkbox" checked={formData.otherConditions.includes(cond)} onChange={() => handleCheckboxChange(cond)} className="h-5 w-5 text-brand-orange focus:ring-brand-orange rounded bg-gray-100 border-gray-300 dark:bg-slate-700 dark:border-slate-600" />
             <span>{cond}</span>
           </label>
         ))}
       </div>
-      <button type="submit" className="w-full bg-brand-purple text-white font-bold py-3 rounded-xl mt-4">Next</button>
+      <button type="submit" className="btn-primary mt-4">Next</button>
     </form>
   );
 
@@ -137,10 +139,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
     <form onSubmit={handleNextStep} className="space-y-4">
       <h1 className="text-2xl font-bold text-gray-800 text-center dark:text-gray-100">Cancer Stage</h1>
       <p className="text-center text-gray-500 mb-4 dark:text-gray-400">Please select your current cancer stage.</p>
-      <select name="cancerStage" value={formData.cancerStage} onChange={handleChange} className="w-full p-3 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+      <select name="cancerStage" value={formData.cancerStage} onChange={handleChange} className={commonInputClasses}>
         {Object.values(CancerStage).map(stage => <option key={stage}>{stage}</option>)}
       </select>
-      <button type="submit" className="w-full bg-brand-purple text-white font-bold py-3 rounded-xl mt-4">Next</button>
+      <button type="submit" className="btn-primary mt-4">Next</button>
     </form>
   );
 
@@ -148,8 +150,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
     <div className="text-center">
       <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Almost There!</h1>
       <p className="text-gray-500 mb-6 dark:text-gray-400">Just a couple more questions to personalize your experience.</p>
-      <img src="https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2Fpatient%20filling%20form.png?alt=media&token=011d0896-a218-418a-a3a1-21c7174e17ce" alt="Patient filling out profile" className="rounded-xl mx-auto my-4 w-full max-w-xs"/>
-      <button onClick={handleNextStepClick} className="w-full bg-brand-purple text-white font-bold py-3 rounded-xl mt-4">Next</button>
+      <img src="https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2Fpatient%20filling%20form.png?alt=media&token=011d0896-a218-418a-a3a1-21c7174e17ce" alt="Patient filling out profile" className="rounded-xl mx-auto my-4 w-full max-w-xs shadow-lg"/>
+      <button onClick={handleNextStepClick} className="btn-primary mt-4">Next</button>
     </div>
 );
 
@@ -159,13 +161,13 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
       <p className="text-center text-gray-500 dark:text-gray-400">Select your current treatment stage(s).</p>
       <div className="space-y-2 pt-2">
         {Object.values(TreatmentStage).map(stage => (
-          <label key={stage} className="flex items-center space-x-3 p-3 border rounded-lg dark:border-gray-700 dark:text-gray-300 has-[:checked]:bg-purple-50 has-[:checked]:border-brand-purple dark:has-[:checked]:bg-purple-900/50 dark:has-[:checked]:border-brand-purple">
-            <input type="checkbox" checked={formData.treatmentStages.includes(stage)} onChange={() => handleTreatmentStageChange(stage)} className="h-5 w-5 text-brand-purple focus:ring-brand-purple rounded bg-gray-100 border-gray-300 dark:bg-gray-700 dark:border-gray-600" />
+          <label key={stage} className="flex items-center space-x-3 p-3 border-2 rounded-lg dark:border-slate-700 dark:text-gray-300 has-[:checked]:bg-rose-50 has-[:checked]:border-brand-rose dark:has-[:checked]:bg-rose-900/50 dark:has-[:checked]:border-brand-rose transition-colors">
+            <input type="checkbox" checked={formData.treatmentStages.includes(stage)} onChange={() => handleTreatmentStageChange(stage)} className="h-5 w-5 text-brand-orange focus:ring-brand-orange rounded bg-gray-100 border-gray-300 dark:bg-slate-700 dark:border-slate-600" />
             <span>{stage}</span>
           </label>
         ))}
       </div>
-      <button type="submit" className="w-full bg-brand-purple text-white font-bold py-3 rounded-xl mt-4">Complete Profile</button>
+      <button type="submit" className="btn-primary mt-4">Complete Profile</button>
     </form>
   );
 
@@ -185,26 +187,26 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   const renderSignInForm = () => (
     <form onSubmit={handleSignInSubmit} className="space-y-4">
       <h1 className="text-2xl font-bold text-gray-800 text-center dark:text-gray-100">Sign In</h1>
-      <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} className="w-full p-3 border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white" required />
-      <input type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} className="w-full p-3 border rounded-lg dark:bg-gray-800 dark:border-gray-700 dark:text-white" required />
-      <button type="submit" className="w-full bg-brand-purple text-white font-bold py-3 rounded-xl mt-4">Sign In</button>
+      <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} className={commonInputClasses} required />
+      <input type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} className={commonInputClasses} required />
+      <button type="submit" className="btn-primary mt-4">Sign In</button>
       <p className="text-center text-sm text-gray-600 dark:text-gray-400">
         Don't have an account?{' '}
-        <button type="button" onClick={() => { setStep(1); setView('signUp'); }} className="font-semibold text-brand-purple">Sign Up</button>
+        <button type="button" onClick={() => { setStep(1); setView('signUp'); }} className="font-semibold text-brand-orange">Sign Up</button>
       </p>
     </form>
   );
 
   const renderInitialView = () => (
     <div className="flex flex-col items-center justify-center h-full text-center">
-        <LogoIcon className="w-24 h-24 text-brand-purple mx-auto mb-4" />
+        <LogoIcon className="w-24 h-24 text-brand-orange mx-auto mb-4 filter drop-shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
         <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Welcome to NutriCan</h1>
         <p className="text-gray-600 mt-2 mb-8 dark:text-gray-400">Your personalized nutrition guide.</p>
         <div className="w-full max-w-xs space-y-3">
-             <button onClick={() => { setStep(1); setView('signUp'); }} className="w-full bg-brand-purple text-white font-bold py-3 rounded-xl shadow-lg hover:bg-brand-purple/90 transition-transform transform hover:scale-105">
+             <button onClick={() => { setStep(1); setView('signUp'); }} className="btn-primary">
                 Sign Up
             </button>
-            <button onClick={() => setView('signIn')} className="w-full bg-white text-brand-purple font-bold py-3 rounded-xl border-2 border-brand-purple hover:bg-purple-50 transition">
+            <button onClick={() => setView('signIn')} className="btn-secondary">
                 Sign In
             </button>
         </div>
@@ -221,11 +223,11 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   }
 
   return (
-    <div className="p-8 flex flex-col justify-center min-h-screen bg-white dark:bg-gray-900">
+    <div className="p-8 flex flex-col justify-center min-h-screen bg-transparent">
       <div key={view + step} className="animate-fade-in">
         {renderContent()}
       </div>
-       <button onClick={onContinueAsGuest} className="text-center text-brand-purple mt-8 font-semibold absolute bottom-8 left-0 right-0">
+       <button onClick={onContinueAsGuest} className="text-center text-brand-orange mt-8 font-semibold absolute bottom-8 left-0 right-0">
         Continue as Guest
       </button>
     </div>

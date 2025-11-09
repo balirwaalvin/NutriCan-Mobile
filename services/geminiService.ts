@@ -9,6 +9,50 @@ if (!process.env.API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
+// --- Image Mapping for Meals ---
+
+const getMealPhotoUrl = (mealName: string): string => {
+    // Use a reliable, general-purpose image as a fallback.
+    const defaultImage = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Good_Food_Display_-_NCI_Visuals_Online.jpg/1280px-Good_Food_Display_-_NCI_Visuals_Online.jpg';
+    if (!mealName) return defaultImage;
+
+    // Map keywords to specific, high-availability images from Wikimedia Commons for maximum reliability
+    const imageMap: { [key: string]: string } = {
+        'fish': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Fish_Mulligatawny_Soup.jpg/1024px-Fish_Mulligatawny_Soup.jpg',
+        'tilapia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Fish_Mulligatawny_Soup.jpg/1024px-Fish_Mulligatawny_Soup.jpg',
+        'chicken': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Luwombo.jpg/1280px-Luwombo.jpg',
+        'luwombo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Luwombo.jpg/1280px-Luwombo.jpg',
+        'stew': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Beef_stew_with_potatoes_and_carrots.jpg/1280px-Beef_stew_with_potatoes_and_carrots.jpg',
+        'beef': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Beef_stew_with_potatoes_and_carrots.jpg/1280px-Beef_stew_with_potatoes_and_carrots.jpg',
+        'katogo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Matoke.JPG/1280px-Matoke.JPG',
+        'matoke': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Matoke.JPG/1280px-Matoke.JPG',
+        'posho': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Ugali_%26_Sukuma_Wiki.jpg/1280px-Ugali_%26_Sukuma_Wiki.jpg',
+        'ugali': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Ugali_%26_Sukuma_Wiki.jpg/1280px-Ugali_%26_Sukuma_Wiki.jpg',
+        'greens': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg/1280px-Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg',
+        'dodo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg/1280px-Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg',
+        'nakati': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg/1280px-Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg',
+        'potatoes': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Patates.jpg/1280px-Patates.jpg',
+        'irish': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Patates.jpg/1280px-Patates.jpg',
+        'fruit': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Culinary_fruits_front_view.jpg/1280px-Culinary_fruits_front_view.jpg',
+        'porridge': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Oatmeal_with_berries.jpg/1024px-Oatmeal_with_berries.jpg',
+        'groundnut': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg/1280px-Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg',
+        'g-nut': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg/1280px-Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg',
+        'binyebwa': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg/1280px-Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg',
+        'egg': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Avocado_toast_with_egg.jpg/1280px-Avocado_toast_with_egg.jpg',
+        'avocado': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Avocado_toast_with_egg.jpg/1280px-Avocado_toast_with_egg.jpg',
+    };
+
+    const lowerMealName = mealName.toLowerCase();
+    for (const key in imageMap) {
+        if (lowerMealName.includes(key)) {
+            return imageMap[key];
+        }
+    }
+
+    return defaultImage;
+};
+
+
 export const checkFoodSafety = async (foodName: string, userProfile: UserProfile): Promise<FoodSafetyResult> => {
   const conditions = [userProfile.cancerType, ...userProfile.otherConditions].join(', ');
   const prompt = `
@@ -86,9 +130,9 @@ export const generateMealPlan = async (userProfile: UserProfile): Promise<Weekly
         if (result.weekPlan && Array.isArray(result.weekPlan) && result.weekPlan.length === 7) {
             return result.weekPlan.map((dayPlan: any) => ({
                 ...dayPlan,
-                breakfast: { ...dayPlan.breakfast, photoUrl: `https://picsum.photos/seed/${dayPlan.breakfast.name.replace(/\s/g, '')}/400/300` },
-                lunch: { ...dayPlan.lunch, photoUrl: `https://picsum.photos/seed/${dayPlan.lunch.name.replace(/\s/g, '')}/400/300` },
-                dinner: { ...dayPlan.dinner, photoUrl: `https://picsum.photos/seed/${dayPlan.dinner.name.replace(/\s/g, '')}/400/300` },
+                breakfast: { ...dayPlan.breakfast, photoUrl: getMealPhotoUrl(dayPlan.breakfast.name) },
+                lunch: { ...dayPlan.lunch, photoUrl: getMealPhotoUrl(dayPlan.lunch.name) },
+                dinner: { ...dayPlan.dinner, photoUrl: getMealPhotoUrl(dayPlan.dinner.name) },
             }));
         }
         throw new Error("Invalid meal plan format from API.");
@@ -122,7 +166,7 @@ export const swapMeal = async (userProfile: UserProfile, mealToSwap: Meal, day: 
         if (newMealData.name && newMealData.description && newMealData.category) {
             return {
                 ...newMealData,
-                photoUrl: `https://picsum.photos/seed/${newMealData.name.replace(/\s/g, '')}/400/300`,
+                photoUrl: getMealPhotoUrl(newMealData.name),
             };
         }
         throw new Error("Invalid swap meal format from API.");
@@ -201,7 +245,7 @@ export const getSymptomTips = async (symptom: SymptomType): Promise<RecommendedF
             return result.recommendations.map((food: any) => ({
                 name: food.name,
                 description: food.description,
-                photoUrl: `https://picsum.photos/seed/${food.name.replace(/\s/g, '')}/400/300`,
+                photoUrl: getMealPhotoUrl(food.name),
             }));
         }
         throw new Error("Invalid tips format from API.");

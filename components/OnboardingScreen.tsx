@@ -36,9 +36,9 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
   const slide = onboardingSlides[currentSlide];
 
   return (
-    <div className="flex flex-col h-screen bg-soft-lavender p-8 text-center justify-between dark:bg-gray-900">
+    <div className="flex flex-col h-screen bg-transparent p-8 text-center justify-between">
       <div className="flex-grow flex flex-col items-center justify-center" key={currentSlide}>
-        <img src={slide.image} alt={slide.title} className="w-64 h-48 object-cover rounded-2xl shadow-lg mb-8 animate-fade-in" />
+        <img src={slide.image} alt={slide.title} className="w-64 h-48 object-cover rounded-2xl shadow-lg mb-8 animate-fade-in filter drop-shadow-lg" />
         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>{slide.title}</h2>
         <p className="text-gray-600 mt-2 max-w-xs dark:text-gray-400 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>{slide.caption}</p>
       </div>
@@ -46,13 +46,13 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
         {onboardingSlides.map((_, index) => (
           <div
             key={index}
-            className={`w-2 h-2 rounded-full transition-all ${currentSlide === index ? 'bg-brand-purple w-6' : 'bg-gray-300'}`}
+            className={`w-2 h-2 rounded-full transition-all ${currentSlide === index ? 'bg-brand-orange w-6' : 'bg-gray-300 dark:bg-slate-600'}`}
           />
         ))}
       </div>
       <button
         onClick={handleNext}
-        className="w-full bg-brand-purple text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:bg-brand-purple/90 transition-transform transform hover:scale-105"
+        className="btn-primary"
       >
         {currentSlide === onboardingSlides.length - 1 ? 'Get Started' : 'Next'}
       </button>
