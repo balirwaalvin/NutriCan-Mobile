@@ -38,15 +38,18 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
   return (
     <div className="flex flex-col h-screen bg-transparent p-8 text-center justify-between">
       <div className="flex-grow flex flex-col items-center justify-center" key={currentSlide}>
-        <img src={slide.image} alt={slide.title} className="w-64 h-48 object-cover rounded-2xl shadow-lg mb-8 animate-fade-in filter drop-shadow-lg" />
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>{slide.title}</h2>
-        <p className="text-gray-600 mt-2 max-w-xs dark:text-gray-400 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>{slide.caption}</p>
+        <div className="relative mb-8">
+            <div className="absolute inset-0 bg-emerald-200 rounded-full filter blur-xl opacity-30 animate-pulse"></div>
+            <img src={slide.image} alt={slide.title} className="w-64 h-48 object-cover rounded-2xl shadow-xl relative z-10 animate-fade-in filter drop-shadow-md" />
+        </div>
+        <h2 className="text-2xl font-bold text-emerald-900 dark:text-gray-100 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>{slide.title}</h2>
+        <p className="text-gray-600 mt-4 max-w-xs dark:text-gray-400 animate-fade-in-up leading-relaxed" style={{ animationDelay: '0.4s' }}>{slide.caption}</p>
       </div>
-      <div className="flex items-center justify-center space-x-2 mb-6">
+      <div className="flex items-center justify-center space-x-2 mb-8">
         {onboardingSlides.map((_, index) => (
           <div
             key={index}
-            className={`w-2 h-2 rounded-full transition-all ${currentSlide === index ? 'bg-brand-orange w-6' : 'bg-gray-300 dark:bg-slate-600'}`}
+            className={`h-2 rounded-full transition-all duration-500 ${currentSlide === index ? 'bg-emerald-500 w-8' : 'bg-emerald-200 w-2 dark:bg-slate-700'}`}
           />
         ))}
       </div>

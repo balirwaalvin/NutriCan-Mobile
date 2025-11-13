@@ -23,7 +23,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onGetStarted }) => {
       </div>
       <button
         onClick={onGetStarted}
-        className="w-full bg-white text-brand-orange font-bold py-3 px-4 rounded-xl shadow-lg hover:bg-white/90 transition-transform transform hover:scale-105 animate-pulse-glow"
+        className="btn-primary animate-pulse-glow"
       >
         Get Started
       </button>
