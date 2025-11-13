@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry } from '../types';
 import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, FatigueIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon } from './Icons';
@@ -116,10 +117,10 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
             <div className="grid grid-cols-2 gap-4 animate-stagger-children">
                 {features.map((feature, index) => (
                     <button key={feature.name} onClick={feature.action} className="btn-tertiary h-full min-h-[120px] !flex-col items-center justify-center text-center px-3 gap-2" style={{ animationDelay: `${index * 100}ms` }}>
-                        <div className="p-3 bg-white/60 rounded-full shadow-sm backdrop-blur-sm">
+                        <div className="p-3 bg-white/80 rounded-full shadow-sm backdrop-blur-sm">
                             <feature.icon className="w-8 h-8 text-emerald-800 opacity-90" />
                         </div>
-                        <span className="font-bold text-sm text-emerald-900/90 leading-tight">{feature.name}</span>
+                        <span className="font-bold text-sm text-white leading-tight">{feature.name}</span>
                     </button>
                 ))}
             </div>
@@ -164,6 +165,17 @@ const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () 
                     </div>
                 </div>
                 <p className="text-gray-600 text-sm mb-4 dark:text-gray-400 leading-relaxed">{meal.description}</p>
+                
+                {meal.reason && (
+                    <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-900 dark:text-blue-100 shadow-sm">
+                        <div className="flex items-center mb-1">
+                            <svg className="w-4 h-4 mr-1.5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span className="font-bold uppercase tracking-wide text-xs text-blue-700 dark:text-blue-300">Why this recommendation</span>
+                        </div>
+                        <p className="opacity-90">{meal.reason}</p>
+                    </div>
+                )}
+
                 <button onClick={onSwap} disabled={isSwapping} className="btn-small-gradient w-full disabled:opacity-50">
                     Swap Meal
                 </button>
@@ -205,7 +217,7 @@ const MealPlanScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile })
     setSwappingState(null);
   };
 
-  if (loading) return <div className="p-8 text-center dark:text-gray-300 flex flex-col items-center justify-center h-full"><LogoIcon className="animate-spin h-12 w-12 mb-4 text-emerald-600" /><p>Curating your personalized menu...</p></div>;
+  if (loading) return <div className="p-8 text-center dark:text-gray-300 flex flex-col items-center justify-center h-full"><LogoIcon className="animate-spin h-12 w-12 mb-4 text-emerald-600" /><p>Curating your personalized menu based on your BMI and needs...</p></div>;
   if (!mealPlan) return <div className="p-8 text-center dark:text-gray-300">Could not generate a meal plan. Please check your connection and try again.</div>;
 
   const dayShortNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -805,22 +817,90 @@ const RemindersScreen: React.FC = () => {
 };
 
 const LibraryScreen: React.FC = () => {
-  const articles = [
-    { title: "Healing Recipes", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Vegetable_Stir-Fry.jpg/1280px-Vegetable_Stir-Fry.jpg" },
-    { title: "Side Effect Management", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Tea_in_glass_cup.jpg/1024px-Tea_in_glass_cup.jpg" },
-    { title: "Hydration Guide", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/A_glass_of_water.jpg/800px-A_glass_of_water.jpg" },
+  const documents = [
+    {
+        title: "Nutrition Basics",
+        desc: "A comprehensive guide to understanding macronutrients and their role in cancer recovery.",
+        size: "2.4 MB",
+        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Good_Food_Display_-_NCI_Visuals_Online.jpg/640px-Good_Food_Display_-_NCI_Visuals_Online.jpg"
+    },
+    {
+        title: "Chemo Side Effects",
+        desc: "Practical tips for managing nausea, fatigue, and appetite changes during chemotherapy.",
+        size: "1.8 MB",
+        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Pill_bottle_and_pills.jpg/640px-Pill_bottle_and_pills.jpg"
+    },
+    {
+        title: "Hydration & Health",
+        desc: "Why water is critical for your recovery and how to stay hydrated when you don't feel like drinking.",
+        size: "1.2 MB",
+        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Glass_of_water.jpg/640px-Glass_of_water.jpg"
+    },
+    {
+        title: "Food Safety Guide",
+        desc: "Critical hygiene practices to avoid infection when your immune system is compromised.",
+        size: "3.1 MB",
+        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Washing_hands_002.jpg/640px-Washing_hands_002.jpg"
+    },
+    {
+        title: "Understanding BMI",
+        desc: "What your Body Mass Index means for your treatment plan and nutritional needs.",
+        size: "1.5 MB",
+        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/BMI_chart.png/640px-BMI_chart.png"
+    },
+    {
+        title: "Fatigue Fighters",
+        desc: "Gentle exercises and energy conservation techniques to keep you moving.",
+        size: "2.2 MB",
+        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Woman_jogging.jpg/640px-Woman_jogging.jpg"
+    },
+    {
+        title: "Mental Resilience",
+        desc: "Mindfulness and coping strategies for the emotional journey of cancer treatment.",
+        size: "2.9 MB",
+        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Woman_meditating_on_beach.jpg/640px-Woman_meditating_on_beach.jpg"
+    },
+    {
+        title: "Cervical Cancer 101",
+        desc: "An educational overview of cervical cancer stages, treatments, and terminology.",
+        size: "4.5 MB",
+        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Cervical_Cancer_Awareness_Ribbon.png/640px-Cervical_Cancer_Awareness_Ribbon.png"
+    },
+    {
+        title: "Caregiver's Handbook",
+        desc: "How friends and family can provide effective physical and emotional support.",
+        size: "2.0 MB",
+        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Holding_hands.jpg/640px-Holding_hands.jpg"
+    },
+    {
+        title: "Post-Treatment Life",
+        desc: "Navigating the 'new normal': diet, exercise, and follow-up care after treatment.",
+        size: "3.5 MB",
+        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Healthy_lifestyle.jpg/640px-Healthy_lifestyle.jpg"
+    }
   ];
+
   return (
-    <div className="p-6 animate-fade-in">
-      <h1 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Library</h1>
-      <div className="space-y-4 animate-stagger-children">
-        {articles.map((article, index) => (
-          <div key={article.title} className="flex items-center bg-white p-4 rounded-2xl shadow-button border border-emerald-50 dark:bg-slate-800 dark:border-slate-700 transition-all hover:-translate-y-1 hover:shadow-button-hover active:scale-95" style={{ animationDelay: `${index * 100}ms` }}>
-            <img src={article.img} alt={article.title} className="w-20 h-16 rounded-xl object-cover mr-4 shadow-sm" />
-            <span className="font-bold text-emerald-900 flex-grow dark:text-gray-200 text-sm">{article.title}</span>
-            <button className="btn-icon-action">
-                <span className="text-lg font-bold">&#x2B07;</span>
-            </button>
+    <div className="p-6 animate-fade-in pb-24">
+      <h1 className="text-3xl font-bold mb-2 text-emerald-900 dark:text-white">Library</h1>
+      <p className="text-gray-600 mb-6 dark:text-gray-400">Download offline resources for your journey.</p>
+      
+      <div className="grid grid-cols-1 gap-4">
+        {documents.map((doc, index) => (
+          <div key={index} className="flex bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-md border border-emerald-50 dark:border-slate-700 overflow-hidden transition-all hover:scale-[1.02] active:scale-95">
+             <img src={doc.img} alt={doc.title} className="w-20 h-24 object-cover rounded-xl flex-shrink-0 bg-gray-200" />
+             <div className="ml-4 flex flex-col justify-between flex-grow">
+                <div>
+                    <h3 className="font-bold text-emerald-900 dark:text-white text-lg leading-tight mb-1">{doc.title}</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{doc.desc}</p>
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded-md dark:bg-emerald-900/30 dark:text-emerald-400">{doc.size}</span>
+                    <button className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    </button>
+                </div>
+             </div>
           </div>
         ))}
       </div>
@@ -840,8 +920,8 @@ const DoctorConnectScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfi
                             <ChatBubbleIcon className="w-6 h-6 text-emerald-900" />
                         </div>
                         <div>
-                            <p className="font-bold text-lg text-emerald-900 text-left">Chat</p>
-                            <p className="text-xs text-emerald-800 text-left opacity-80">Message your nutritionist</p>
+                            <p className="font-bold text-lg text-white text-left">Chat</p>
+                            <p className="text-xs text-white text-left opacity-80">Message your nutritionist</p>
                         </div>
                     </button>
                     <button className="btn-secondary w-full flex items-center p-5 h-auto !justify-start">
@@ -894,6 +974,27 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void }
       { label: "Privacy Settings", action: () => {} },
       { label: "Help Center", action: () => {} },
     ];
+
+    const calculateBMI = () => {
+        if (userProfile.height && userProfile.weight) {
+            const heightInMeters = userProfile.height / 100;
+            const bmi = (userProfile.weight / (heightInMeters * heightInMeters)).toFixed(1);
+            return bmi;
+        }
+        return 'N/A';
+    };
+    
+    const getBMILabel = (bmiStr: string) => {
+        const bmi = parseFloat(bmiStr);
+        if (isNaN(bmi)) return '';
+        if (bmi < 18.5) return 'Underweight';
+        if (bmi < 25) return 'Healthy';
+        if (bmi < 30) return 'Overweight';
+        return 'Obese';
+    };
+
+    const bmi = calculateBMI();
+    const bmiLabel = getBMILabel(bmi);
     
     return (
         <div className="p-6 animate-fade-in">
@@ -906,8 +1007,26 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void }
                     </div>
                 </div>
                 <h2 className="text-2xl font-bold dark:text-white text-emerald-900">{userProfile.name}</h2>
-                <p className="text-emerald-600 dark:text-emerald-400 font-medium text-sm">{userProfile.email || 'guest@nutrican.app'}</p>
+                <p className="text-emerald-600 dark:text-emerald-400 font-medium text-sm mb-4">{userProfile.email || 'guest@nutrican.app'}</p>
+                
+                {/* Health Stats Card */}
+                <div className="w-full grid grid-cols-3 gap-2 mb-2">
+                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700 text-center">
+                        <p className="text-xs text-gray-500 uppercase font-bold">Height</p>
+                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{userProfile.height || '-'} <span className="text-xs font-normal">cm</span></p>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700 text-center">
+                        <p className="text-xs text-gray-500 uppercase font-bold">Weight</p>
+                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{userProfile.weight || '-'} <span className="text-xs font-normal">kg</span></p>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700 text-center">
+                        <p className="text-xs text-gray-500 uppercase font-bold">BMI</p>
+                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{bmi}</p>
+                    </div>
+                </div>
+                {bmiLabel && <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full">{bmiLabel}</span>}
             </div>
+
             <div className="space-y-3 animate-stagger-children">
                 {menuItems.map((item, index) => (
                     <button 
@@ -916,13 +1035,13 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void }
                         className="btn-tertiary w-full !justify-between !px-6 group"
                         style={{ animationDelay: `${200 + index * 100}ms` }}
                     >
-                        <span className="text-emerald-900 group-hover:text-teal-900">{item.label}</span>
+                        <span className="text-white group-hover:text-emerald-100">{item.label}</span>
                         {item.isToggle ? (
-                            <span className="bg-white/50 text-emerald-800 px-3 py-1 rounded-lg text-xs font-bold shadow-sm">
+                            <span className="bg-white/50 text-emerald-900 px-3 py-1 rounded-lg text-xs font-bold shadow-sm">
                                 {theme === 'dark' ? 'Dark' : 'Light'}
                             </span>
                         ) : (
-                            <span className="text-emerald-700 group-hover:text-teal-700">&rarr;</span>
+                            <span className="text-white group-hover:text-emerald-100">&rarr;</span>
                         )}
                     </button>
                 ))}

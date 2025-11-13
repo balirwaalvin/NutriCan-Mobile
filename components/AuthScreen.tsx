@@ -1,18 +1,32 @@
-import React, { useState } from 'react';
+
+
+import React, { useState, useEffect } from 'react';
 import { UserProfile, CancerType, CancerStage, OtherCondition, TreatmentStage } from '../types';
 import { LogoIcon } from './Icons';
+import { db } from '../services/db';
 
 interface AuthScreenProps {
   onAuthSuccess: (profile: UserProfile) => void;
   onContinueAsGuest: () => void;
+  initialView?: 'initial' | 'signIn' | 'signUp';
 }
 
-const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGuest }) => {
-  const [view, setView] = useState<'initial' | 'signIn' | 'signUp'>('initial');
+const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGuest, initialView = 'initial' }) => {
+  const [view, setView] = useState<'initial' | 'signIn' | 'signUp'>(initialView);
   const [step, setStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Update view if initialView prop changes
+  useEffect(() => {
+    setView(initialView);
+  }, [initialView]);
+
   const [formData, setFormData] = useState({
     name: '', // For Nickname
     age: '',
+    height: '', // cm
+    weight: '', // kg
     email: '',
     password: '',
     gender: 'Female' as 'Male' | 'Female',
@@ -25,6 +39,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (error) setError(null);
   };
   
   const handleCheckboxChange = (condition: OtherCondition) => {
@@ -55,50 +70,85 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
     setStep(step + 1);
   }
 
-  const handleSignUpSubmit = (e: React.FormEvent) => {
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onAuthSuccess({
-      ...formData,
-      age: parseInt(formData.age, 10),
-      gender: formData.gender,
-      plan: 'Free',
-    });
+    setIsLoading(true);
+    setError(null);
+
+    try {
+        const profile: UserProfile = {
+            name: formData.name,
+            age: parseInt(formData.age, 10),
+            height: parseInt(formData.height, 10),
+            weight: parseInt(formData.weight, 10),
+            email: formData.email,
+            gender: formData.gender,
+            cancerType: formData.cancerType,
+            cancerStage: formData.cancerStage,
+            otherConditions: formData.otherConditions,
+            treatmentStages: formData.treatmentStages,
+            plan: 'Free',
+        };
+
+        await db.signUp(formData.email, formData.password, profile);
+        onAuthSuccess(profile);
+    } catch (err: any) {
+        setError(err.message || "An unexpected error occurred during sign up.");
+    } finally {
+        setIsLoading(false);
+    }
   };
   
-  const handleSignInSubmit = (e: React.FormEvent) => {
+  const handleSignInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // For demonstration, successful sign-in will use a premium profile to showcase features.
-    // In a real app, you would verify credentials and fetch user plan from a backend.
-    onAuthSuccess({
-      name: 'Premium User',
-      age: 30,
-      email: formData.email,
-      gender: 'Prefer not to say',
-      cancerType: CancerType.CERVICAL,
-      cancerStage: CancerStage.EARLY,
-      otherConditions: [],
-      treatmentStages: [],
-      plan: 'Premium',
-    });
+    setIsLoading(true);
+    setError(null);
+
+    try {
+        const profile = await db.signIn(formData.email, formData.password);
+        onAuthSuccess(profile);
+    } catch (err: any) {
+        setError(err.message || "An unexpected error occurred during sign in.");
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   const commonInputClasses = "w-full p-3 border-2 rounded-xl bg-white border-emerald-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none shadow-inner";
 
+  // Spinner Component
+  const LoadingSpinner = () => (
+      <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm rounded-xl z-20">
+          <LogoIcon className="w-8 h-8 animate-spin text-emerald-600" />
+      </div>
+  );
+
   const renderSignUpStep1 = () => (
-    <form onSubmit={handleNextStep} className="space-y-4">
+    <form onSubmit={handleNextStep} className="space-y-4 relative">
       <h1 className="text-2xl font-bold text-emerald-900 text-center dark:text-gray-100">Create Your Account</h1>
       <input type="text" name="name" placeholder="Nickname" value={formData.name} onChange={handleChange} className={commonInputClasses} required />
-      <input type="number" name="age" placeholder="Age" value={formData.age} onChange={handleChange} className={commonInputClasses} required />
+      
+      <div className="flex space-x-2">
+          <input type="number" name="age" placeholder="Age" value={formData.age} onChange={handleChange} className={commonInputClasses} required />
+          <select name="gender" value={formData.gender} onChange={handleChange} className={commonInputClasses}>
+            <option>Female</option>
+            <option>Male</option>
+          </select>
+      </div>
+
+      <div className="flex space-x-2">
+          <input type="number" name="height" placeholder="Height (cm)" value={formData.height} onChange={handleChange} className={commonInputClasses} required min="50" max="300" />
+          <input type="number" name="weight" placeholder="Weight (kg)" value={formData.weight} onChange={handleChange} className={commonInputClasses} required min="20" max="300" />
+      </div>
+
       <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} className={commonInputClasses} required />
       <input type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} className={commonInputClasses} required />
-      <select name="gender" value={formData.gender} onChange={handleChange} className={commonInputClasses}>
-        <option>Female</option>
-        <option>Male</option>
-      </select>
-      <button type="submit" className="btn-primary mt-6">Next</button>
-      <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-6">
-        <p className="mb-2 font-medium">Already have an account?</p>
-        <button type="button" onClick={() => setView('signIn')} className="btn-tertiary w-full mt-2">Sign In</button>
+      
+      <button type="submit" className="btn-primary mt-6 mb-8">Next</button>
+      
+      <div className="relative mt-8 pt-4 border-t border-emerald-100 dark:border-slate-700">
+        <p className="mb-3 font-medium text-center text-gray-600 dark:text-gray-400 text-sm">Already have an account?</p>
+        <button type="button" onClick={() => setView('signIn')} className="btn-tertiary w-full">Sign In</button>
       </div>
     </form>
   );
@@ -157,7 +207,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
 );
 
   const renderSignUpStep6 = () => (
-    <form onSubmit={handleSignUpSubmit} className="space-y-4">
+    <form onSubmit={handleSignUpSubmit} className="space-y-4 relative">
+      {isLoading && <LoadingSpinner />}
       <h1 className="text-2xl font-bold text-emerald-900 text-center dark:text-gray-100">Treatment Stage</h1>
       <p className="text-center text-gray-500 dark:text-gray-400 mb-4">Select your current treatment stage(s).</p>
       <div className="space-y-3">
@@ -169,7 +220,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
           </label>
         ))}
       </div>
-      <button type="submit" className="btn-primary mt-6">Complete Profile</button>
+      {error && <div className="p-3 bg-red-100 border border-red-200 text-red-700 rounded-xl text-sm text-center animate-pulse">{error}</div>}
+      <button type="submit" className="btn-primary mt-6" disabled={isLoading}>
+        {isLoading ? 'Creating Account...' : 'Complete Profile'}
+      </button>
     </form>
   );
 
@@ -187,14 +241,21 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   }
 
   const renderSignInForm = () => (
-    <form onSubmit={handleSignInSubmit} className="space-y-4">
+    <form onSubmit={handleSignInSubmit} className="space-y-4 relative">
+      {isLoading && <LoadingSpinner />}
       <h1 className="text-2xl font-bold text-emerald-900 text-center dark:text-gray-100">Sign In</h1>
-      <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} className={commonInputClasses} required />
-      <input type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} className={commonInputClasses} required />
-      <button type="submit" className="btn-primary mt-6">Sign In</button>
-      <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-6">
-        <p className="mb-2 font-medium">Don't have an account?</p>
-        <button type="button" onClick={() => { setStep(1); setView('signUp'); }} className="btn-tertiary w-full mt-2">Sign Up</button>
+      <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} className={commonInputClasses} required disabled={isLoading} />
+      <input type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} className={commonInputClasses} required disabled={isLoading} />
+      
+      {error && <div className="p-3 bg-red-100 border border-red-200 text-red-700 rounded-xl text-sm text-center animate-pulse">{error}</div>}
+
+      <button type="submit" className="btn-primary mt-6 mb-8" disabled={isLoading}>
+        {isLoading ? 'Signing In...' : 'Sign In'}
+      </button>
+      
+      <div className="relative mt-8 pt-4 border-t border-emerald-100 dark:border-slate-700">
+        <p className="mb-3 font-medium text-center text-gray-600 dark:text-gray-400 text-sm">Don't have an account?</p>
+        <button type="button" onClick={() => { setStep(1); setView('signUp'); setError(null); }} className="btn-tertiary w-full">Sign Up</button>
       </div>
     </form>
   );
@@ -204,11 +265,18 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
         <LogoIcon className="w-24 h-24 text-emerald-600 mx-auto mb-4 filter drop-shadow-[0_0_15px_rgba(5,150,105,0.4)]" />
         <h1 className="text-4xl font-bold text-emerald-900 dark:text-gray-100">Welcome to NutriCan</h1>
         <p className="text-emerald-700 mt-2 mb-10 dark:text-emerald-400 font-medium">Your personalized nutrition guide.</p>
-        <div className="w-full max-w-xs space-y-8">
-             <button onClick={() => { setStep(1); setView('signUp'); }} className="btn-primary text-lg">
+        <div className="w-full max-w-xs">
+             <button onClick={() => { setStep(1); setView('signUp'); setError(null); }} className="btn-primary text-lg mb-4">
                 Sign Up
             </button>
-            <button onClick={() => setView('signIn')} className="btn-secondary text-lg">
+            
+            <div className="flex items-center justify-center w-full my-5">
+                <div className="h-px bg-emerald-200 dark:bg-slate-600 w-full"></div>
+                <span className="px-3 text-emerald-700 dark:text-gray-400 text-sm font-bold">OR</span>
+                <div className="h-px bg-emerald-200 dark:bg-slate-600 w-full"></div>
+            </div>
+
+            <button onClick={() => { setView('signIn'); setError(null); }} className="btn-secondary text-lg mt-4">
                 Sign In
             </button>
         </div>
@@ -230,7 +298,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
         {renderContent()}
       </div>
       {view === 'initial' && (
-       <button onClick={onContinueAsGuest} className="btn-tertiary absolute bottom-8 left-8 right-8 w-auto backdrop-blur-sm opacity-90 hover:opacity-100 text-sm py-3">
+       <button onClick={onContinueAsGuest} className="btn-tertiary absolute bottom-8 left-8 right-8 w-auto backdrop-blur-sm text-sm py-3">
+        Continue as Guest
+      </button>
+      )}
+      {view === 'signIn' && initialView === 'signIn' && (
+       <button onClick={onContinueAsGuest} className="btn-tertiary absolute bottom-8 left-8 right-8 w-auto backdrop-blur-sm text-sm py-3">
         Continue as Guest
       </button>
       )}

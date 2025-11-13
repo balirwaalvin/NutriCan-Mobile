@@ -20,26 +20,61 @@ const getMealPhotoUrl = (mealName: string): string => {
     const imageMap: { [key: string]: string } = {
         'fish': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Fish_Mulligatawny_Soup.jpg/1024px-Fish_Mulligatawny_Soup.jpg',
         'tilapia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Fish_Mulligatawny_Soup.jpg/1024px-Fish_Mulligatawny_Soup.jpg',
+        'nile perch': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Fish_Mulligatawny_Soup.jpg/1024px-Fish_Mulligatawny_Soup.jpg',
+        'mukene': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Dried_fish_market.jpg/1280px-Dried_fish_market.jpg',
         'chicken': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Luwombo.jpg/1280px-Luwombo.jpg',
         'luwombo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Luwombo.jpg/1280px-Luwombo.jpg',
         'stew': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Beef_stew_with_potatoes_and_carrots.jpg/1280px-Beef_stew_with_potatoes_and_carrots.jpg',
         'beef': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Beef_stew_with_potatoes_and_carrots.jpg/1280px-Beef_stew_with_potatoes_and_carrots.jpg',
+        'goat': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Goat_Curry.jpg/1280px-Goat_Curry.jpg',
         'katogo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Matoke.JPG/1280px-Matoke.JPG',
         'matoke': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Matoke.JPG/1280px-Matoke.JPG',
+        'plantain': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Matoke.JPG/1280px-Matoke.JPG',
         'posho': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Ugali_%26_Sukuma_Wiki.jpg/1280px-Ugali_%26_Sukuma_Wiki.jpg',
         'ugali': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Ugali_%26_Sukuma_Wiki.jpg/1280px-Ugali_%26_Sukuma_Wiki.jpg',
         'greens': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg/1280px-Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg',
         'dodo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg/1280px-Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg',
         'nakati': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg/1280px-Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg',
+        'spinach': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg/1280px-Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg',
+        'sukuma': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg/1280px-Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg',
+        'cabbage': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Kopytka_z_kiszona_kapusta_02.jpg/1280px-Kopytka_z_kiszona_kapusta_02.jpg',
+        'vegetable': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Vegetable_Stir_Fry.jpg/1280px-Vegetable_Stir_Fry.jpg',
         'potatoes': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Patates.jpg/1280px-Patates.jpg',
         'irish': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Patates.jpg/1280px-Patates.jpg',
         'fruit': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Culinary_fruits_front_view.jpg/1280px-Culinary_fruits_front_view.jpg',
+        'salad': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Salad_platter.jpg/1280px-Salad_platter.jpg',
         'porridge': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Oatmeal_with_berries.jpg/1024px-Oatmeal_with_berries.jpg',
+        'oats': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Oatmeal_with_berries.jpg/1024px-Oatmeal_with_berries.jpg',
+        'millet': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Millet_porridge.jpg/1280px-Millet_porridge.jpg',
+        'kalo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Millet_porridge.jpg/1280px-Millet_porridge.jpg',
         'groundnut': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg/1280px-Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg',
         'g-nut': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg/1280px-Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg',
+        'peanut': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg/1280px-Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg',
         'binyebwa': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg/1280px-Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg',
         'egg': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Avocado_toast_with_egg.jpg/1280px-Avocado_toast_with_egg.jpg',
+        'rolex': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Rolex_Uganda.jpg/1280px-Rolex_Uganda.jpg',
         'avocado': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Avocado_toast_with_egg.jpg/1280px-Avocado_toast_with_egg.jpg',
+        'beans': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Rajma_chawal_1.jpg/1280px-Rajma_chawal_1.jpg',
+        'rice': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/White_rice.jpg/1280px-White_rice.jpg',
+        'pilau': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/White_rice.jpg/1280px-White_rice.jpg',
+        'peas': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Split_pea_soup.jpg/1280px-Split_pea_soup.jpg',
+        'cowpeas': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Split_pea_soup.jpg/1280px-Split_pea_soup.jpg',
+        'cassava': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Mogo_%28cassava%29.jpg/1280px-Mogo_%28cassava%29.jpg',
+        'yam': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Boiled_Sweet_Potatoes.jpg/1280px-Boiled_Sweet_Potatoes.jpg',
+        'sweet potato': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Boiled_Sweet_Potatoes.jpg/1280px-Boiled_Sweet_Potatoes.jpg',
+        'pumpkin': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/French_soup.jpg/1280px-French_soup.jpg',
+        'soup': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Vegetarian_Curry.jpeg/1280px-Vegetarian_Curry.jpeg',
+        'chapati': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Chapati_02.jpg/1280px-Chapati_02.jpg',
+        'tea': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Tea_plantations_in_Munnar%2C_Kerala.jpg/1280px-Tea_plantations_in_Munnar%2C_Kerala.jpg',
+        'ginger': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Ginger_Root.jpg/1280px-Ginger_Root.jpg',
+        'mango': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Hapus_Mango.jpg/1280px-Hapus_Mango.jpg',
+        'pineapple': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Pineapple_and_cross_section.jpg/1280px-Pineapple_and_cross_section.jpg',
+        'watermelon': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Taiwan_2009_Tainan_City_Organic_Farm_Watermelon.jpg/1280px-Taiwan_2009_Tainan_City_Organic_Farm_Watermelon.jpg',
+        'papaya': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Papaya_cross_section_BNC.jpg/1280px-Papaya_cross_section_BNC.jpg',
+        'orange': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Oranges_-_whole-halved-segment.jpg/1280px-Oranges_-_whole-halved-segment.jpg',
+        'passion': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Passion_fruit_packed_with_edible_seeds.jpg/1280px-Passion_fruit_packed_with_edible_seeds.jpg',
+        'juice': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Glass_of_orange_juice.jpg/1280px-Glass_of_orange_juice.jpg',
+        'water': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Glass_of_water.jpg/800px-Glass_of_water.jpg',
     };
 
     const lowerMealName = mealName.toLowerCase();
@@ -98,20 +133,46 @@ export const checkFoodSafety = async (foodName: string, userProfile: UserProfile
 
 export const generateMealPlan = async (userProfile: UserProfile): Promise<WeeklyMealPlan | null> => {
     const conditions = [userProfile.cancerType, ...userProfile.otherConditions].join(', ');
+    
+    // Calculate BMI
+    // Weight in kg, Height in cm. Formula: kg / m^2
+    let bmiInfo = '';
+    let bmiValue = 0;
+    if (userProfile.height && userProfile.weight) {
+        const heightInMeters = userProfile.height / 100;
+        bmiValue = parseFloat((userProfile.weight / (heightInMeters * heightInMeters)).toFixed(1));
+        let status = 'Healthy Weight';
+        if (bmiValue < 18.5) status = 'Underweight';
+        else if (bmiValue >= 25 && bmiValue < 30) status = 'Overweight';
+        else if (bmiValue >= 30) status = 'Obese';
+        
+        bmiInfo = `The patient's BMI is ${bmiValue} (${status}).`;
+    }
+
     const prompt = `
       Generate a 7-day weekly meal plan for a patient with ${conditions} and Cervical Cancer.
+      ${bmiInfo}
       The meals should be based on local Ugandan cuisine.
       Crucially, the plan must EXCLUDE sugary foods (like sodas, sweets), pastries, and any deep-fried items. Meals should be healthy and low in fat.
-      For each meal (breakfast, lunch, dinner) of each day, provide a "name", a brief "description", and a "category".
-      The "category" must be one of the following strings: "Protein", "Carbs", "Balanced", "Veggies".
+      For each meal (breakfast, lunch, dinner) of each day, provide:
+      1. "name"
+      2. "description"
+      3. "reason" (Explain precisely why this meal is recommended based on their BMI of ${bmiValue} and condition. If underweight, focus on nutrient density/bulking. If overweight, focus on satiety/low-calorie. Max 2 sentences.)
+      4. "category" (Must be "Protein", "Carbs", "Balanced", or "Veggies").
+      
       Respond in a single JSON object with a single key "weekPlan". The value should be an array of 7 day-objects.
       Each day-object should have a "day" (e.g., "Monday") and keys for "breakfast", "lunch", and "dinner".
-      Example for one day-object in the array:
+      
+      Example format:
       {
         "day": "Monday",
-        "breakfast": {"name": "Katogo", "description": "Matoke cooked with beef, a hearty start.", "category": "Balanced"},
-        "lunch": {"name": "Steamed Fish with Greens", "description": "Fresh tilapia steamed in banana leaves with dodo.", "category": "Protein"},
-        "dinner": {"name": "Groundnut Stew with Sweet Potatoes", "description": "Rich and savory g-nut sauce served with boiled sweet potatoes.", "category": "Balanced"}
+        "breakfast": {
+            "name": "Katogo", 
+            "description": "Matoke cooked with lean beef.", 
+            "reason": "Provides iron for strength and complex carbs for sustained energy, aiding weight maintenance.",
+            "category": "Balanced"
+        },
+        ...
       }
     `;
 
@@ -144,14 +205,22 @@ export const generateMealPlan = async (userProfile: UserProfile): Promise<Weekly
 
 export const swapMeal = async (userProfile: UserProfile, mealToSwap: Meal, day: string, mealType: string): Promise<Meal | null> => {
     const conditions = [userProfile.cancerType, ...userProfile.otherConditions].join(', ');
+    
+    let bmiInfo = '';
+    if (userProfile.height && userProfile.weight) {
+        const heightInMeters = userProfile.height / 100;
+        const bmi = (userProfile.weight / (heightInMeters * heightInMeters)).toFixed(1);
+        bmiInfo = `The patient's BMI is ${bmi}.`;
+    }
+
     const prompt = `
-        A patient with ${conditions} needs a replacement for their ${mealType} on ${day}.
+        A patient with ${conditions} (${bmiInfo}) needs a replacement for their ${mealType} on ${day}.
         The current meal is "${mealToSwap.name}".
         Suggest a different, healthy Ugandan local dish.
         The new meal MUST NOT be sugary, a pastry, or deep-fried. It should be low-fat.
-        Provide a "name", "description", and "category" ("Protein", "Carbs", "Balanced", or "Veggies").
+        Provide a "name", "description", "reason" (Why is this specific swap good for their BMI and conditions?), and "category" ("Protein", "Carbs", "Balanced", or "Veggies").
         Respond in a single JSON object.
-        Example: {"name": "Boiled Chicken and Yams", "description": "Simple, clean protein and complex carbs.", "category": "Protein"}
+        Example: {"name": "Boiled Chicken and Yams", "description": "Simple, clean protein and complex carbs.", "reason": "High protein aids tissue repair while yams offer digestible energy suitable for their weight goals.", "category": "Protein"}
     `;
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({

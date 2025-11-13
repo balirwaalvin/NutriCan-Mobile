@@ -22,8 +22,8 @@
               'gradient-primary-hover': 'linear-gradient(135deg, #047857 0%, #0f766e 100%)',
               'gradient-secondary': 'linear-gradient(135deg, #10B981 0%, #14B8A6 100%)', /* Brighter Green/Teal */
               'gradient-secondary-hover': 'linear-gradient(135deg, #059669 0%, #0d9488 100%)',
-              'gradient-tertiary': 'linear-gradient(135deg, #34d399 0%, #2dd4bf 100%)', /* Light vibrant green */
-              'gradient-tertiary-hover': 'linear-gradient(135deg, #10b981 0%, #14b8a6 100%)',
+              'gradient-tertiary': 'linear-gradient(135deg, #064e3b 0%, #047857 100%)', /* Deep Forest Green */
+              'gradient-tertiary-hover': 'linear-gradient(135deg, #065f46 0%, #059669 100%)',
               'gradient-background-light': 'linear-gradient(180deg, #ecfdf5 0%, #f0fdf4 100%)',
               'gradient-background-dark': 'radial-gradient(circle at top, #064e3b, #022c22)',
               'gradient-header-light': 'linear-gradient(135deg, #d1fae5, #a7f3d0)',
@@ -74,7 +74,7 @@
       
       /* 3D Button Styles */
       .btn-base {
-        @apply w-full font-bold py-4 px-6 rounded-2xl transition-all duration-200 flex items-center justify-center transform relative overflow-hidden;
+        @apply w-full font-bold py-3.5 px-5 rounded-2xl transition-all duration-200 flex items-center justify-center transform relative overflow-hidden;
         /* Deep shadow for 3D effect */
         box-shadow: 0 6px 0 rgba(0,0,0,0.2), 0 12px 12px rgba(0,0,0,0.15);
       }
@@ -140,18 +140,19 @@
         box-shadow: 0 0 0 #115e59, inset 0 2px 5px rgba(0,0,0,0.2);
       }
 
+      /* Updated to be dark/bold for better visibility */
       .btn-tertiary {
-        @apply btn-base text-emerald-900;
-        background: linear-gradient(to bottom, #d1fae5, #a7f3d0);
-        box-shadow: 0 6px 0 #6ee7b7, 0 12px 15px rgba(0,0,0,0.1);
-        border: 1px solid rgba(255,255,255,0.4);
+        @apply btn-base text-white;
+        background: linear-gradient(to bottom, #065f46, #064e3b); /* Deep Forest Green */
+        box-shadow: 0 6px 0 #022c22, 0 12px 15px rgba(0,0,0,0.15);
+        border: 1px solid rgba(255,255,255,0.1);
       }
       .btn-tertiary:hover {
-        background: linear-gradient(to bottom, #a7f3d0, #6ee7b7);
+        background: linear-gradient(to bottom, #047857, #065f46);
         @apply -translate-y-0.5;
       }
       .btn-tertiary:active {
-        box-shadow: 0 0 0 #6ee7b7, inset 0 2px 5px rgba(0,0,0,0.1);
+        box-shadow: 0 0 0 #022c22, inset 0 2px 5px rgba(0,0,0,0.2);
       }
 
       .btn-small-gradient {

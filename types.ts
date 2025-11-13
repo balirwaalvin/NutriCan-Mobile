@@ -32,6 +32,8 @@ export interface UserProfile {
   age: number;
   email: string;
   gender: 'Male' | 'Female' | 'Other' | 'Prefer not to say';
+  height: number; // in cm
+  weight: number; // in kg
   cancerType: CancerType;
   cancerStage: CancerStage;
   otherConditions: OtherCondition[];
@@ -44,6 +46,7 @@ export type MealCategory = 'Protein' | 'Carbs' | 'Balanced' | 'Veggies';
 export interface Meal {
   name: string;
   description: string;
+  reason: string; // Explanation for recommendation
   photoUrl: string;
   category: MealCategory;
 }

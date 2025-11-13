@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 
 interface OnboardingScreenProps {
@@ -18,7 +19,7 @@ const onboardingSlides = [
   {
     image: 'https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FSlide%20Image%2Fdoctor%20on%20phone.png?alt=media&token=afc9b7e2-717a-455d-96b2-47774b046185',
     title: 'Chat With Your Doctor',
-    caption: 'Chat with your doctor anytime (Premium).',
+    caption: 'Chat with your doctor anytime.',
   },
 ];
 
