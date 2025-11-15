@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
-import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry } from '../types';
+import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal } from '../types';
 import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, FatigueIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips } from '../services/geminiService';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
@@ -35,8 +35,14 @@ const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: Das
   );
 };
 
-const EmergencyButton: React.FC = () => {
+const EmergencyButton: React.FC<{ activePage: DashboardPage }> = ({ activePage }) => {
   const [showModal, setShowModal] = useState(false);
+  
+  // Hide the SOS button on the tracker page to avoid overlap with the "Add Meal" button.
+  if (activePage === 'tracker') {
+    return null;
+  }
+
   return (
     <>
       <button onClick={() => setShowModal(true)} className="fixed bottom-24 right-4 bg-gradient-to-b from-red-500 to-red-700 text-white rounded-full w-16 h-16 flex items-center justify-center text-lg font-bold z-50 animate-pulse transition-all hover:scale-105 active:scale-95 active:translate-y-1 border border-white/20 relative overflow-hidden" style={{ boxShadow: '0 4px 0 #7f1d1d, 0 8px 10px rgba(0,0,0,0.3)' }}>
@@ -341,15 +347,41 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
 };
 
 const NutrientTrackerScreen: React.FC = () => {
-    const [nutrients, setNutrients] = useState<NutrientInfo>({ calories: 0, sugar: 0, salt: 0 });
+    const NUTRIENT_LOG_KEY = 'nutrican_nutrient_log';
+
+    const [loggedMeals, setLoggedMeals] = useState<LoggedMeal[]>(() => {
+        try {
+            const saved = localStorage.getItem(NUTRIENT_LOG_KEY);
+            return saved ? JSON.parse(saved) : [];
+        } catch (error) {
+            console.error("Failed to parse nutrient log:", error);
+            return [];
+        }
+    });
+
     const [isAddMealModalOpen, setIsAddMealModalOpen] = useState(false);
     const [mealName, setMealName] = useState('');
     const [isAddingMeal, setIsAddingMeal] = useState(false);
 
+    useEffect(() => {
+        localStorage.setItem(NUTRIENT_LOG_KEY, JSON.stringify(loggedMeals));
+    }, [loggedMeals]);
+
+    const totalNutrients = useMemo<NutrientInfo>(() => {
+        return loggedMeals.reduce((acc, meal) => {
+            if (meal.nutrients) {
+                acc.calories += meal.nutrients.calories || 0;
+                acc.sugar += meal.nutrients.sugar || 0;
+                acc.salt += meal.nutrients.salt || 0;
+            }
+            return acc;
+        }, { calories: 0, sugar: 0, salt: 0 });
+    }, [loggedMeals]);
+
     const nutrientData = [
-        { name: 'Calories', value: nutrients.calories, goal: 2000, unit: 'kcal', color: '#22C55E' },
-        { name: 'Sugar', value: nutrients.sugar, goal: 50, unit: 'g', color: '#14B8A6' },
-        { name: 'Salt', value: nutrients.salt, goal: 2.3, unit: 'g', color: '#A3E635' },
+        { name: 'Calories', value: totalNutrients.calories, goal: 2000, unit: 'kcal', color: '#22C55E' },
+        { name: 'Sugar', value: totalNutrients.sugar, goal: 50, unit: 'g', color: '#14B8A6' },
+        { name: 'Salt', value: totalNutrients.salt, goal: 2.3, unit: 'g', color: '#A3E635' },
     ];
     
     const handleAddMeal = async () => {
@@ -357,11 +389,13 @@ const NutrientTrackerScreen: React.FC = () => {
         setIsAddingMeal(true);
         const result = await getNutrientInfo(mealName);
         if (result) {
-            setNutrients(prev => ({
-                calories: prev.calories + result.calories,
-                sugar: prev.sugar + result.sugar,
-                salt: prev.salt + result.salt,
-            }));
+            const newMeal: LoggedMeal = {
+                id: Date.now().toString(),
+                name: mealName,
+                nutrients: result,
+                timestamp: new Date().toISOString(),
+            };
+            setLoggedMeals(prev => [...prev, newMeal]);
             setMealName('');
             setIsAddMealModalOpen(false);
         } else {
@@ -370,7 +404,10 @@ const NutrientTrackerScreen: React.FC = () => {
         setIsAddingMeal(false);
     };
 
-    const isOverAnyLimit = nutrientData.some(item => item.value > item.goal);
+    const formatTimestamp = (isoString: string) => {
+        const date = new Date(isoString);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
 
     return (
         <div className="p-6 animate-fade-in relative min-h-full">
@@ -386,40 +423,57 @@ const NutrientTrackerScreen: React.FC = () => {
                                     <PieChart>
                                         <Pie data={[{ value: percentage }, { value: 100 - percentage }]} dataKey="value" cx="50%" cy="50%" innerRadius={25} outerRadius={35} startAngle={90} endAngle={-270} paddingAngle={0} cornerRadius={10} isAnimationActive={true}>
                                             <Cell fill={isOver ? '#EF4444' : item.color} />
-                                            <Cell fill="#E2E8F0" />
+                                            <Cell fill={isOver ? 'rgba(239, 68, 68, 0.2)' : 'rgba(226, 232, 240, 0.5)'} />
                                         </Pie>
                                     </PieChart>
                                 </ResponsiveContainer>
                              </div>
                             <p className="font-bold text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{item.name}</p>
                             <p className={`text-sm font-bold ${isOver ? 'text-red-500' : 'text-emerald-800 dark:text-emerald-300'}`}>
-                                {item.value.toFixed(0)} <span className="text-[10px] font-normal text-gray-400">/ {item.goal}{item.unit}</span>
+                                {item.value.toFixed(1)} <span className="text-[10px] font-normal text-gray-400">/ {item.goal}{item.unit}</span>
                             </p>
                         </div>
                     )
                 })}
             </div>
             
-            <div className={`mt-4 p-5 rounded-2xl text-center font-medium flex flex-col items-center justify-center gap-2 shadow-button border ${isOverAnyLimit 
-                ? 'bg-red-50 text-red-900 border-red-100 dark:bg-red-900/30 dark:text-red-200' 
-                : 'bg-gradient-tertiary text-emerald-900 border-emerald-100'}`
-            }>
-                {!isOverAnyLimit && <div className="text-4xl mb-1">🍏</div>}
-                <p>
-                    {isOverAnyLimit 
-                        ? "You've exceeded some limits. Aim for balance tomorrow!" 
-                        : "You're doing great! Keep it up!"}
-                </p>
+            <div className="mt-8">
+                <h3 className="text-xl font-bold text-emerald-800 dark:text-emerald-300 mb-4">Today's Log</h3>
+                {loggedMeals.length > 0 ? (
+                    <div className="space-y-3">
+                        {loggedMeals.slice().reverse().map(meal => (
+                            <div key={meal.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-emerald-50 dark:border-slate-700 flex justify-between items-center animate-fade-in-up">
+                                <div>
+                                    <p className="font-bold text-lg text-emerald-900 dark:text-white capitalize">{meal.name}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(meal.timestamp).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} - {formatTimestamp(meal.timestamp)}</p>
+                                </div>
+                                <div className="text-right text-xs text-gray-600 dark:text-gray-300 space-y-0.5">
+                                    <p>Cal: <span className="font-bold">{meal.nutrients.calories}</span></p>
+                                    <p>Sug: <span className="font-bold">{meal.nutrients.sugar.toFixed(1)}g</span></p>
+                                    <p>Salt: <span className="font-bold">{meal.nutrients.salt.toFixed(1)}g</span></p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-8 px-4 bg-emerald-50 dark:bg-slate-800 rounded-2xl border border-emerald-100 dark:border-slate-700">
+                        <BowlIcon className="w-12 h-12 mx-auto text-emerald-300 dark:text-slate-600" />
+                        <p className="mt-2 text-emerald-700 dark:text-gray-400 font-medium">No meals logged yet.</p>
+                        <p className="text-xs text-emerald-600 dark:text-gray-500">Tap 'Log a Meal' below to add your first meal.</p>
+                    </div>
+                )}
             </div>
             
-            <button 
-                onClick={() => setIsAddMealModalOpen(true)}
-                className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-gradient-to-b from-emerald-800 to-emerald-900 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-glow-primary transition-all hover:scale-110 active:scale-95 animate-pulse-glow border-4 border-white dark:border-slate-900 z-20 relative overflow-hidden"
-                aria-label="Add Meal"
-            >
-                <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent h-1/2 pointer-events-none"></div>
-                <PlusIcon className="w-8 h-8 relative z-10"/>
-            </button>
+            <div className="mt-8">
+                <button
+                    onClick={() => setIsAddMealModalOpen(true)}
+                    className="btn-primary"
+                    aria-label="Log a Meal"
+                >
+                    <PlusIcon className="w-5 h-5 mr-2" />
+                    Log a Meal
+                </button>
+            </div>
 
             {isAddMealModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fade-in" onClick={() => setIsAddMealModalOpen(false)}>
@@ -1071,7 +1125,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
 
   const pages = useMemo(() => ({
     home: <HomeScreen userProfile={userProfile} setActivePage={setActivePage} setModal={setModalContent} />,
-    tracker: <ProgressJournalScreen />, // Changed to show the graph page
+    tracker: <NutrientTrackerScreen />, // Changed to show the new tracker page
     library: <LibraryScreen />,
     'doctor-connect': <DoctorConnectScreen userProfile={userProfile} />,
     profile: <ProfileScreen userProfile={userProfile} onLogout={onLogout} />,
@@ -1082,7 +1136,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
   return (
     <div className="pb-24 relative min-h-screen bg-transparent">
       <div className="pt-4">{CurrentPage}</div>
-      <EmergencyButton />
+      <EmergencyButton activePage={activePage} />
       <BottomNavBar activePage={activePage} onNavigate={setActivePage} />
       {modalContent && <Modal closeModal={() => setModalContent(null)}>{modalContent}</Modal>}
     </div>

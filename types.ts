@@ -77,6 +77,13 @@ export interface NutrientInfo {
   salt: number; // in grams
 }
 
+export interface LoggedMeal {
+  id: string;
+  name: string;
+  nutrients: NutrientInfo;
+  timestamp: string; // ISO String
+}
+
 export interface JournalEntry {
   name: string; // e.g., 'Mon', 'Tue' or a date
   weight: number;

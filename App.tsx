@@ -1,19 +1,29 @@
 
-
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, Suspense, lazy } from 'react';
 import { Page, UserProfile, CancerType, CancerStage } from './types';
-import SplashScreen from './components/SplashScreen';
-import TermsScreen from './components/TermsScreen';
-import OnboardingScreen from './components/OnboardingScreen';
-import AuthScreen from './components/AuthScreen';
-import Dashboard from './components/Dashboard';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { db } from './services/db';
+import { LogoIcon } from './components/Icons';
+
+// Lazy-load page components for better performance and code-splitting.
+const SplashScreen = lazy(() => import('./components/SplashScreen'));
+const TermsScreen = lazy(() => import('./components/TermsScreen'));
+const OnboardingScreen = lazy(() => import('./components/OnboardingScreen'));
+const AuthScreen = lazy(() => import('./components/AuthScreen'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+
+// A loading component to show while pages are being loaded.
+const LoadingFallback: React.FC = () => (
+  <div className="flex flex-col items-center justify-center h-screen bg-transparent">
+    <LogoIcon className="w-16 h-16 text-emerald-600 animate-spin" />
+    <p className="mt-4 text-emerald-800 dark:text-emerald-300">Loading...</p>
+  </div>
+);
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<Page>('splash');
+  // Start with a null page to indicate loading, preventing a flash of the splash screen
+  const [currentPage, setCurrentPage] = useState<Page | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [authInitialView, setAuthInitialView] = useState<'initial' | 'signIn'>('initial');
 
   // Check for existing session on startup
@@ -24,11 +34,12 @@ const App: React.FC = () => {
         if (profile) {
           setUserProfile(profile);
           setCurrentPage('dashboard');
+        } else {
+          setCurrentPage('splash'); // No session, start with splash
         }
       } catch (error) {
         console.error("Session check failed", error);
-      } finally {
-        setIsCheckingSession(false);
+        setCurrentPage('splash'); // On error, default to splash
       }
     };
     checkSession();
@@ -47,6 +58,11 @@ const App: React.FC = () => {
   }, []);
 
   const renderPage = () => {
+    // While checking session initially (currentPage is null), show loading fallback
+    if (currentPage === null) {
+      return <LoadingFallback />;
+    }
+
     switch (currentPage) {
       case 'splash':
         return <SplashScreen onGetStarted={() => setCurrentPage('terms')} />;
@@ -88,7 +104,9 @@ const App: React.FC = () => {
     <ThemeProvider>
       <div className="bg-gradient-background-light dark:bg-gradient-background-dark font-sans">
         <div className="max-w-sm mx-auto bg-transparent min-h-screen shadow-2xl shadow-emerald-900/20 dark:shadow-teal-900/50">
-          {renderPage()}
+          <Suspense fallback={<LoadingFallback />}>
+            {renderPage()}
+          </Suspense>
         </div>
       </div>
     </ThemeProvider>
