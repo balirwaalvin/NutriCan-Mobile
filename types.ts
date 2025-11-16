@@ -92,9 +92,13 @@ export interface JournalEntry {
 }
 
 export enum SymptomType {
-  NAUSEA = 'Nausea',
-  FATIGUE = 'Fatigue',
-  MOUTH_SORES = 'Oral Mucositis',
+  APPETITE_LOSS = 'Appetite Loss',
+  VOMITING = 'Vomiting',
+  MOUTH_WOUNDS = 'Mouth Wounds',
+  DIARRHOEA = 'Diarrhoea',
+  CONSTIPATION = 'Constipation',
+  INFECTION_RISK = 'Higher Risk of Infection',
+  SOUR_MOUTH = 'Sour Mouth',
 }
 
 export interface RecommendedFood {

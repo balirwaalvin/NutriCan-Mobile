@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal } from '../types';
-import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, FatigueIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon } from './Icons';
+import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips } from '../services/geminiService';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { ThemeContext } from '../contexts/ThemeContext';
@@ -518,9 +518,13 @@ const SymptomTipsScreen: React.FC = () => {
     });
 
     const symptomConfig = useMemo(() => ({
-        [SymptomType.NAUSEA]: { icon: NauseaIcon, color: 'text-emerald-900', bg: 'from-emerald-100 to-emerald-200', border: 'border-emerald-200' },
-        [SymptomType.FATIGUE]: { icon: FatigueIcon, color: 'text-teal-900', bg: 'from-teal-100 to-teal-200', border: 'border-teal-200' },
-        [SymptomType.MOUTH_SORES]: { icon: MouthSoreIcon, color: 'text-green-900', bg: 'from-green-100 to-green-200', border: 'border-green-200' },
+        [SymptomType.APPETITE_LOSS]: { icon: BowlIcon, color: 'text-sky-900', bg: 'from-sky-100 to-sky-200', border: 'border-sky-200' },
+        [SymptomType.VOMITING]: { icon: NauseaIcon, color: 'text-emerald-900', bg: 'from-emerald-100 to-emerald-200', border: 'border-emerald-200' },
+        [SymptomType.MOUTH_WOUNDS]: { icon: MouthSoreIcon, color: 'text-green-900', bg: 'from-green-100 to-green-200', border: 'border-green-200' },
+        [SymptomType.DIARRHOEA]: { icon: BookIcon, color: 'text-amber-900', bg: 'from-amber-100 to-amber-200', border: 'border-amber-200' },
+        [SymptomType.CONSTIPATION]: { icon: BookIcon, color: 'text-orange-900', bg: 'from-orange-100 to-orange-200', border: 'border-orange-200' },
+        [SymptomType.INFECTION_RISK]: { icon: PremiumIcon, color: 'text-rose-900', bg: 'from-rose-100 to-rose-200', border: 'border-rose-200' },
+        [SymptomType.SOUR_MOUTH]: { icon: MouthSoreIcon, color: 'text-violet-900', bg: 'from-violet-100 to-violet-200', border: 'border-violet-200' },
     }), []);
 
     const fetchAndSetTips = useCallback(async (symptom: SymptomType) => {
