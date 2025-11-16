@@ -72,20 +72,24 @@
         opacity: 0;
       }
       
-      /* 3D Button Styles */
-      .btn-base {
-        @apply w-full font-bold py-3.5 px-5 rounded-2xl transition-all duration-200 flex items-center justify-center transform relative overflow-hidden;
-        /* Deep shadow for 3D effect */
-        box-shadow: 0 6px 0 rgba(0,0,0,0.2), 0 12px 12px rgba(0,0,0,0.15);
-      }
-
-      .btn-base:active {
-        @apply translate-y-1 scale-[0.98];
-        box-shadow: 0 2px 0 rgba(0,0,0,0.2), inset 0 4px 8px rgba(0,0,0,0.1);
+      /* 3D Button Styles - Converted to Standard CSS */
+      .btn-primary, .btn-secondary, .btn-tertiary {
+        width: 100%;
+        font-weight: 700;
+        padding: 0.875rem 1.25rem;
+        border-radius: 1rem;
+        transition: all 200ms ease-in-out;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+        color: white;
+        border-bottom: 1px solid rgba(0,0,0,0.1);
       }
 
       /* Gloss/Shine Effect */
-      .btn-base::before {
+      .btn-primary::before, .btn-secondary::before, .btn-tertiary::before, .btn-small-gradient::before, .btn-icon-action::before {
         content: '';
         position: absolute;
         top: 0;
@@ -98,7 +102,7 @@
       }
       
       /* Subtle reflection at bottom */
-      .btn-base::after {
+      .btn-primary::after, .btn-secondary::after, .btn-tertiary::after {
         content: '';
         position: absolute;
         bottom: 0;
@@ -111,105 +115,104 @@
       }
 
       .btn-primary {
-        @apply btn-base text-white;
         background: linear-gradient(to bottom, #10b981, #059669);
-        border-bottom: 1px solid rgba(0,0,0,0.1);
         box-shadow: 0 6px 0 #047857, 0 12px 15px rgba(0,0,0,0.2);
       }
       .btn-primary:hover {
         background: linear-gradient(to bottom, #34d399, #059669);
         box-shadow: 0 6px 0 #047857, 0 14px 20px rgba(4, 120, 87, 0.3);
-        @apply -translate-y-0.5;
+        transform: translateY(-2px);
       }
       .btn-primary:active {
         box-shadow: 0 0 0 #047857, inset 0 2px 5px rgba(0,0,0,0.2);
+        transform: translateY(4px);
       }
 
       .btn-secondary {
-        @apply btn-base text-white;
         background: linear-gradient(to bottom, #14b8a6, #0f766e);
-        border-bottom: 1px solid rgba(0,0,0,0.1);
         box-shadow: 0 6px 0 #115e59, 0 12px 15px rgba(0,0,0,0.2);
       }
       .btn-secondary:hover {
         background: linear-gradient(to bottom, #2dd4bf, #0f766e);
         box-shadow: 0 6px 0 #115e59, 0 14px 20px rgba(17, 94, 89, 0.3);
-        @apply -translate-y-0.5;
+        transform: translateY(-2px);
       }
       .btn-secondary:active {
         box-shadow: 0 0 0 #115e59, inset 0 2px 5px rgba(0,0,0,0.2);
+        transform: translateY(4px);
       }
 
-      /* Updated to be dark/bold for better visibility */
       .btn-tertiary {
-        @apply btn-base text-white;
         background: linear-gradient(to bottom, #065f46, #064e3b); /* Deep Forest Green */
         box-shadow: 0 6px 0 #022c22, 0 12px 15px rgba(0,0,0,0.15);
         border: 1px solid rgba(255,255,255,0.1);
       }
       .btn-tertiary:hover {
         background: linear-gradient(to bottom, #047857, #065f46);
-        @apply -translate-y-0.5;
+        transform: translateY(-2px);
       }
       .btn-tertiary:active {
         box-shadow: 0 0 0 #022c22, inset 0 2px 5px rgba(0,0,0,0.2);
+        transform: translateY(4px);
       }
 
       .btn-small-gradient {
-        @apply px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 shadow-button text-white relative overflow-hidden transform;
+        padding: 0.5rem 1rem;
+        border-radius: 0.75rem;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        font-weight: 700;
+        transition: all 200ms ease-in-out;
+        color: white;
+        position: relative;
+        overflow: hidden;
         background: linear-gradient(to bottom, #059669, #047857);
         box-shadow: 0 4px 0 #064e3b, 0 4px 6px rgba(0,0,0,0.2);
       }
       .btn-small-gradient:active {
-        @apply scale-95 translate-y-1;
+        transform: scale(0.95) translateY(4px);
         box-shadow: 0 0 0 #064e3b, inset 0 2px 4px rgba(0,0,0,0.2);
       }
-      .btn-small-gradient::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 50%;
-        background: linear-gradient(to bottom, rgba(255,255,255,0.3) 0%, transparent 100%);
-        pointer-events: none;
-      }
-
+      
       .btn-icon-action {
-        @apply p-2 rounded-xl transition-all duration-200 shadow-button text-white flex items-center justify-center relative overflow-hidden transform;
+        padding: 0.5rem;
+        border-radius: 0.75rem;
+        transition: all 200ms ease-in-out;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
         background: linear-gradient(to bottom, #0d9488, #0f766e);
         box-shadow: 0 3px 0 #115e59, 0 4px 6px rgba(0,0,0,0.2);
       }
       .btn-icon-action:active {
-         @apply scale-95 translate-y-0.5;
-         box-shadow: 0 0 0 #115e59, inset 0 2px 4px rgba(0,0,0,0.2);
+        transform: scale(0.95) translateY(2px);
+        box-shadow: 0 0 0 #115e59, inset 0 2px 4px rgba(0,0,0,0.2);
       }
       .btn-icon-action::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
         height: 50%;
         background: linear-gradient(to bottom, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 100%);
-        pointer-events: none;
       }
-
     </style>
-    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
 
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
+    "firebase/app": "https://aistudiocdn.com/firebase@10.12.2/app",
+    "firebase/auth": "https://aistudiocdn.com/firebase@10.12.2/auth",
+    "firebase/firestore": "https://aistudiocdn.com/firebase@10.12.2/firestore",
     "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.25.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
   }
 }
 </script>
-</head>
+  </head>
   <body class="bg-gradient-background-light dark:bg-gradient-background-dark text-slate-800 dark:text-slate-200">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
