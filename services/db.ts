@@ -1,127 +1,190 @@
-import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  onAuthStateChanged, 
-  signOut 
-} from 'firebase/auth';
-import { 
-  getFirestore, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc 
-} from 'firebase/firestore';
-import { UserProfile } from '../types';
+import firebase from "firebase/compat/app";
+import "firebase/compat/auth";
+import "firebase/compat/firestore";
 import { firebaseConfig } from './firebaseConfig';
+import { UserProfile } from '../types';
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const firestore = getFirestore(app);
+// Initialize Firebase once
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
-const USERS_COLLECTION = 'users';
+const auth = firebase.auth();
+const firestore = firebase.firestore();
+
+let isInitialized = false;
+
+const ensureInitialized = async (): Promise<void> => {
+  if (isInitialized) return;
+  isInitialized = true;
+  console.log("✅ Firebase Firestore initialized");
+};
+
+/**
+ * Fetch user profile from Firestore
+ */
+const fetchProfile = async (uid: string): Promise<UserProfile | null> => {
+  await ensureInitialized();
+  try {
+    const docSnapshot = await firestore.collection('users').doc(uid).get();
+    if (docSnapshot.exists) {
+      return docSnapshot.data() as UserProfile;
+    }
+    console.warn(`⚠️ No profile found for user: ${uid}`);
+    return null;
+  } catch (error: any) {
+    console.error("❌ Error fetching profile:", error);
+    throw error;
+  }
+};
 
 export const db = {
   /**
-   * Signs up a new user with email and password, then saves their profile to Firestore.
+   * Sign up a new user with email and password
    */
   signUp: async (email: string, password: string, profile: UserProfile): Promise<UserProfile> => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      console.log("📝 Attempting sign up for:", email);
+      await ensureInitialized();
+
+      // Create user account
+      const userCredential = await auth.createUserWithEmailAndPassword(email, password);
       const user = userCredential.user;
-      // We don't store the password in the profile document.
-      const profileToSave = { ...profile };
-      await setDoc(doc(firestore, USERS_COLLECTION, user.uid), profileToSave);
+      console.log("✅ User account created:", user?.uid);
+
+      // Save profile to Firestore
+      await firestore.collection('users').doc(user?.uid).set({
+        ...profile,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      console.log("✅ User profile saved to Firestore");
+
       return profile;
     } catch (error: any) {
-      // Provide more user-friendly error messages
+      console.error("❌ Sign up error:", error);
+      
       if (error.code === 'auth/email-already-in-use') {
-        throw new Error('This email is already registered. Please sign in.');
+        throw new Error('This email address is already in use.');
       }
       if (error.code === 'auth/weak-password') {
         throw new Error('Password should be at least 6 characters.');
       }
-      throw new Error(error.message || 'An unknown error occurred during sign up.');
+      
+      throw new Error(error.message || "An unexpected error occurred during sign up.");
     }
   },
 
   /**
-   * Signs in a user and retrieves their profile from Firestore.
+   * Sign in user with email and password
    */
   signIn: async (email: string, password: string): Promise<UserProfile> => {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      const userDocRef = doc(firestore, USERS_COLLECTION, user.uid);
-      const userDoc = await getDoc(userDocRef);
+      console.log("🔐 Attempting sign in for:", email);
+      await ensureInitialized();
 
-      if (userDoc.exists()) {
-        return userDoc.data() as UserProfile;
-      } else {
-        throw new Error('User profile not found. Please contact support.');
+      const userCredential = await auth.signInWithEmailAndPassword(email, password);
+      const user = userCredential.user;
+      console.log("✅ User signed in:", user?.uid);
+
+      const profile = await fetchProfile(user?.uid!);
+      if (!profile) {
+        throw new Error('User profile not found in Firestore.');
       }
+
+      return profile;
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      console.error("❌ Sign in error:", error);
+      
+      if (
+        error.code === 'auth/user-not-found' ||
+        error.code === 'auth/wrong-password' ||
+        error.code === 'auth/invalid-credential'
+      ) {
         throw new Error('Invalid email or password.');
       }
-      throw new Error(error.message || 'An unknown error occurred during sign in.');
+      
+      throw new Error(error.message || "An unexpected error occurred during sign in.");
     }
   },
 
   /**
-   * Signs out the current user.
+   * Sign out current user
    */
-  signOut: async () => {
-    await signOut(auth);
+  signOut: async (): Promise<void> => {
+    try {
+      console.log("👋 Signing out user...");
+      await ensureInitialized();
+      await auth.signOut();
+      console.log("✅ User signed out successfully");
+    } catch (error: any) {
+      console.error("❌ Sign out error:", error);
+      throw new Error(error.message || "Failed to sign out.");
+    }
   },
 
   /**
-   * Checks the current authentication state and retrieves the user profile if logged in.
-   * This is crucial for session persistence.
+   * Get current user session
    */
   getSession: async (): Promise<UserProfile | null> => {
     return new Promise((resolve) => {
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        unsubscribe(); // We only need the initial state, so we unsubscribe immediately.
-        if (user) {
-          try {
-            const userDoc = await getDoc(doc(firestore, USERS_COLLECTION, user.uid));
-            if (userDoc.exists()) {
-              resolve(userDoc.data() as UserProfile);
-            } else {
-              // This case can happen if a user is in Auth but their Firestore doc was deleted.
+      (async () => {
+        try {
+          console.log("🔍 Checking for existing session...");
+          await ensureInitialized();
+
+          auth.onAuthStateChanged(async (user) => {
+            try {
+              if (user) {
+                console.log("✅ Found active session for user:", user.uid);
+                const profile = await fetchProfile(user.uid);
+                resolve(profile);
+              } else {
+                console.log("ℹ️ No active session found");
+                resolve(null);
+              }
+            } catch (error: any) {
+              console.error("❌ Error fetching session profile:", error);
               resolve(null);
             }
-          } catch (error) {
-            console.error("Error fetching user profile during session check:", error);
-            resolve(null);
-          }
-        } else {
+          });
+        } catch (error: any) {
+          console.error("❌ Session check error:", error);
           resolve(null);
         }
-      });
+      })();
     });
   },
-  
+
   /**
-   * Updates the current user's profile in Firestore.
+   * Update user profile
    */
   updateProfile: async (updates: Partial<UserProfile>): Promise<UserProfile> => {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error("User not authenticated. Cannot update profile.");
-    }
+    try {
+      console.log("✏️ Updating profile...");
+      await ensureInitialized();
 
-    const userDocRef = doc(firestore, USERS_COLLECTION, user.uid);
-    await updateDoc(userDocRef, updates);
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("User not authenticated. Cannot update profile.");
+      }
 
-    const updatedDoc = await getDoc(userDocRef);
-    if (!updatedDoc.exists()) {
+      // Update in Firestore
+      await firestore.collection('users').doc(user.uid).update({
+        ...updates,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      console.log("✅ Profile updated successfully");
+
+      const updatedProfile = await fetchProfile(user.uid);
+      if (!updatedProfile) {
         throw new Error("Failed to retrieve updated profile.");
+      }
+
+      return updatedProfile;
+    } catch (error: any) {
+      console.error("❌ Update profile error:", error);
+      throw new Error(error.message || "Failed to update profile.");
     }
-    
-    return updatedDoc.data() as UserProfile;
   }
 };
