@@ -85,10 +85,13 @@ export interface LoggedMeal {
 }
 
 export interface JournalEntry {
-  name: string; // e.g., 'Mon', 'Tue' or a date
+  id: string; // Unique ID for React key
+  timestamp: string; // ISO String
+  name: string; // e.g., 'Mon', 'Tue' for the chart
   weight: number;
   energy: number; // 1-10
   bp: number; // Systolic blood pressure
+  notes?: string; // Optional user notes
 }
 
 export enum SymptomType {

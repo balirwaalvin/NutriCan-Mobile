@@ -2,7 +2,7 @@ import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
 import { firebaseConfig } from './firebaseConfig';
-import { UserProfile } from '../types';
+import { UserProfile, JournalEntry } from '../types';
 
 // Initialize Firebase once
 if (!firebase.apps.length) {
@@ -186,5 +186,77 @@ export const db = {
       console.error("❌ Update profile error:", error);
       throw new Error(error.message || "Failed to update profile.");
     }
-  }
+  },
+
+  /**
+   * Get all journal entries for the current user
+   */
+  getJournalEntries: async (): Promise<JournalEntry[]> => {
+    try {
+      await ensureInitialized();
+      const user = auth.currentUser;
+      if (!user) {
+        console.warn("⚠️ No user authenticated. Cannot get journal entries.");
+        return [];
+      }
+      
+      const snapshot = await firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('journal')
+        .orderBy('timestamp', 'desc')
+        .limit(30)
+        .get();
+        
+      if (snapshot.empty) {
+        return [];
+      }
+
+      const entries: JournalEntry[] = snapshot.docs.map(doc => {
+        const data = doc.data();
+        const timestamp = (data.timestamp as firebase.firestore.Timestamp).toDate();
+        return {
+          id: doc.id,
+          timestamp: timestamp.toISOString(),
+          name: timestamp.toLocaleDateString(undefined, { weekday: 'short' }),
+          weight: data.weight,
+          energy: data.energy,
+          bp: data.bp,
+          notes: data.notes,
+        };
+      });
+      
+      return entries;
+    } catch (error: any) {
+      console.error("❌ Error fetching journal entries:", error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Add a new journal entry for the current user
+   */
+  addJournalEntry: async (entry: { weight: number; bp: number; energy: number; notes?: string; }): Promise<string> => {
+    try {
+      await ensureInitialized();
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("User not authenticated. Cannot add journal entry.");
+      }
+      
+      const docRef = await firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('journal')
+        .add({
+          ...entry,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        
+      return docRef.id;
+    } catch (error: any) {
+      console.error("❌ Error adding journal entry:", error);
+      throw error;
+    }
+  },
 };

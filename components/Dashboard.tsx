@@ -1,9 +1,8 @@
-
-
 import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal } from '../types';
 import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips } from '../services/geminiService';
+import { db } from '../services/db';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { ThemeContext } from '../contexts/ThemeContext';
 
@@ -72,13 +71,13 @@ const EmergencyButton: React.FC<{ activePage: DashboardPage }> = ({ activePage }
 
 // --- Feature Screens ---
 
-const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: DashboardPage) => void, setModal: (content: React.ReactNode) => void }> = ({ userProfile, setModal }) => {
+const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: DashboardPage) => void, setModal: (content: React.ReactNode) => void }> = ({ userProfile, setActivePage, setModal }) => {
     const features = [
         { name: 'Personalized Meal Plan', icon: BowlIcon, action: () => setModal(<MealPlanScreen userProfile={userProfile} />) },
         { name: 'Food Safety Checker', icon: SearchIcon, action: () => setModal(<FoodSafetyCheckerScreen userProfile={userProfile} />) },
         { name: 'Nutrient Tracker', icon: ChartIcon, action: () => setModal(<NutrientTrackerScreen />) },
         { name: 'Symptom-Based Tips', icon: NauseaIcon, action: () => setModal(<SymptomTipsScreen />) },
-        { name: 'Progress Journal', icon: BookIcon, action: () => setModal(<ProgressJournalScreen />) },
+        { name: 'Progress Journal', icon: BookIcon, action: () => setActivePage('tracker') },
         { name: 'Reminders & Alerts', icon: BellIcon, action: () => setModal(<RemindersScreen />) },
     ];
     
@@ -637,66 +636,134 @@ const SymptomTipsScreen: React.FC = () => {
     );
 };
 
-const ProgressJournalScreen: React.FC = () => {
-    const initialJournalData: JournalEntry[] = [
-        { name: 'Mon', weight: 70, energy: 7, bp: 120 },
-        { name: 'Tue', weight: 70.2, energy: 6, bp: 122 },
-        { name: 'Wed', weight: 70.1, energy: 8, bp: 118 },
-        { name: 'Thu', weight: 69.9, energy: 7, bp: 121 },
-        { name: 'Fri', weight: 69.8, energy: 9, bp: 119 },
-    ];
+const ProgressJournalScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
+    const GUEST_JOURNAL_KEY = 'nutrican_journal_data_guest';
+    const isGuest = !userProfile.email;
 
-    const [journalData, setJournalData] = useState<JournalEntry[]>(initialJournalData);
+    const createInitialGuestData = (): JournalEntry[] => {
+        const today = new Date();
+        const data: JournalEntry[] = [];
+        for (let i = 4; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            const timestamp = date.toISOString();
+            data.push({
+                id: timestamp,
+                timestamp,
+                name: date.toLocaleDateString(undefined, { weekday: 'short' }),
+                weight: parseFloat((70 - i * 0.2 + Math.random()).toFixed(1)),
+                energy: 7 + (i % 2 === 0 ? 1 : -1) * (Math.floor(Math.random() * 2)),
+                bp: 120 + (i % 2 === 0 ? -2 : 2) * (Math.floor(Math.random() * 3)),
+                notes: i === 2 ? 'Felt a bit nauseous after lunch today.' : undefined,
+            });
+        }
+        return data;
+    };
+
+    const [journalData, setJournalData] = useState<JournalEntry[]>([]);
+    const [loading, setLoading] = useState(!isGuest);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newEntry, setNewEntry] = useState({ weight: '', bp: '', energy: '' });
+    const [newEntry, setNewEntry] = useState({ weight: '', bp: '', energy: '', notes: '' });
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fetchJournalData = useCallback(async () => {
+        if (isGuest) {
+            try {
+                const saved = localStorage.getItem(GUEST_JOURNAL_KEY);
+                setJournalData(saved ? JSON.parse(saved) : createInitialGuestData());
+            } catch (error) {
+                console.error("Failed to parse guest journal data:", error);
+                setJournalData(createInitialGuestData());
+            }
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const entries = await db.getJournalEntries();
+            setJournalData(entries);
+        } catch (error) {
+            console.error("Failed to fetch journal entries:", error);
+            alert("Could not load your journal. Please check your connection.");
+        } finally {
+            setLoading(false);
+        }
+    }, [isGuest]);
+
+    useEffect(() => {
+        fetchJournalData();
+    }, [fetchJournalData]);
+
+    useEffect(() => {
+        if (isGuest) {
+            localStorage.setItem(GUEST_JOURNAL_KEY, JSON.stringify(journalData));
+        }
+    }, [journalData, isGuest]);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setNewEntry(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleAddEntry = (e: React.FormEvent) => {
+    const handleAddEntry = async (e: React.FormEvent) => {
         e.preventDefault();
         const weight = parseFloat(newEntry.weight);
         const bp = parseInt(newEntry.bp, 10);
         const energy = parseInt(newEntry.energy, 10);
+        const notes = newEntry.notes.trim();
 
         if (isNaN(weight) || isNaN(bp) || isNaN(energy) || energy < 1 || energy > 10) {
             alert("Please enter valid numbers. Energy must be 1-10.");
             return;
         }
 
-        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const lastEntryName = journalData.length > 0 ? journalData[journalData.length - 1].name : 'Sun';
-        const lastDayIndex = dayNames.indexOf(lastEntryName);
-        const nextDayName = dayNames[(lastDayIndex + 1) % 7];
-
-        const entry: JournalEntry = {
-            name: nextDayName,
-            weight,
-            bp,
-            energy
+        const resetForm = () => {
+            setNewEntry({ weight: '', bp: '', energy: '', notes: '' });
+            setIsModalOpen(false);
         };
+        
+        if (isGuest) {
+            const now = new Date();
+            const entry: JournalEntry = {
+                id: now.toISOString(),
+                timestamp: now.toISOString(),
+                name: now.toLocaleDateString(undefined, { weekday: 'short' }),
+                weight, bp, energy, notes: notes || undefined,
+            };
+            setJournalData(prev => [...prev, entry].slice(-30));
+            resetForm();
+            return;
+        }
 
-        setJournalData(prevData => [...prevData, entry].slice(-7));
-        setNewEntry({ weight: '', bp: '', energy: '' });
-        setIsModalOpen(false);
+        try {
+            const entryData = { weight, bp, energy, notes: notes || undefined };
+            await db.addJournalEntry(entryData);
+            resetForm();
+            fetchJournalData();
+        } catch (error) {
+            console.error("Failed to add journal entry:", error);
+            alert("Could not save your entry. Please try again.");
+        }
     };
 
     return (
-        <div className="p-6 animate-fade-in">
+        <div className="p-6 animate-fade-in pb-24">
             <h2 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Journal</h2>
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-emerald-50 dark:border-slate-700 mb-6">
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-emerald-50 dark:border-slate-700 mb-6 relative">
+                {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl z-10">
+                        <LogoIcon className="animate-spin h-8 w-8 text-emerald-600"/>
+                    </div>
+                )}
                 <ResponsiveContainer width="100%" height={220}>
-                    <AreaChart data={journalData}>
+                    <AreaChart data={journalData.slice(-7).reverse()}>
                         <defs>
                             <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#064E3B" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#064E3B" stopOpacity={0}/>
+                                <stop offset="5%" stopColor="#064E3B" stopOpacity={0.8}/>
+                                <stop offset="95%" stopColor="#064E3B" stopOpacity={0}/>
                             </linearGradient>
                             <linearGradient id="colorEnergy" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                                <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                                <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
                             </linearGradient>
                         </defs>
                         <XAxis dataKey="name" tick={{fill: '#64748B', fontSize: 12}} axisLine={false} tickLine={false} />
@@ -704,15 +771,57 @@ const ProgressJournalScreen: React.FC = () => {
                         <YAxis yAxisId="right" orientation="right" stroke="#10B981" hide />
                         <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}} />
                         <Legend iconType="circle" wrapperStyle={{paddingTop: '10px'}}/>
-                        <Area yAxisId="left" type="monotone" dataKey="weight" stroke="#064E3B" strokeWidth={3} fill="url(#colorWeight)" name="Weight" isAnimationActive={true}/>
-                        <Area yAxisId="right" type="monotone" dataKey="energy" stroke="#10B981" strokeWidth={3} fill="url(#colorEnergy)" name="Energy" isAnimationActive={true}/>
+                        <Area yAxisId="left" type="monotone" dataKey="weight" stroke="#064E3B" strokeWidth={3} fill="url(#colorWeight)" name="Weight" isAnimationActive={!loading}/>
+                        <Area yAxisId="right" type="monotone" dataKey="energy" stroke="#10B981" strokeWidth={3} fill="url(#colorEnergy)" name="Energy" isAnimationActive={!loading}/>
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
-             <div className="p-4 bg-emerald-50 rounded-2xl text-center text-emerald-800 font-medium dark:bg-emerald-900/30 dark:text-emerald-200 border border-emerald-100 dark:border-emerald-800 shadow-sm">
-                <p>Consistent tracking leads to better care.</p>
+            
+            <div className="mt-8">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-emerald-800 dark:text-emerald-300">Recent Entries</h3>
+                    <button onClick={() => setIsModalOpen(true)} className="btn-small-gradient">
+                        <PlusIcon className="w-4 h-4 mr-1" />
+                        Add Entry
+                    </button>
+                </div>
+                {loading ? null : journalData.length > 0 ? (
+                    <div className="space-y-3">
+                        {journalData.map(entry => (
+                            <div key={entry.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-emerald-50 dark:border-slate-700 animate-fade-in-up">
+                                <p className="font-bold text-lg text-emerald-900 dark:text-white mb-2">{new Date(entry.timestamp).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</p>
+                                
+                                <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                                    <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg">
+                                        <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">WEIGHT</p>
+                                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{entry.weight.toFixed(1)} <span className="text-xs">kg</span></p>
+                                    </div>
+                                    <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg">
+                                        <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">ENERGY</p>
+                                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{entry.energy}/10</p>
+                                    </div>
+                                    <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg">
+                                        <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">BP</p>
+                                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{entry.bp}</p>
+                                    </div>
+                                </div>
+
+                                {entry.notes && (
+                                    <div className="mt-3 pt-3 border-t border-emerald-100 dark:border-slate-700">
+                                        <p className="text-sm text-gray-600 dark:text-gray-300 italic">"{entry.notes}"</p>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                     <div className="text-center py-8 px-4 bg-emerald-50 dark:bg-slate-800 rounded-2xl border border-emerald-100 dark:border-slate-700">
+                        <BookIcon className="w-12 h-12 mx-auto text-emerald-300 dark:text-slate-600" />
+                        <p className="mt-2 text-emerald-700 dark:text-gray-400 font-medium">No entries yet.</p>
+                        <p className="text-xs text-emerald-600 dark:text-gray-500">Add your first entry to start tracking.</p>
+                    </div>
+                )}
             </div>
-            <button onClick={() => setIsModalOpen(true)} className="btn-primary mt-6">Log Daily Stats</button>
         
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fade-in" onClick={() => setIsModalOpen(false)}>
@@ -722,24 +831,15 @@ const ProgressJournalScreen: React.FC = () => {
                             <div>
                                 <label htmlFor="weight" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Weight (kg)</label>
                                 <input
-                                    type="number"
-                                    id="weight"
-                                    name="weight"
-                                    value={newEntry.weight}
-                                    onChange={handleInputChange}
+                                    type="number" id="weight" name="weight" value={newEntry.weight} onChange={handleInputChange}
                                     className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
-                                    required
-                                    step="0.1"
+                                    required step="0.1"
                                 />
                             </div>
                             <div>
                                 <label htmlFor="bp" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">BP (Systolic)</label>
                                 <input
-                                    type="number"
-                                    id="bp"
-                                    name="bp"
-                                    value={newEntry.bp}
-                                    onChange={handleInputChange}
+                                    type="number" id="bp" name="bp" value={newEntry.bp} onChange={handleInputChange}
                                     className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
                                     required
                                 />
@@ -747,16 +847,23 @@ const ProgressJournalScreen: React.FC = () => {
                             <div>
                                 <label htmlFor="energy" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Energy (1-10)</label>
                                 <input
-                                    type="number"
-                                    id="energy"
-                                    name="energy"
-                                    value={newEntry.energy}
-                                    onChange={handleInputChange}
+                                    type="number" id="energy" name="energy" value={newEntry.energy} onChange={handleInputChange}
                                     className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
-                                    required
-                                    min="1"
-                                    max="10"
+                                    required min="1" max="10"
                                 />
+                            </div>
+                             <div>
+                                <label htmlFor="notes" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Notes</label>
+                                <textarea
+                                    id="notes" name="notes" value={newEntry.notes} onChange={handleInputChange}
+                                    placeholder="How are you feeling? Any food reactions?"
+                                    rows={3}
+                                    className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
+                                />
+                            </div>
+                            <div className="p-3 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-xl text-sm text-teal-900 dark:text-teal-100 shadow-sm flex items-start gap-2">
+                                <PremiumIcon className="w-5 h-5 mt-0.5 text-teal-600 dark:text-teal-400 flex-shrink-0" />
+                                <p className="opacity-90">Upgrade to <span className="font-bold">Premium</span> to have your journal reviewed by a certified nutritionist.</p>
                             </div>
                             <div className="flex gap-2 pt-4">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="btn-tertiary flex-1">
@@ -788,22 +895,29 @@ const ReminderCard: React.FC<{
     description: string;
     isEnabled: boolean;
     onToggle: () => void;
-    colorClasses: string;
-    toggleColor: string;
-}> = ({ title, description, isEnabled, onToggle, colorClasses, toggleColor }) => (
-    <div className={`p-5 rounded-2xl flex items-center justify-between shadow-sm hover:shadow-md transition-all border ${colorClasses}`}>
-        <div className="flex items-center">
-            <div className="bg-white/50 p-2 rounded-xl mr-4 dark:bg-black/20">
-                <BellIcon className="w-6 h-6" />
+}> = ({ title, description, isEnabled, onToggle }) => {
+    const baseClasses = "p-5 rounded-2xl flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300 border relative overflow-hidden";
+    const onClasses = "bg-gradient-to-r from-emerald-600 to-teal-600 border-emerald-700 text-white shadow-lg shadow-emerald-500/20";
+    const offClasses = "bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700";
+
+    return (
+        <div className={`${baseClasses} ${isEnabled ? onClasses : offClasses}`}>
+            {isEnabled && <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent h-1/2 pointer-events-none"></div>}
+            <div className="flex items-center relative z-10">
+                <div className={`p-2 rounded-xl mr-4 transition-colors ${isEnabled ? 'bg-white/20' : 'bg-emerald-100 dark:bg-slate-700'}`}>
+                    <BellIcon className={`w-6 h-6 transition-colors ${isEnabled ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`} />
+                </div>
+                <div>
+                    <h3 className={`font-bold text-lg transition-colors ${isEnabled ? 'text-white' : 'text-emerald-900 dark:text-white'}`}>{title}</h3>
+                    <p className={`text-xs font-medium transition-colors ${isEnabled ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>{description}</p>
+                </div>
             </div>
-            <div>
-                <h3 className="font-bold text-lg">{title}</h3>
-                <p className="text-xs opacity-90 font-medium">{description}</p>
+            <div className="relative z-10">
+                <ToggleSwitch isEnabled={isEnabled} onToggle={onToggle} color="bg-emerald-500" />
             </div>
         </div>
-        <ToggleSwitch isEnabled={isEnabled} onToggle={onToggle} color={toggleColor} />
-    </div>
-);
+    );
+};
 
 const RemindersScreen: React.FC = () => {
     const REMINDERS_STORAGE_KEY = 'nutrican_reminders_settings';
@@ -835,22 +949,16 @@ const RemindersScreen: React.FC = () => {
             key: 'meal' as const,
             title: "Meal Times",
             description: "Remind me every 3 hours",
-            colorClasses: "bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-900/40 dark:border-emerald-800 dark:text-emerald-100",
-            toggleColor: "bg-emerald-600",
         },
         {
             key: 'water' as const,
             title: "Hydration",
             description: "Drink water every hour",
-            colorClasses: "bg-teal-50 border-teal-200 text-teal-900 dark:bg-teal-900/40 dark:border-teal-800 dark:text-teal-100",
-            toggleColor: "bg-teal-500",
         },
         {
             key: 'medication' as const,
             title: "Medication",
             description: "Morning and Evening pills",
-            colorClasses: "bg-green-50 border-green-200 text-green-900 dark:bg-green-900/40 dark:border-green-800 dark:text-green-100",
-            toggleColor: "bg-green-600",
         },
     ];
 
@@ -865,8 +973,6 @@ const RemindersScreen: React.FC = () => {
                         description={config.description}
                         isEnabled={reminders[config.key]}
                         onToggle={() => handleToggle(config.key)}
-                        colorClasses={config.colorClasses}
-                        toggleColor={config.toggleColor}
                     />
                 ))}
             </div>
@@ -1129,7 +1235,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
 
   const pages = useMemo(() => ({
     home: <HomeScreen userProfile={userProfile} setActivePage={setActivePage} setModal={setModalContent} />,
-    tracker: <NutrientTrackerScreen />, // Changed to show the new tracker page
+    tracker: <ProgressJournalScreen userProfile={userProfile} />,
     library: <LibraryScreen />,
     'doctor-connect': <DoctorConnectScreen userProfile={userProfile} />,
     profile: <ProfileScreen userProfile={userProfile} onLogout={onLogout} />,
