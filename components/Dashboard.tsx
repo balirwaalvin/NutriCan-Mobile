@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal } from '../types';
 import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon } from './Icons';
@@ -501,7 +503,8 @@ const NutrientTrackerScreen: React.FC = () => {
 };
 
 const SymptomTipsScreen: React.FC = () => {
-    const SYMPTOM_STORAGE_KEY = 'nutrican_saved_symptom_tips';
+    // Updated storage key to force refresh of old, generic tips
+    const SYMPTOM_STORAGE_KEY = 'nutrican_saved_symptom_tips_v2';
 
     const [viewingSymptom, setViewingSymptom] = useState<SymptomType | null>(null);
     const [currentTips, setCurrentTips] = useState<RecommendedFood[] | null>(null);
@@ -576,13 +579,22 @@ const SymptomTipsScreen: React.FC = () => {
                                 </div>
                             </div>
                         ))}
-                        <button 
-                            onClick={handleSaveTips}
-                            disabled={isCurrentTipSaved}
-                            className="btn-primary mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isCurrentTipSaved ? 'Saved to Profile' : 'Save Tips'}
-                        </button>
+                        <div className="flex gap-2 mt-6">
+                            <button 
+                                onClick={handleSaveTips}
+                                disabled={isCurrentTipSaved}
+                                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isCurrentTipSaved ? 'Saved' : 'Save Tips'}
+                            </button>
+                             <button 
+                                onClick={() => fetchAndSetTips(viewingSymptom)}
+                                disabled={loading}
+                                className="btn-secondary flex-1"
+                            >
+                                Refresh Ideas
+                            </button>
+                        </div>
                     </div>
                 )}
                 
@@ -707,13 +719,19 @@ const ProgressJournalScreen: React.FC<{ userProfile: UserProfile }> = ({ userPro
     const handleAddEntry = async (e: React.FormEvent) => {
         e.preventDefault();
         const weight = parseFloat(newEntry.weight);
-        const bp = parseInt(newEntry.bp, 10);
+        // Handle empty BP string for optional field
+        const bp = newEntry.bp ? parseInt(newEntry.bp, 10) : undefined;
         const energy = parseInt(newEntry.energy, 10);
         const notes = newEntry.notes.trim();
 
-        if (isNaN(weight) || isNaN(bp) || isNaN(energy) || energy < 1 || energy > 10) {
-            alert("Please enter valid numbers. Energy must be 1-10.");
+        if (isNaN(weight) || isNaN(energy) || energy < 1 || energy > 10) {
+            alert("Please enter valid numbers for Weight and Energy. Energy must be 1-10.");
             return;
+        }
+
+        if (newEntry.bp && (bp === undefined || isNaN(bp))) {
+             alert("Please enter a valid number for BP.");
+             return;
         }
 
         const resetForm = () => {
@@ -802,7 +820,7 @@ const ProgressJournalScreen: React.FC<{ userProfile: UserProfile }> = ({ userPro
                                     </div>
                                     <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg">
                                         <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">BP</p>
-                                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{entry.bp}</p>
+                                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{entry.bp !== undefined && entry.bp !== null ? entry.bp : '-'}</p>
                                     </div>
                                 </div>
 
@@ -837,11 +855,10 @@ const ProgressJournalScreen: React.FC<{ userProfile: UserProfile }> = ({ userPro
                                 />
                             </div>
                             <div>
-                                <label htmlFor="bp" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">BP (Systolic)</label>
+                                <label htmlFor="bp" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">BP (Systolic) <span className="normal-case font-normal text-gray-400">(Optional)</span></label>
                                 <input
                                     type="number" id="bp" name="bp" value={newEntry.bp} onChange={handleInputChange}
                                     className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
-                                    required
                                 />
                             </div>
                             <div>

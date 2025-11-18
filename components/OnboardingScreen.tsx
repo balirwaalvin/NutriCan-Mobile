@@ -1,8 +1,10 @@
 
 import React, { useState } from 'react';
+import { ChevronLeftIcon } from './Icons';
 
 interface OnboardingScreenProps {
   onComplete: () => void;
+  onBack: () => void;
 }
 
 const onboardingSlides = [
@@ -23,7 +25,7 @@ const onboardingSlides = [
   },
 ];
 
-const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
+const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete, onBack }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const handleNext = () => {
@@ -34,10 +36,26 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
     }
   };
 
+  const handleBack = () => {
+    if (currentSlide > 0) {
+      setCurrentSlide(currentSlide - 1);
+    } else {
+      onBack();
+    }
+  };
+
   const slide = onboardingSlides[currentSlide];
 
   return (
-    <div className="flex flex-col h-screen bg-transparent p-8 text-center justify-between">
+    <div className="flex flex-col h-screen bg-transparent p-8 text-center justify-between relative">
+      <button 
+        onClick={handleBack} 
+        className="absolute top-6 left-6 z-20 p-2 bg-white/50 dark:bg-slate-800/50 rounded-full text-emerald-900 dark:text-white hover:bg-white/80 dark:hover:bg-slate-700 transition-all shadow-sm backdrop-blur-sm active:scale-95"
+        aria-label="Go back"
+      >
+        <ChevronLeftIcon className="w-6 h-6" />
+      </button>
+
       <div className="flex-grow flex flex-col items-center justify-center" key={currentSlide}>
         <div className="relative mb-8">
             <div className="absolute inset-0 bg-emerald-200 rounded-full filter blur-xl opacity-30 animate-pulse"></div>

@@ -1,5 +1,4 @@
 
-
 export type Page = 'splash' | 'terms' | 'onboarding' | 'auth' | 'dashboard';
 
 export type DashboardPage = 'home' | 'tracker' | 'library' | 'doctor-connect' | 'profile';
@@ -17,8 +16,7 @@ export enum OtherCondition {
   DIABETES = 'Diabetes',
   HYPERTENSION = 'Hypertension',
   HYPOTENSION = 'Hypotension',
-  OVERWEIGHT = 'Overweight',
-  UNDERWEIGHT = 'Underweight',
+  // Removed Overweight/Underweight as requested
 }
 
 export enum TreatmentStage {
@@ -36,7 +34,7 @@ export interface UserProfile {
   weight: number; // in kg
   cancerType: CancerType;
   cancerStage: CancerStage;
-  otherConditions: OtherCondition[];
+  otherConditions: string[]; // Changed to string[] to allow formatted conditions like "Diabetes (Type 1)"
   treatmentStages: TreatmentStage[];
   plan: 'Free' | 'Premium';
 }
@@ -90,7 +88,7 @@ export interface JournalEntry {
   name: string; // e.g., 'Mon', 'Tue' for the chart
   weight: number;
   energy: number; // 1-10
-  bp: number; // Systolic blood pressure
+  bp?: number; // Systolic blood pressure (Optional)
   notes?: string; // Optional user notes
 }
 

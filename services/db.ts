@@ -1,8 +1,9 @@
+
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
 import { firebaseConfig } from './firebaseConfig';
-import { UserProfile, JournalEntry } from '../types';
+import { UserProfile, JournalEntry, CancerType, CancerStage } from '../types';
 
 // Initialize Firebase once
 if (!firebase.apps.length) {
@@ -76,6 +77,28 @@ export const db = {
   },
 
   /**
+   * Save profile for a user who is already authenticated (e.g. via Google)
+   */
+  saveProfile: async (profile: UserProfile): Promise<UserProfile> => {
+      try {
+          await ensureInitialized();
+          const user = auth.currentUser;
+          if (!user) throw new Error("No authenticated user found");
+
+          await firestore.collection('users').doc(user.uid).set({
+              ...profile,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+          console.log("✅ User profile saved to Firestore for Google user");
+          return profile;
+      } catch (error: any) {
+          console.error("❌ Error saving profile:", error);
+          throw error;
+      }
+  },
+
+  /**
    * Sign in user with email and password
    */
   signIn: async (email: string, password: string): Promise<UserProfile> => {
@@ -109,6 +132,61 @@ export const db = {
   },
 
   /**
+   * Sign in with Google
+   */
+  signInWithGoogle: async (): Promise<{ profile: UserProfile, isNewUser: boolean }> => {
+    try {
+      console.log("🌐 Initiating Google Sign In...");
+      await ensureInitialized();
+      const provider = new firebase.auth.GoogleAuthProvider();
+      
+      // Force selection to avoid instant login loop issues during testing
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+
+      const result = await auth.signInWithPopup(provider);
+      const user = result.user;
+      
+      if (!user) throw new Error("Google Sign In failed - No user returned");
+      
+      // Check if profile exists
+      const existingProfile = await fetchProfile(user.uid);
+      if (existingProfile) {
+        console.log("✅ Found existing profile for Google user");
+        return { profile: existingProfile, isNewUser: false };
+      }
+
+      // Return a template profile for new users to fill out
+      console.log("📝 New Google user detected, preparing for profile creation...");
+      const templateProfile: UserProfile = {
+        name: user.displayName || 'User',
+        age: 30, 
+        email: user.email || '',
+        gender: 'Prefer not to say',
+        height: 165,
+        weight: 60,
+        cancerType: CancerType.CERVICAL,
+        cancerStage: CancerStage.EARLY,
+        otherConditions: [],
+        treatmentStages: [],
+        plan: 'Free',
+      };
+
+      return { profile: templateProfile, isNewUser: true };
+    } catch (error: any) {
+      console.error("❌ Google Sign In error:", error);
+      if (error.code === 'auth/operation-not-supported-in-this-environment') {
+          throw new Error("Google Sign In is not supported in this preview environment. Please try opening the app in a new window or deploying it.");
+      }
+      if (error.code === 'auth/popup-closed-by-user') {
+        throw new Error("Sign in cancelled.");
+      }
+      throw new Error(error.message || "Google Sign In failed.");
+    }
+  },
+
+  /**
    * Sign out current user
    */
   signOut: async (): Promise<void> => {
@@ -138,6 +216,8 @@ export const db = {
               if (user) {
                 console.log("✅ Found active session for user:", user.uid);
                 const profile = await fetchProfile(user.uid);
+                // If profile is missing, it might be a new Google user who hasn't finished setup
+                // In that case, we return null so the UI redirects them to auth/setup
                 resolve(profile);
               } else {
                 console.log("ℹ️ No active session found");
@@ -214,14 +294,19 @@ export const db = {
 
       const entries: JournalEntry[] = snapshot.docs.map(doc => {
         const data = doc.data();
-        const timestamp = (data.timestamp as firebase.firestore.Timestamp).toDate();
+        // Handle potential timestamp issues safely
+        let timestamp = new Date();
+        if (data.timestamp && (data.timestamp as firebase.firestore.Timestamp).toDate) {
+          timestamp = (data.timestamp as firebase.firestore.Timestamp).toDate();
+        }
+        
         return {
           id: doc.id,
           timestamp: timestamp.toISOString(),
           name: timestamp.toLocaleDateString(undefined, { weekday: 'short' }),
           weight: data.weight,
           energy: data.energy,
-          bp: data.bp,
+          bp: data.bp, // Optional now
           notes: data.notes,
         };
       });
@@ -236,7 +321,7 @@ export const db = {
   /**
    * Add a new journal entry for the current user
    */
-  addJournalEntry: async (entry: { weight: number; bp: number; energy: number; notes?: string; }): Promise<string> => {
+  addJournalEntry: async (entry: { weight: number; bp?: number; energy: number; notes?: string; }): Promise<string> => {
     try {
       await ensureInitialized();
       const user = auth.currentUser;
@@ -244,14 +329,26 @@ export const db = {
         throw new Error("User not authenticated. Cannot add journal entry.");
       }
       
+      // Sanitize input to remove undefined values which Firestore rejects
+      const payload: Record<string, any> = {
+        weight: entry.weight,
+        energy: entry.energy,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      if (entry.bp !== undefined && entry.bp !== null && !isNaN(entry.bp)) {
+        payload.bp = entry.bp;
+      }
+      
+      if (entry.notes !== undefined && entry.notes !== null && entry.notes.trim() !== "") {
+        payload.notes = entry.notes;
+      }
+
       const docRef = await firestore
         .collection('users')
         .doc(user.uid)
         .collection('journal')
-        .add({
-          ...entry,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        });
+        .add(payload);
         
       return docRef.id;
     } catch (error: any) {

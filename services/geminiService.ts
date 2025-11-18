@@ -43,7 +43,7 @@ const getMealPhotoUrl = (mealName: string): string => {
         'irish': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Patates.jpg/1280px-Patates.jpg',
         'fruit': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Culinary_fruits_front_view.jpg/1280px-Culinary_fruits_front_view.jpg',
         'salad': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Salad_platter.jpg/1280px-Salad_platter.jpg',
-        'porridge': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Oatmeal_with_berries.jpg/1024px-Oatmeal_with_berries.jpg',
+        'porridge': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Millet_porridge.jpg/1280px-Millet_porridge.jpg',
         'oats': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Oatmeal_with_berries.jpg/1024px-Oatmeal_with_berries.jpg',
         'millet': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Millet_porridge.jpg/1280px-Millet_porridge.jpg',
         'kalo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Millet_porridge.jpg/1280px-Millet_porridge.jpg',
@@ -59,14 +59,17 @@ const getMealPhotoUrl = (mealName: string): string => {
         'pilau': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/White_rice.jpg/1280px-White_rice.jpg',
         'peas': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Split_pea_soup.jpg/1280px-Split_pea_soup.jpg',
         'cowpeas': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Split_pea_soup.jpg/1280px-Split_pea_soup.jpg',
-        'cassava': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Mogo_%28cassava%29.jpg/1280px-Mogo_%28cassava%29.jpg',
+        'cassava': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Mogo_%26_cassava%29.jpg/1280px-Mogo_%26_cassava%29.jpg',
         'yam': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Boiled_Sweet_Potatoes.jpg/1280px-Boiled_Sweet_Potatoes.jpg',
         'sweet potato': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Boiled_Sweet_Potatoes.jpg/1280px-Boiled_Sweet_Potatoes.jpg',
         'pumpkin': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/French_soup.jpg/1280px-French_soup.jpg',
         'soup': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Vegetarian_Curry.jpeg/1280px-Vegetarian_Curry.jpeg',
+        'broth': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Vegetarian_Curry.jpeg/1280px-Vegetarian_Curry.jpeg',
         'chapati': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Chapati_02.jpg/1280px-Chapati_02.jpg',
         'tea': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Tea_plantations_in_Munnar%2C_Kerala.jpg/1280px-Tea_plantations_in_Munnar%2C_Kerala.jpg',
+        'drink': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Tea_plantations_in_Munnar%2C_Kerala.jpg/1280px-Tea_plantations_in_Munnar%2C_Kerala.jpg',
         'ginger': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Ginger_Root.jpg/1280px-Ginger_Root.jpg',
+        'lemon': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Lemon.jpg/1280px-Lemon.jpg',
         'mango': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Hapus_Mango.jpg/1280px-Hapus_Mango.jpg',
         'pineapple': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Pineapple_and_cross_section.jpg/1280px-Pineapple_and_cross_section.jpg',
         'watermelon': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Taiwan_2009_Tainan_City_Organic_Farm_Watermelon.jpg/1280px-Taiwan_2009_Tainan_City_Organic_Farm_Watermelon.jpg',
@@ -75,6 +78,16 @@ const getMealPhotoUrl = (mealName: string): string => {
         'passion': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Passion_fruit_packed_with_edible_seeds.jpg/1280px-Passion_fruit_packed_with_edible_seeds.jpg',
         'juice': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Glass_of_orange_juice.jpg/1280px-Glass_of_orange_juice.jpg',
         'water': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Glass_of_water.jpg/800px-Glass_of_water.jpg',
+        'hydration': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Glass_of_water.jpg/800px-Glass_of_water.jpg',
+        'yoghurt': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Bowl_of_yogurt.jpg/1280px-Bowl_of_yogurt.jpg',
+        'yogurt': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Bowl_of_yogurt.jpg/1280px-Bowl_of_yogurt.jpg',
+        'milk': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Glass_of_Milk_%2833657535532%29.jpg/1280px-Glass_of_Milk_%2833657535532%29.jpg',
+        'cracker': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Cream_crackers_stack.jpg/1280px-Cream_crackers_stack.jpg',
+        'biscuit': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Cream_crackers_stack.jpg/1280px-Cream_crackers_stack.jpg',
+        'toast': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Toast-2.jpg/1280px-Toast-2.jpg',
+        'bread': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Toast-2.jpg/1280px-Toast-2.jpg',
+        'ice': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Strawberry_ice_cream_cone_%285076899310%29.jpg/1280px-Strawberry_ice_cream_cone_%285076899310%29.jpg',
+        'cold': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Strawberry_ice_cream_cone_%285076899310%29.jpg/1280px-Strawberry_ice_cream_cone_%285076899310%29.jpg',
     };
 
     const lowerMealName = mealName.toLowerCase();
@@ -283,13 +296,17 @@ export const getNutrientInfo = async (mealName: string): Promise<NutrientInfo | 
 
 export const getSymptomTips = async (symptom: SymptomType): Promise<RecommendedFood[] | null> => {
     const prompt = `
-        Generate a list of recommended local Ugandan foods for a patient with cervical cancer experiencing ${symptom}.
-        The foods should be easy to digest, healthy, and help alleviate the symptom.
+        Generate a list of 4-5 highly specific and effective local Ugandan food recommendations for a patient with cervical cancer experiencing ${symptom}.
+        Focus on foods that are scientifically or traditionally known to help with ${symptom} specifically.
+        For example, if the symptom is Nausea, suggest ginger, dry crackers, or bland foods. 
+        If the symptom is Constipation, suggest high fiber foods like papayas or green vegetables.
+        If the symptom is Mouth Wounds, suggest soft, blended, or cold foods.
+        The recommendations MUST be distinct and tailored to ${symptom}.
         Avoid sugary, fried, spicy, or very fatty foods.
         Respond ONLY with a JSON object. The object should have a single key "recommendations", which is an array of objects.
         Each object in the array should have a "name" (string) and a "description" (string, max 20 words).
-        Provide 3 to 5 recommendations.
-        Example for Nausea:
+        
+        Example structure:
         {
           "recommendations": [
             {"name": "Ginger Tea (Tangawizi)", "description": "Soothes the stomach and is known to effectively reduce nausea."},

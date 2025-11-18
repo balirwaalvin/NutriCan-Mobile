@@ -67,14 +67,25 @@ const App: React.FC = () => {
       case 'splash':
         return <SplashScreen onGetStarted={() => setCurrentPage('terms')} />;
       case 'terms':
-        return <TermsScreen onAgree={() => setCurrentPage('onboarding')} />;
+        return (
+          <TermsScreen 
+            onAgree={() => setCurrentPage('onboarding')} 
+            onBack={() => setCurrentPage('splash')}
+          />
+        );
       case 'onboarding':
-        return <OnboardingScreen onComplete={() => setCurrentPage('auth')} />;
+        return (
+          <OnboardingScreen 
+            onComplete={() => setCurrentPage('auth')} 
+            onBack={() => setCurrentPage('terms')}
+          />
+        );
       case 'auth':
         return (
           <AuthScreen 
             initialView={authInitialView}
             onAuthSuccess={handleAuthSuccess}
+            onBack={() => setCurrentPage('onboarding')}
             onContinueAsGuest={() => {
               // Create a default guest profile - Guest sessions are not persisted in DB by default
               handleAuthSuccess({
@@ -94,7 +105,7 @@ const App: React.FC = () => {
           />
         );
       case 'dashboard':
-        return userProfile ? <Dashboard userProfile={userProfile} onLogout={handleLogout} /> : <AuthScreen onAuthSuccess={handleAuthSuccess} onContinueAsGuest={() => {}} />;
+        return userProfile ? <Dashboard userProfile={userProfile} onLogout={handleLogout} /> : <AuthScreen onAuthSuccess={handleAuthSuccess} onContinueAsGuest={() => {}} onBack={() => setCurrentPage('onboarding')} />;
       default:
         return <SplashScreen onGetStarted={() => setCurrentPage('terms')} />;
     }

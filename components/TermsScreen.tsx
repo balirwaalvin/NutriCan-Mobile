@@ -1,15 +1,23 @@
 
 import React from 'react';
-import { LogoIcon } from './Icons';
+import { LogoIcon, ChevronLeftIcon } from './Icons';
 
 interface TermsScreenProps {
   onAgree: () => void;
+  onBack: () => void;
 }
 
-const TermsScreen: React.FC<TermsScreenProps> = ({ onAgree }) => {
+const TermsScreen: React.FC<TermsScreenProps> = ({ onAgree, onBack }) => {
   return (
-    <div className="flex flex-col h-screen p-6 bg-transparent animate-fade-in">
-      <div className="text-center">
+    <div className="flex flex-col h-screen p-6 bg-transparent animate-fade-in relative">
+      <button 
+        onClick={onBack} 
+        className="absolute top-6 left-6 z-20 p-2 bg-white/50 dark:bg-slate-800/50 rounded-full text-emerald-900 dark:text-white hover:bg-white/80 dark:hover:bg-slate-700 transition-all shadow-sm backdrop-blur-sm active:scale-95"
+        aria-label="Go back"
+      >
+        <ChevronLeftIcon className="w-6 h-6" />
+      </button>
+      <div className="text-center mt-8">
         <LogoIcon className="w-16 h-16 text-emerald-600 mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-emerald-900 dark:text-gray-100">Terms & Conditions</h1>
       </div>
