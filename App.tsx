@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, Suspense, lazy } from 'react';
 import { Page, UserProfile, CancerType, CancerStage } from './types';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -113,8 +112,9 @@ const App: React.FC = () => {
 
   return (
     <ThemeProvider>
-      <div className="bg-gradient-background-light dark:bg-gradient-background-dark font-sans">
-        <div className="max-w-sm mx-auto bg-transparent min-h-screen shadow-2xl shadow-emerald-900/20 dark:shadow-teal-900/50">
+      <div className="bg-gradient-background-light dark:bg-gradient-background-dark font-sans min-h-screen">
+        {/* Updated Container: W-full on mobile, max-w-md on tablet, max-w-lg on desktop, centered */}
+        <div className="w-full sm:max-w-md md:max-w-lg mx-auto bg-transparent min-h-screen shadow-2xl shadow-emerald-900/20 dark:shadow-teal-900/50 relative">
           <Suspense fallback={<LoadingFallback />}>
             {renderPage()}
           </Suspense>

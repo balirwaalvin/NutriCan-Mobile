@@ -1,0 +1,22 @@
+{
+  "name": "NutriCan: Cancer Nutrition",
+  "short_name": "NutriCan",
+  "description": "A personalized nutrition and wellness assistant for cancer patients.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ecfdf5",
+  "theme_color": "#064E3B",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://firebasestorage.googleapis.com/v0/b/nutrican-studio.firebasestorage.app/o/nutri-can.png?alt=media&token=fd1179f2-de7e-46cc-869d-555695da50cb",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://firebasestorage.googleapis.com/v0/b/nutrican-studio.firebasestorage.app/o/nutri-can.png?alt=media&token=fd1179f2-de7e-46cc-869d-555695da50cb",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

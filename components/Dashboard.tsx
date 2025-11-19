@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal } from '../types';
 import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon } from './Icons';
@@ -20,7 +18,7 @@ const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: Das
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 max-w-sm mx-auto bg-white/95 backdrop-blur-xl border-t border-emerald-100 flex justify-around p-2 dark:bg-slate-900/95 dark:border-slate-700 z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+    <div className="fixed bottom-0 left-0 right-0 w-full sm:max-w-md md:max-w-lg mx-auto bg-white/95 backdrop-blur-xl border-t border-emerald-100 flex justify-around p-2 dark:bg-slate-900/95 dark:border-slate-700 z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
       {navItems.map(item => {
           const isActive = activePage === item.page;
           return (
@@ -46,10 +44,13 @@ const EmergencyButton: React.FC<{ activePage: DashboardPage }> = ({ activePage }
 
   return (
     <>
-      <button onClick={() => setShowModal(true)} className="fixed bottom-24 right-4 bg-gradient-to-b from-red-500 to-red-700 text-white rounded-full w-16 h-16 flex items-center justify-center text-lg font-bold z-50 animate-pulse transition-all hover:scale-105 active:scale-95 active:translate-y-1 border border-white/20 relative overflow-hidden" style={{ boxShadow: '0 4px 0 #7f1d1d, 0 8px 10px rgba(0,0,0,0.3)' }}>
-        <span className="relative z-10 drop-shadow-md">SOS</span>
-        <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent h-1/2 pointer-events-none rounded-full"></div>
-      </button>
+      {/* Position container to match app width so button stays with app on wide screens */}
+      <div className="fixed bottom-24 left-0 right-0 w-full sm:max-w-md md:max-w-lg mx-auto pointer-events-none z-50 px-4">
+        <button onClick={() => setShowModal(true)} className="pointer-events-auto float-right bg-gradient-to-b from-red-500 to-red-700 text-white rounded-full w-16 h-16 flex items-center justify-center text-lg font-bold animate-pulse transition-all hover:scale-105 active:scale-95 active:translate-y-1 border border-white/20 relative overflow-hidden shadow-lg" style={{ boxShadow: '0 4px 0 #7f1d1d, 0 8px 10px rgba(0,0,0,0.3)' }}>
+            <span className="relative z-10 drop-shadow-md">SOS</span>
+            <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent h-1/2 pointer-events-none rounded-full"></div>
+        </button>
+      </div>
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowModal(false)}>
           <div className="bg-white p-6 rounded-2xl shadow-2xl text-center dark:bg-slate-800 animate-fade-in-up max-w-xs w-full border border-red-100" onClick={e => e.stopPropagation()}>
@@ -1066,7 +1067,8 @@ const LibraryScreen: React.FC = () => {
       <h1 className="text-3xl font-bold mb-2 text-emerald-900 dark:text-white">Library</h1>
       <p className="text-gray-600 mb-6 dark:text-gray-400">Download offline resources for your journey.</p>
       
-      <div className="grid grid-cols-1 gap-4">
+      {/* Responsive Grid: 1 col on mobile, 2 on tablet/web */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {documents.map((doc, index) => (
           <div key={index} className="flex bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-md border border-emerald-50 dark:border-slate-700 overflow-hidden transition-all hover:scale-[1.02] active:scale-95">
              <img src={doc.img} alt={doc.title} className="w-20 h-24 object-cover rounded-xl flex-shrink-0 bg-gray-200" />

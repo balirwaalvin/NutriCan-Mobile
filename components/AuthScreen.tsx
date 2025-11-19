@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { UserProfile, CancerType, CancerStage, OtherCondition, TreatmentStage } from '../types';
 import { LogoIcon, ChevronLeftIcon } from './Icons';
@@ -251,7 +250,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
     };
 
     return (
-    <form onSubmit={handleStep1Submit} className="space-y-4 relative">
+    <form onSubmit={handleStep1Submit} className="space-y-4 relative max-w-sm mx-auto">
       <h1 className="text-2xl font-bold text-emerald-900 text-center dark:text-gray-100">
           {isGoogleSignUp ? 'Complete Your Profile' : 'Create Your Account'}
       </h1>
@@ -315,7 +314,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   };
 
   const renderSignUpStep2 = () => (
-    <div className="text-center">
+    <div className="text-center max-w-sm mx-auto">
       <h1 className="text-2xl font-bold text-emerald-900 dark:text-gray-100">For Cervical Cancer</h1>
       <img 
         src="https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FCervical.png?alt=media&token=a93b20a3-e750-40d9-a8c0-8822dd560e9c" 
@@ -330,7 +329,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   );
 
   const renderSignUpStep3 = () => (
-    <form onSubmit={handleNextStep} className="space-y-4">
+    <form onSubmit={handleNextStep} className="space-y-4 max-w-sm mx-auto">
       <h1 className="text-2xl font-bold text-emerald-900 text-center dark:text-gray-100">Health Profile</h1>
       <p className="text-center text-gray-500 dark:text-gray-400 mb-4">Select any pre-existing conditions and their severity.</p>
       
@@ -368,7 +367,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   );
 
   const renderSignUpStep4 = () => (
-    <form onSubmit={handleNextStep} className="space-y-4">
+    <form onSubmit={handleNextStep} className="space-y-4 max-w-sm mx-auto">
       <h1 className="text-2xl font-bold text-emerald-900 text-center dark:text-gray-100">Cancer Stage</h1>
       <p className="text-center text-gray-500 mb-6 dark:text-gray-400">Please select your current cancer stage.</p>
       <select name="cancerStage" value={formData.cancerStage} onChange={handleChange} className={commonInputClasses}>
@@ -379,7 +378,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   );
 
   const renderSignUpStep5 = () => (
-    <div className="text-center">
+    <div className="text-center max-w-sm mx-auto">
       <h1 className="text-2xl font-bold text-emerald-900 dark:text-gray-100">Almost There!</h1>
       <p className="text-gray-500 mb-6 dark:text-gray-400">Just a couple more questions to personalize your experience.</p>
       <img src="https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2Fpatient%20filling%20form.png?alt=media&token=011d0896-a218-418a-a3a1-21c7174e17ce" alt="Patient filling out profile" className="rounded-xl mx-auto my-4 w-full max-w-xs shadow-lg"/>
@@ -388,7 +387,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
 );
 
   const renderSignUpStep6 = () => (
-    <form onSubmit={handleSignUpSubmit} className="space-y-4 relative">
+    <form onSubmit={handleSignUpSubmit} className="space-y-4 relative max-w-sm mx-auto">
       {isLoading && <LoadingSpinner />}
       <h1 className="text-2xl font-bold text-emerald-900 text-center dark:text-gray-100">Treatment Stage</h1>
       <p className="text-center text-gray-500 dark:text-gray-400 mb-4">Select your current treatment stage(s).</p>
@@ -422,7 +421,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   }
 
   const renderSignInForm = () => (
-    <form onSubmit={handleSignInSubmit} className="space-y-4 relative">
+    <form onSubmit={handleSignInSubmit} className="space-y-4 relative max-w-sm mx-auto">
       {isLoading && <LoadingSpinner />}
       <h1 className="text-2xl font-bold text-emerald-900 text-center dark:text-gray-100">Sign In</h1>
       <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} className={commonInputClasses} required disabled={isLoading} />
@@ -502,7 +501,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
       
       {/* Ensure guest button is only visible when appropriate and doesn't overlap heavily */}
       {(view === 'initial') && (
-       <button onClick={onContinueAsGuest} className="btn-tertiary absolute bottom-8 left-8 right-8 w-auto backdrop-blur-sm text-sm py-3 z-10">
+       <button onClick={onContinueAsGuest} className="btn-tertiary absolute bottom-8 left-8 right-8 sm:left-1/2 sm:right-auto sm:w-64 sm:-ml-32 w-auto backdrop-blur-sm text-sm py-3 z-10">
         Continue as Guest
       </button>
       )}
