@@ -3,7 +3,7 @@ import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
 import { firebaseConfig } from './firebaseConfig';
-import { UserProfile, JournalEntry, CancerType, CancerStage } from '../types';
+import { UserProfile, JournalEntry, CancerType, CancerStage, LoggedMeal, NutrientInfo } from '../types';
 
 // Initialize Firebase once
 if (!firebase.apps.length) {
@@ -306,7 +306,7 @@ export const db = {
           name: timestamp.toLocaleDateString(undefined, { weekday: 'short' }),
           weight: data.weight,
           energy: data.energy,
-          bp: data.bp, // Optional now
+          bp: data.bp,
           notes: data.notes,
         };
       });
@@ -356,4 +356,69 @@ export const db = {
       throw error;
     }
   },
+
+  /**
+   * Add a new meal log
+   */
+  addMealLog: async (meal: { name: string; nutrients: NutrientInfo; }): Promise<string> => {
+    try {
+      await ensureInitialized();
+      const user = auth.currentUser;
+      if (!user) throw new Error("User not authenticated.");
+
+      const payload = {
+        ...meal,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      const docRef = await firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('meals')
+        .add(payload);
+
+      return docRef.id;
+    } catch (error) {
+      console.error("Error adding meal:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get meal logs
+   */
+  getMealLogs: async (): Promise<LoggedMeal[]> => {
+    try {
+      await ensureInitialized();
+      const user = auth.currentUser;
+      if (!user) return [];
+
+      const snapshot = await firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('meals')
+        .orderBy('timestamp', 'desc')
+        .limit(50)
+        .get();
+
+      if (snapshot.empty) return [];
+
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        let timestamp = new Date();
+        if (data.timestamp && (data.timestamp as firebase.firestore.Timestamp).toDate) {
+          timestamp = (data.timestamp as firebase.firestore.Timestamp).toDate();
+        }
+        return {
+          id: doc.id,
+          name: data.name,
+          nutrients: data.nutrients,
+          timestamp: timestamp.toISOString(),
+        };
+      });
+    } catch (error) {
+       console.error("Error getting meals:", error);
+       return [];
+    }
+  }
 };

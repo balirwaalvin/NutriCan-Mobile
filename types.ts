@@ -1,7 +1,7 @@
 
 export type Page = 'splash' | 'terms' | 'onboarding' | 'auth' | 'dashboard';
 
-export type DashboardPage = 'home' | 'tracker' | 'library' | 'doctor-connect' | 'profile';
+export type DashboardPage = 'home' | 'tracker' | 'live' | 'doctor-connect' | 'profile' | 'library';
 
 export enum CancerType {
   CERVICAL = 'Cervical',

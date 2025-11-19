@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal } from '../types';
-import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon } from './Icons';
+import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon, MicIcon, BroadcastIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips } from '../services/geminiService';
 import { db } from '../services/db';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
@@ -12,7 +13,7 @@ const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: Das
   const navItems = [
     { page: 'home' as DashboardPage, icon: HomeIcon, label: 'Home' },
     { page: 'tracker' as DashboardPage, icon: ChartIcon, label: 'Tracker' },
-    { page: 'library' as DashboardPage, icon: BookIcon, label: 'Library' },
+    { page: 'live' as DashboardPage, icon: BroadcastIcon, label: 'Live' },
     { page: 'doctor-connect' as DashboardPage, icon: PremiumIcon, label: 'Doctor' },
     { page: 'profile' as DashboardPage, icon: UserIcon, label: 'Profile' },
   ];
@@ -78,9 +79,9 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
     const features = [
         { name: 'Personalized Meal Plan', icon: BowlIcon, action: () => setModal(<MealPlanScreen userProfile={userProfile} />) },
         { name: 'Food Safety Checker', icon: SearchIcon, action: () => setModal(<FoodSafetyCheckerScreen userProfile={userProfile} />) },
-        { name: 'Nutrient Tracker', icon: ChartIcon, action: () => setModal(<NutrientTrackerScreen />) },
+        { name: 'Nutrient Tracker', icon: ChartIcon, action: () => setActivePage('tracker') },
         { name: 'Symptom-Based Tips', icon: NauseaIcon, action: () => setModal(<SymptomTipsScreen />) },
-        { name: 'Progress Journal', icon: BookIcon, action: () => setActivePage('tracker') },
+        { name: 'Resource Library', icon: BookIcon, action: () => setActivePage('library') },
         { name: 'Reminders & Alerts', icon: BellIcon, action: () => setModal(<RemindersScreen />) },
     ];
     
@@ -348,135 +349,255 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
     );
 };
 
-const NutrientTrackerScreen: React.FC = () => {
-    const NUTRIENT_LOG_KEY = 'nutrican_nutrient_log';
-
-    const [loggedMeals, setLoggedMeals] = useState<LoggedMeal[]>(() => {
-        try {
-            const saved = localStorage.getItem(NUTRIENT_LOG_KEY);
-            return saved ? JSON.parse(saved) : [];
-        } catch (error) {
-            console.error("Failed to parse nutrient log:", error);
-            return [];
-        }
-    });
+const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
+    const [loggedMeals, setLoggedMeals] = useState<LoggedMeal[]>([]);
+    const [journalData, setJournalData] = useState<JournalEntry[]>([]);
+    const [loading, setLoading] = useState(true);
 
     const [isAddMealModalOpen, setIsAddMealModalOpen] = useState(false);
     const [mealName, setMealName] = useState('');
     const [isAddingMeal, setIsAddingMeal] = useState(false);
 
-    useEffect(() => {
-        localStorage.setItem(NUTRIENT_LOG_KEY, JSON.stringify(loggedMeals));
-    }, [loggedMeals]);
+    const [isAddJournalModalOpen, setIsAddJournalModalOpen] = useState(false);
+    const [newJournalEntry, setNewJournalEntry] = useState({ weight: '', bp: '', energy: '', notes: '' });
 
-    const totalNutrients = useMemo<NutrientInfo>(() => {
-        return loggedMeals.reduce((acc, meal) => {
-            if (meal.nutrients) {
-                acc.calories += meal.nutrients.calories || 0;
-                acc.sugar += meal.nutrients.sugar || 0;
-                acc.salt += meal.nutrients.salt || 0;
-            }
-            return acc;
-        }, { calories: 0, sugar: 0, salt: 0 });
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [meals, journals] = await Promise.all([
+                db.getMealLogs(),
+                db.getJournalEntries()
+            ]);
+            setLoggedMeals(meals);
+            setJournalData(journals);
+        } catch (error) {
+            console.error("Failed to fetch data:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    // Compute Today's Nutrients
+    const todaysNutrients = useMemo<NutrientInfo>(() => {
+        const today = new Date().toDateString();
+        return loggedMeals
+            .filter(meal => new Date(meal.timestamp).toDateString() === today)
+            .reduce((acc, meal) => {
+                if (meal.nutrients) {
+                    acc.calories += meal.nutrients.calories || 0;
+                    acc.sugar += meal.nutrients.sugar || 0;
+                    acc.salt += meal.nutrients.salt || 0;
+                }
+                return acc;
+            }, { calories: 0, sugar: 0, salt: 0 });
     }, [loggedMeals]);
 
     const nutrientData = [
-        { name: 'Calories', value: totalNutrients.calories, goal: 2000, unit: 'kcal', color: '#22C55E' },
-        { name: 'Sugar', value: totalNutrients.sugar, goal: 50, unit: 'g', color: '#14B8A6' },
-        { name: 'Salt', value: totalNutrients.salt, goal: 2.3, unit: 'g', color: '#A3E635' },
+        { name: 'Calories', value: todaysNutrients.calories, goal: 2000, unit: 'kcal', color: '#22C55E' },
+        { name: 'Sugar', value: todaysNutrients.sugar, goal: 50, unit: 'g', color: '#14B8A6' },
+        { name: 'Salt', value: todaysNutrients.salt, goal: 2.3, unit: 'g', color: '#A3E635' },
     ];
-    
+
+    // --- Meal Handlers ---
     const handleAddMeal = async () => {
         if (!mealName.trim()) return;
         setIsAddingMeal(true);
         const result = await getNutrientInfo(mealName);
         if (result) {
-            const newMeal: LoggedMeal = {
-                id: Date.now().toString(),
-                name: mealName,
-                nutrients: result,
-                timestamp: new Date().toISOString(),
-            };
-            setLoggedMeals(prev => [...prev, newMeal]);
-            setMealName('');
-            setIsAddMealModalOpen(false);
+            try {
+                await db.addMealLog({
+                    name: mealName,
+                    nutrients: result,
+                });
+                setMealName('');
+                setIsAddMealModalOpen(false);
+                fetchData();
+            } catch (e) {
+                alert("Failed to save meal. Please try again.");
+            }
         } else {
             alert("Could not get nutrient information for this meal. Please try again.");
         }
         setIsAddingMeal(false);
     };
 
-    const formatTimestamp = (isoString: string) => {
-        const date = new Date(isoString);
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    // --- Journal Handlers ---
+    const handleJournalChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setNewJournalEntry(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleAddJournalEntry = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const weight = parseFloat(newJournalEntry.weight);
+        const bp = newJournalEntry.bp ? parseInt(newJournalEntry.bp, 10) : undefined;
+        const energy = parseInt(newJournalEntry.energy, 10);
+        const notes = newJournalEntry.notes.trim();
+
+        if (isNaN(weight) || isNaN(energy) || energy < 1 || energy > 10) {
+            alert("Please enter valid numbers for Weight and Energy. Energy must be 1-10.");
+            return;
+        }
+
+         if (newJournalEntry.bp && (bp === undefined || isNaN(bp))) {
+             alert("Please enter a valid number for BP.");
+             return;
+        }
+
+        try {
+            await db.addJournalEntry({ weight, bp, energy, notes: notes || undefined });
+            setNewJournalEntry({ weight: '', bp: '', energy: '', notes: '' });
+            setIsAddJournalModalOpen(false);
+            fetchData();
+        } catch (error) {
+            console.error("Failed to add journal entry:", error);
+            alert("Could not save your entry. Please try again.");
+        }
+    };
+
+    // Combine history for display
+    const formatTimestamp = (isoString: string) => {
+        return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const historyItems = useMemo(() => {
+        const combined = [
+            ...loggedMeals.map(m => ({ ...m, type: 'meal' as const })),
+            ...journalData.map(j => ({ ...j, type: 'journal' as const }))
+        ];
+        return combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 50);
+    }, [loggedMeals, journalData]);
+
     return (
-        <div className="p-6 animate-fade-in relative min-h-full">
-            <h2 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Nutrients</h2>
-            <div className="grid grid-cols-3 gap-2 text-center mb-6">
-                {nutrientData.map(item => {
-                    const percentage = Math.min((item.value / item.goal) * 100, 100);
-                    const isOver = item.value > item.goal;
-                    return (
-                        <div key={item.name} className="bg-white dark:bg-slate-800 p-2 rounded-2xl shadow-sm border border-emerald-50 dark:border-slate-700">
-                             <div className="h-20 w-full flex items-center justify-center">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie data={[{ value: percentage }, { value: 100 - percentage }]} dataKey="value" cx="50%" cy="50%" innerRadius={25} outerRadius={35} startAngle={90} endAngle={-270} paddingAngle={0} cornerRadius={10} isAnimationActive={true}>
-                                            <Cell fill={isOver ? '#EF4444' : item.color} />
-                                            <Cell fill={isOver ? 'rgba(239, 68, 68, 0.2)' : 'rgba(226, 232, 240, 0.5)'} />
-                                        </Pie>
-                                    </PieChart>
-                                </ResponsiveContainer>
-                             </div>
-                            <p className="font-bold text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{item.name}</p>
-                            <p className={`text-sm font-bold ${isOver ? 'text-red-500' : 'text-emerald-800 dark:text-emerald-300'}`}>
-                                {item.value.toFixed(1)} <span className="text-[10px] font-normal text-gray-400">/ {item.goal}{item.unit}</span>
-                            </p>
-                        </div>
-                    )
-                })}
-            </div>
-            
-            <div className="mt-8">
-                <h3 className="text-xl font-bold text-emerald-800 dark:text-emerald-300 mb-4">Today's Log</h3>
-                {loggedMeals.length > 0 ? (
-                    <div className="space-y-3">
-                        {loggedMeals.slice().reverse().map(meal => (
-                            <div key={meal.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-emerald-50 dark:border-slate-700 flex justify-between items-center animate-fade-in-up">
-                                <div>
-                                    <p className="font-bold text-lg text-emerald-900 dark:text-white capitalize">{meal.name}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(meal.timestamp).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} - {formatTimestamp(meal.timestamp)}</p>
+        <div className="p-6 animate-fade-in pb-24 relative min-h-full">
+            <h2 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Tracker</h2>
+
+            {/* Nutrition Goals Section */}
+            <div className="mb-8">
+                <h3 className="text-xl font-bold text-emerald-800 dark:text-emerald-300 mb-4">Today's Nutrition</h3>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                    {nutrientData.map(item => {
+                        const percentage = Math.min((item.value / item.goal) * 100, 100);
+                        const isOver = item.value > item.goal;
+                        return (
+                            <div key={item.name} className="bg-white dark:bg-slate-800 p-2 rounded-2xl shadow-sm border border-emerald-50 dark:border-slate-700">
+                                <div className="h-20 w-full flex items-center justify-center">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie data={[{ value: percentage }, { value: 100 - percentage }]} dataKey="value" cx="50%" cy="50%" innerRadius={25} outerRadius={35} startAngle={90} endAngle={-270} paddingAngle={0} cornerRadius={10} isAnimationActive={true}>
+                                                <Cell fill={isOver ? '#EF4444' : item.color} />
+                                                <Cell fill={isOver ? 'rgba(239, 68, 68, 0.2)' : 'rgba(226, 232, 240, 0.5)'} />
+                                            </Pie>
+                                        </PieChart>
+                                    </ResponsiveContainer>
                                 </div>
-                                <div className="text-right text-xs text-gray-600 dark:text-gray-300 space-y-0.5">
-                                    <p>Cal: <span className="font-bold">{meal.nutrients.calories}</span></p>
-                                    <p>Sug: <span className="font-bold">{meal.nutrients.sugar.toFixed(1)}g</span></p>
-                                    <p>Salt: <span className="font-bold">{meal.nutrients.salt.toFixed(1)}g</span></p>
-                                </div>
+                                <p className="font-bold text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{item.name}</p>
+                                <p className={`text-sm font-bold ${isOver ? 'text-red-500' : 'text-emerald-800 dark:text-emerald-300'}`}>
+                                    {item.value.toFixed(1)} <span className="text-[10px] font-normal text-gray-400">/ {item.goal}{item.unit}</span>
+                                </p>
                             </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center py-8 px-4 bg-emerald-50 dark:bg-slate-800 rounded-2xl border border-emerald-100 dark:border-slate-700">
-                        <BowlIcon className="w-12 h-12 mx-auto text-emerald-300 dark:text-slate-600" />
-                        <p className="mt-2 text-emerald-700 dark:text-gray-400 font-medium">No meals logged yet.</p>
-                        <p className="text-xs text-emerald-600 dark:text-gray-500">Tap 'Log a Meal' below to add your first meal.</p>
-                    </div>
-                )}
+                        )
+                    })}
+                </div>
             </div>
-            
-            <div className="mt-8">
-                <button
-                    onClick={() => setIsAddMealModalOpen(true)}
-                    className="btn-primary"
-                    aria-label="Log a Meal"
-                >
-                    <PlusIcon className="w-5 h-5 mr-2" />
-                    Log a Meal
+
+            {/* Health Trends Section */}
+            <div className="mb-8">
+                <h3 className="text-xl font-bold text-emerald-800 dark:text-emerald-300 mb-4">Health Trends</h3>
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-emerald-50 dark:border-slate-700 relative">
+                    {loading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl z-10">
+                            <LogoIcon className="animate-spin h-8 w-8 text-emerald-600"/>
+                        </div>
+                    )}
+                    <ResponsiveContainer width="100%" height={220}>
+                        <AreaChart data={journalData.slice().reverse()}>
+                            <defs>
+                                <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#064E3B" stopOpacity={0.8}/>
+                                    <stop offset="95%" stopColor="#064E3B" stopOpacity={0}/>
+                                </linearGradient>
+                                <linearGradient id="colorEnergy" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                                    <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <XAxis dataKey="name" tick={{fill: '#64748B', fontSize: 12}} axisLine={false} tickLine={false} />
+                            <YAxis yAxisId="left" orientation="left" stroke="#064E3B" hide />
+                            <YAxis yAxisId="right" orientation="right" stroke="#10B981" hide />
+                            <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}} />
+                            <Legend iconType="circle" wrapperStyle={{paddingTop: '10px'}}/>
+                            <Area yAxisId="left" type="monotone" dataKey="weight" stroke="#064E3B" strokeWidth={3} fill="url(#colorWeight)" name="Weight" isAnimationActive={!loading}/>
+                            <Area yAxisId="right" type="monotone" dataKey="energy" stroke="#10B981" strokeWidth={3} fill="url(#colorEnergy)" name="Energy" isAnimationActive={!loading}/>
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 mb-8">
+                <button onClick={() => setIsAddMealModalOpen(true)} className="btn-primary flex-1 flex flex-col items-center justify-center py-4">
+                    <PlusIcon className="w-6 h-6 mb-1" />
+                    <span className="text-sm">Log Meal</span>
+                </button>
+                <button onClick={() => setIsAddJournalModalOpen(true)} className="btn-secondary flex-1 flex flex-col items-center justify-center py-4">
+                    <BookIcon className="w-6 h-6 mb-1" />
+                    <span className="text-sm">Daily Check-in</span>
                 </button>
             </div>
 
+            {/* Recent Activity */}
+            <div>
+                <h3 className="text-xl font-bold text-emerald-800 dark:text-emerald-300 mb-4">Activity Log</h3>
+                {historyItems.length > 0 ? (
+                    <div className="space-y-3">
+                        {historyItems.map(item => {
+                            const isMeal = item.type === 'meal';
+                            return (
+                                <div key={item.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-emerald-50 dark:border-slate-700 animate-fade-in-up flex items-center justify-between">
+                                    <div className="flex items-center">
+                                        <div className={`p-2 rounded-xl mr-3 ${isMeal ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'}`}>
+                                            {isMeal ? <BowlIcon className="w-5 h-5" /> : <ChartIcon className="w-5 h-5" />}
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-emerald-900 dark:text-white capitalize text-sm">
+                                                {isMeal ? (item as LoggedMeal).name : 'Health Check-in'}
+                                            </p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                {new Date(item.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} • {formatTimestamp(item.timestamp)}
+                                            </p>
+                                            {!isMeal && (item as JournalEntry).notes && (
+                                                <p className="text-xs text-gray-400 italic mt-0.5 max-w-[150px] truncate">"{(item as JournalEntry).notes}"</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        {isMeal ? (
+                                            <div className="text-xs text-gray-600 dark:text-gray-300">
+                                                <p className="font-bold">{(item as LoggedMeal).nutrients.calories} <span className="font-normal text-[10px]">kcal</span></p>
+                                            </div>
+                                        ) : (
+                                            <div className="text-xs text-gray-600 dark:text-gray-300">
+                                                <p className="font-bold">{(item as JournalEntry).weight} <span className="font-normal text-[10px]">kg</span></p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="text-center py-8 px-4 bg-emerald-50 dark:bg-slate-800 rounded-2xl border border-emerald-100 dark:border-slate-700">
+                        <p className="text-emerald-700 dark:text-gray-400 font-medium">No activity yet.</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Add Meal Modal */}
             {isAddMealModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fade-in" onClick={() => setIsAddMealModalOpen(false)}>
                     <div className="bg-white p-6 rounded-2xl shadow-2xl text-center w-full max-w-xs dark:bg-slate-800 animate-fade-in-up border border-emerald-100 dark:border-slate-600" onClick={e => e.stopPropagation()}>
@@ -496,6 +617,68 @@ const NutrientTrackerScreen: React.FC = () => {
                             {isAddingMeal ? 'Analyzing...' : 'Add Meal'}
                         </button>
                         <button onClick={() => setIsAddMealModalOpen(false)} className="btn-tertiary">Cancel</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Journal Modal */}
+            {isAddJournalModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fade-in" onClick={() => setIsAddJournalModalOpen(false)}>
+                    <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-xs dark:bg-slate-800 animate-fade-in-up border border-emerald-100 dark:border-slate-600" onClick={e => e.stopPropagation()}>
+                        <h2 className="text-xl font-bold mb-6 dark:text-white text-center">Daily Check-in</h2>
+                        <form onSubmit={handleAddJournalEntry} className="space-y-4">
+                            <div>
+                                <label htmlFor="weight" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Weight (kg)</label>
+                                <input
+                                    type="number" id="weight" name="weight" value={newJournalEntry.weight} onChange={handleJournalChange}
+                                    className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
+                                    required step="0.1"
+                                />
+                            </div>
+                             <div>
+                                <label htmlFor="bp" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">BP (Systolic) <span className="normal-case font-normal text-gray-400">(Optional)</span></label>
+                                <input
+                                    type="number" id="bp" name="bp" value={newJournalEntry.bp} onChange={handleJournalChange}
+                                    className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="energy" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Energy (1-10)</label>
+                                <input
+                                    type="number" id="energy" name="energy" value={newJournalEntry.energy} onChange={handleJournalChange}
+                                    className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
+                                    required min="1" max="10"
+                                />
+                            </div>
+                             <div>
+                                <label htmlFor="notes" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Notes</label>
+                                <textarea
+                                    id="notes" name="notes" value={newJournalEntry.notes} onChange={handleJournalChange}
+                                    placeholder="How are you feeling?"
+                                    rows={3}
+                                    className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
+                                />
+                            </div>
+                            
+                            {/* Premium Upsell Note */}
+                            {userProfile.plan === 'Free' && (
+                                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 p-3 rounded-xl flex items-start gap-3">
+                                    <PremiumIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                                    <p className="text-xs text-amber-800 dark:text-amber-200 leading-snug">
+                                        <span className="font-bold">Upgrade to Premium</span> to get exclusive feedback and interactions with a nutritionist on your daily check-ins.
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="flex gap-2 pt-4">
+                                <button type="button" onClick={() => setIsAddJournalModalOpen(false)} className="btn-tertiary flex-1">
+                                    Cancel
+                                </button>
+                                <button type="submit" className="btn-primary flex-1">
+                                    Save
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
@@ -649,256 +832,6 @@ const SymptomTipsScreen: React.FC = () => {
     );
 };
 
-const ProgressJournalScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
-    const GUEST_JOURNAL_KEY = 'nutrican_journal_data_guest';
-    const isGuest = !userProfile.email;
-
-    const createInitialGuestData = (): JournalEntry[] => {
-        const today = new Date();
-        const data: JournalEntry[] = [];
-        for (let i = 4; i >= 0; i--) {
-            const date = new Date(today);
-            date.setDate(today.getDate() - i);
-            const timestamp = date.toISOString();
-            data.push({
-                id: timestamp,
-                timestamp,
-                name: date.toLocaleDateString(undefined, { weekday: 'short' }),
-                weight: parseFloat((70 - i * 0.2 + Math.random()).toFixed(1)),
-                energy: 7 + (i % 2 === 0 ? 1 : -1) * (Math.floor(Math.random() * 2)),
-                bp: 120 + (i % 2 === 0 ? -2 : 2) * (Math.floor(Math.random() * 3)),
-                notes: i === 2 ? 'Felt a bit nauseous after lunch today.' : undefined,
-            });
-        }
-        return data;
-    };
-
-    const [journalData, setJournalData] = useState<JournalEntry[]>([]);
-    const [loading, setLoading] = useState(!isGuest);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newEntry, setNewEntry] = useState({ weight: '', bp: '', energy: '', notes: '' });
-
-    const fetchJournalData = useCallback(async () => {
-        if (isGuest) {
-            try {
-                const saved = localStorage.getItem(GUEST_JOURNAL_KEY);
-                setJournalData(saved ? JSON.parse(saved) : createInitialGuestData());
-            } catch (error) {
-                console.error("Failed to parse guest journal data:", error);
-                setJournalData(createInitialGuestData());
-            }
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const entries = await db.getJournalEntries();
-            setJournalData(entries);
-        } catch (error) {
-            console.error("Failed to fetch journal entries:", error);
-            alert("Could not load your journal. Please check your connection.");
-        } finally {
-            setLoading(false);
-        }
-    }, [isGuest]);
-
-    useEffect(() => {
-        fetchJournalData();
-    }, [fetchJournalData]);
-
-    useEffect(() => {
-        if (isGuest) {
-            localStorage.setItem(GUEST_JOURNAL_KEY, JSON.stringify(journalData));
-        }
-    }, [journalData, isGuest]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setNewEntry(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleAddEntry = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const weight = parseFloat(newEntry.weight);
-        // Handle empty BP string for optional field
-        const bp = newEntry.bp ? parseInt(newEntry.bp, 10) : undefined;
-        const energy = parseInt(newEntry.energy, 10);
-        const notes = newEntry.notes.trim();
-
-        if (isNaN(weight) || isNaN(energy) || energy < 1 || energy > 10) {
-            alert("Please enter valid numbers for Weight and Energy. Energy must be 1-10.");
-            return;
-        }
-
-        if (newEntry.bp && (bp === undefined || isNaN(bp))) {
-             alert("Please enter a valid number for BP.");
-             return;
-        }
-
-        const resetForm = () => {
-            setNewEntry({ weight: '', bp: '', energy: '', notes: '' });
-            setIsModalOpen(false);
-        };
-        
-        if (isGuest) {
-            const now = new Date();
-            const entry: JournalEntry = {
-                id: now.toISOString(),
-                timestamp: now.toISOString(),
-                name: now.toLocaleDateString(undefined, { weekday: 'short' }),
-                weight, bp, energy, notes: notes || undefined,
-            };
-            setJournalData(prev => [...prev, entry].slice(-30));
-            resetForm();
-            return;
-        }
-
-        try {
-            const entryData = { weight, bp, energy, notes: notes || undefined };
-            await db.addJournalEntry(entryData);
-            resetForm();
-            fetchJournalData();
-        } catch (error) {
-            console.error("Failed to add journal entry:", error);
-            alert("Could not save your entry. Please try again.");
-        }
-    };
-
-    return (
-        <div className="p-6 animate-fade-in pb-24">
-            <h2 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Journal</h2>
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-emerald-50 dark:border-slate-700 mb-6 relative">
-                {loading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl z-10">
-                        <LogoIcon className="animate-spin h-8 w-8 text-emerald-600"/>
-                    </div>
-                )}
-                <ResponsiveContainer width="100%" height={220}>
-                    <AreaChart data={journalData.slice(-7).reverse()}>
-                        <defs>
-                            <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#064E3B" stopOpacity={0.8}/>
-                                <stop offset="95%" stopColor="#064E3B" stopOpacity={0}/>
-                            </linearGradient>
-                            <linearGradient id="colorEnergy" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                                <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <XAxis dataKey="name" tick={{fill: '#64748B', fontSize: 12}} axisLine={false} tickLine={false} />
-                        <YAxis yAxisId="left" orientation="left" stroke="#064E3B" hide />
-                        <YAxis yAxisId="right" orientation="right" stroke="#10B981" hide />
-                        <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'}} />
-                        <Legend iconType="circle" wrapperStyle={{paddingTop: '10px'}}/>
-                        <Area yAxisId="left" type="monotone" dataKey="weight" stroke="#064E3B" strokeWidth={3} fill="url(#colorWeight)" name="Weight" isAnimationActive={!loading}/>
-                        <Area yAxisId="right" type="monotone" dataKey="energy" stroke="#10B981" strokeWidth={3} fill="url(#colorEnergy)" name="Energy" isAnimationActive={!loading}/>
-                    </AreaChart>
-                </ResponsiveContainer>
-            </div>
-            
-            <div className="mt-8">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold text-emerald-800 dark:text-emerald-300">Recent Entries</h3>
-                    <button onClick={() => setIsModalOpen(true)} className="btn-small-gradient">
-                        <PlusIcon className="w-4 h-4 mr-1" />
-                        Add Entry
-                    </button>
-                </div>
-                {loading ? null : journalData.length > 0 ? (
-                    <div className="space-y-3">
-                        {journalData.map(entry => (
-                            <div key={entry.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-emerald-50 dark:border-slate-700 animate-fade-in-up">
-                                <p className="font-bold text-lg text-emerald-900 dark:text-white mb-2">{new Date(entry.timestamp).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</p>
-                                
-                                <div className="grid grid-cols-3 gap-2 text-center mb-3">
-                                    <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg">
-                                        <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">WEIGHT</p>
-                                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{entry.weight.toFixed(1)} <span className="text-xs">kg</span></p>
-                                    </div>
-                                    <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg">
-                                        <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">ENERGY</p>
-                                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{entry.energy}/10</p>
-                                    </div>
-                                    <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg">
-                                        <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">BP</p>
-                                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{entry.bp !== undefined && entry.bp !== null ? entry.bp : '-'}</p>
-                                    </div>
-                                </div>
-
-                                {entry.notes && (
-                                    <div className="mt-3 pt-3 border-t border-emerald-100 dark:border-slate-700">
-                                        <p className="text-sm text-gray-600 dark:text-gray-300 italic">"{entry.notes}"</p>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                     <div className="text-center py-8 px-4 bg-emerald-50 dark:bg-slate-800 rounded-2xl border border-emerald-100 dark:border-slate-700">
-                        <BookIcon className="w-12 h-12 mx-auto text-emerald-300 dark:text-slate-600" />
-                        <p className="mt-2 text-emerald-700 dark:text-gray-400 font-medium">No entries yet.</p>
-                        <p className="text-xs text-emerald-600 dark:text-gray-500">Add your first entry to start tracking.</p>
-                    </div>
-                )}
-            </div>
-        
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fade-in" onClick={() => setIsModalOpen(false)}>
-                    <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-xs dark:bg-slate-800 animate-fade-in-up border border-emerald-100 dark:border-slate-600" onClick={e => e.stopPropagation()}>
-                        <h2 className="text-xl font-bold mb-6 dark:text-white text-center">New Entry</h2>
-                        <form onSubmit={handleAddEntry} className="space-y-4">
-                            <div>
-                                <label htmlFor="weight" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Weight (kg)</label>
-                                <input
-                                    type="number" id="weight" name="weight" value={newEntry.weight} onChange={handleInputChange}
-                                    className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
-                                    required step="0.1"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="bp" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">BP (Systolic) <span className="normal-case font-normal text-gray-400">(Optional)</span></label>
-                                <input
-                                    type="number" id="bp" name="bp" value={newEntry.bp} onChange={handleInputChange}
-                                    className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="energy" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Energy (1-10)</label>
-                                <input
-                                    type="number" id="energy" name="energy" value={newEntry.energy} onChange={handleInputChange}
-                                    className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
-                                    required min="1" max="10"
-                                />
-                            </div>
-                             <div>
-                                <label htmlFor="notes" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Notes</label>
-                                <textarea
-                                    id="notes" name="notes" value={newEntry.notes} onChange={handleInputChange}
-                                    placeholder="How are you feeling? Any food reactions?"
-                                    rows={3}
-                                    className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
-                                />
-                            </div>
-                            <div className="p-3 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-xl text-sm text-teal-900 dark:text-teal-100 shadow-sm flex items-start gap-2">
-                                <PremiumIcon className="w-5 h-5 mt-0.5 text-teal-600 dark:text-teal-400 flex-shrink-0" />
-                                <p className="opacity-90">Upgrade to <span className="font-bold">Premium</span> to have your journal reviewed by a certified nutritionist.</p>
-                            </div>
-                            <div className="flex gap-2 pt-4">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-tertiary flex-1">
-                                    Cancel
-                                </button>
-                                <button type="submit" className="btn-primary flex-1">
-                                    Save
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
-
 const ToggleSwitch: React.FC<{ isEnabled: boolean; onToggle: () => void; color: string; }> = ({ isEnabled, onToggle, color }) => {
     return (
         <label className="relative inline-flex items-center cursor-pointer">
@@ -938,62 +871,38 @@ const ReminderCard: React.FC<{
 };
 
 const RemindersScreen: React.FC = () => {
-    const REMINDERS_STORAGE_KEY = 'nutrican_reminders_settings';
+    const [reminders, setReminders] = useState([
+        { id: 1, title: 'Drink Water', description: 'Every 2 hours', isEnabled: true },
+        { id: 2, title: 'Take Medication', description: 'After lunch', isEnabled: true },
+        { id: 3, title: 'Log Meal', description: 'At 8 PM', isEnabled: false },
+        { id: 4, title: 'Morning Walk', description: '30 mins', isEnabled: true },
+    ]);
 
-    const [reminders, setReminders] = useState(() => {
-        try {
-            const saved = localStorage.getItem(REMINDERS_STORAGE_KEY);
-            return saved ? JSON.parse(saved) : { meal: false, water: false, medication: false };
-        } catch (error) {
-            console.error("Failed to parse reminder settings:", error);
-            return { meal: false, water: false, medication: false };
-        }
-    });
-
-    useEffect(() => {
-        try {
-            localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
-        } catch (error) {
-            console.error("Failed to save reminder settings:", error);
-        }
-    }, [reminders]);
-
-    const handleToggle = (reminderType: 'meal' | 'water' | 'medication') => {
-        setReminders(prev => ({ ...prev, [reminderType]: !prev[reminderType] }));
+    const toggleReminder = (id: number) => {
+        setReminders(prev => prev.map(r => r.id === id ? { ...r, isEnabled: !r.isEnabled } : r));
     };
-    
-    const reminderConfig = [
-        {
-            key: 'meal' as const,
-            title: "Meal Times",
-            description: "Remind me every 3 hours",
-        },
-        {
-            key: 'water' as const,
-            title: "Hydration",
-            description: "Drink water every hour",
-        },
-        {
-            key: 'medication' as const,
-            title: "Medication",
-            description: "Morning and Evening pills",
-        },
-    ];
 
     return (
-        <div className="p-6 animate-fade-in">
-            <h2 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Alerts</h2>
+        <div className="p-6 animate-fade-in pb-8">
+            <h2 className="text-3xl font-bold mb-2 text-emerald-900 dark:text-white">Reminders</h2>
+            <p className="text-gray-600 mb-6 dark:text-gray-400">Stay on track with your health goals.</p>
+            
             <div className="space-y-4">
-                {reminderConfig.map(config => (
-                    <ReminderCard
-                        key={config.key}
-                        title={config.title}
-                        description={config.description}
-                        isEnabled={reminders[config.key]}
-                        onToggle={() => handleToggle(config.key)}
+                {reminders.map(reminder => (
+                    <ReminderCard 
+                        key={reminder.id}
+                        title={reminder.title}
+                        description={reminder.description}
+                        isEnabled={reminder.isEnabled}
+                        onToggle={() => toggleReminder(reminder.id)}
                     />
                 ))}
             </div>
+
+            <button className="btn-secondary w-full mt-6 flex items-center justify-center gap-2" onClick={() => alert("This is a demo. Custom reminders coming soon!")}>
+                <PlusIcon className="w-5 h-5" />
+                Add New Reminder
+            </button>
         </div>
     );
 };
@@ -1130,18 +1039,121 @@ const DoctorConnectScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfi
         );
     }
 
-    // Free View (Teaser)
+    // Free View (Teaser with Features)
+    const premiumFeatures = [
+        "Unlimited Chat with Nutritionists",
+        "Weekly Video Consultations",
+        "Personalized Diet Adjustments",
+        "Priority Support",
+        "Medical Report Analysis"
+    ];
+
     return (
-        <div className="p-6 text-center flex flex-col items-center justify-center h-full animate-fade-in">
+        <div className="p-6 text-center flex flex-col items-center justify-center min-h-full animate-fade-in pb-24">
             <h1 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Doctor Connect</h1>
-            <div className="border border-emerald-200 p-8 rounded-2xl dark:border-emerald-800 w-full bg-white/50 shadow-lg">
-                <div className="bg-emerald-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                    <PremiumIcon className="w-12 h-12 text-emerald-600" />
+            <div className="border border-emerald-200 p-6 rounded-2xl dark:border-emerald-800 w-full bg-white/80 dark:bg-slate-800/80 shadow-xl backdrop-blur-sm">
+                <div className="bg-gradient-to-br from-emerald-100 to-teal-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner dark:from-emerald-900 dark:to-slate-800">
+                    <PremiumIcon className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">Need Expert Guidance?</h2>
-                <p className="text-gray-600 mb-8 dark:text-gray-400 text-sm">Upgrade to Premium to chat directly with certified nutritionists and oncologists.</p>
-                <button className="btn-primary shadow-glow-primary">Upgrade to Premium</button>
+                <h2 className="text-xl font-bold text-emerald-900 dark:text-white mb-2">Unlock Professional Care</h2>
+                <p className="text-gray-600 mb-6 dark:text-gray-400 text-sm">Get expert guidance tailored to your journey.</p>
+                
+                <div className="space-y-3 mb-8 text-left">
+                    {premiumFeatures.map((feature, index) => (
+                        <div key={index} className="flex items-center text-sm text-gray-700 dark:text-gray-300">
+                            <div className="bg-emerald-100 dark:bg-emerald-900/50 p-1 rounded-full mr-3 text-emerald-600 dark:text-emerald-400 flex-shrink-0">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                            </div>
+                            <span>{feature}</span>
+                        </div>
+                    ))}
+                </div>
+
+                <button className="btn-primary shadow-glow-primary w-full group relative overflow-hidden">
+                    <span className="relative z-10 group-hover:scale-105 transition-transform inline-block">Upgrade to Premium</span>
+                     <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 to-teal-400/20 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                </button>
             </div>
+        </div>
+    );
+};
+
+const LiveScreen: React.FC = () => {
+    return (
+        <div className="p-6 animate-fade-in flex flex-col h-full pb-24 relative">
+             {/* Live Badge */}
+            <div className="absolute top-6 left-6 z-10 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-md animate-pulse uppercase tracking-widest shadow-lg">
+                Coming Soon
+            </div>
+
+            <div className="flex-grow flex flex-col items-center justify-center text-center mt-8">
+                <div className="w-24 h-24 bg-gradient-to-br from-emerald-600 to-teal-800 rounded-3xl flex items-center justify-center shadow-glow-primary-md mb-6 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+                    <BroadcastIcon className="w-12 h-12 text-white relative z-10" />
+                </div>
+
+                <h1 className="text-4xl font-bold text-emerald-900 dark:text-white mb-2">NutriCan Live</h1>
+                <p className="text-emerald-700 dark:text-emerald-400 text-lg font-medium mb-8">Real-time care, right where you are.</p>
+
+                {/* Simulated Video Interface Preview */}
+                <div className="w-full max-w-sm bg-slate-900 rounded-2xl aspect-video mb-8 relative overflow-hidden shadow-2xl border border-slate-700 group">
+                    {/* Placeholder Doctor Image */}
+                    <img 
+                        src="https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FSlide%20Image%2Fdoctor%20on%20phone.png?alt=media&token=afc9b7e2-717a-455d-96b2-47774b046185" 
+                        alt="Video Call Preview" 
+                        className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" 
+                    />
+                    
+                    {/* Overlay UI Elements */}
+                    <div className="absolute bottom-4 left-4 flex space-x-2">
+                         <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center shadow-lg"><MicIcon className="w-4 h-4 text-white" /></div>
+                         <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center shadow-lg"><VideoCallIcon className="w-4 h-4 text-white" /></div>
+                    </div>
+                    
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-md border border-white/30 px-4 py-2 rounded-full">
+                         <p className="text-white font-bold text-sm">Connect with Dr. Whitney</p>
+                    </div>
+                </div>
+
+                {/* Feature List */}
+                <div className="w-full space-y-3">
+                    <div className="flex items-center p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700">
+                        <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg mr-3 text-emerald-700 dark:text-emerald-300">
+                            <VideoCallIcon className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                            <p className="font-bold text-sm text-emerald-900 dark:text-white">Video Stream</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Consult face-to-face in HD</p>
+                        </div>
+                    </div>
+
+                     <div className="flex items-center p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg mr-3 text-blue-700 dark:text-blue-300">
+                            <MicIcon className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                            <p className="font-bold text-sm text-emerald-900 dark:text-white">Audio Notes</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Leave quick voice updates</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700">
+                        <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-lg mr-3 text-purple-700 dark:text-purple-300">
+                            <ChatBubbleIcon className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                            <p className="font-bold text-sm text-emerald-900 dark:text-white">Live Chat</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Instant text support</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+             <div className="mt-6">
+                 <button className="btn-primary w-full" onClick={() => alert("You've been added to the waitlist!")}>
+                     Notify Me When Live
+                 </button>
+             </div>
         </div>
     );
 };
@@ -1254,7 +1266,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
 
   const pages = useMemo(() => ({
     home: <HomeScreen userProfile={userProfile} setActivePage={setActivePage} setModal={setModalContent} />,
-    tracker: <ProgressJournalScreen userProfile={userProfile} />,
+    tracker: <TrackerScreen userProfile={userProfile} />,
+    live: <LiveScreen />,
     library: <LibraryScreen />,
     'doctor-connect': <DoctorConnectScreen userProfile={userProfile} />,
     profile: <ProfileScreen userProfile={userProfile} onLogout={onLogout} />,
