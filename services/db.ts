@@ -1,4 +1,3 @@
-
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
@@ -10,7 +9,7 @@ if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 
-const auth = firebase.auth();
+export const auth = firebase.auth();
 const firestore = firebase.firestore();
 
 let isInitialized = false;
@@ -138,6 +137,12 @@ export const db = {
     try {
       console.log("🌐 Initiating Google Sign In...");
       await ensureInitialized();
+
+      // Check protocol to prevent common Firebase Auth environment errors
+      if (window.location.protocol === 'file:' || window.location.protocol === 'about:') {
+          throw new Error("Google Sign-In is not supported when running from a local file. Please use Email/Password or deploy the app.");
+      }
+
       const provider = new firebase.auth.GoogleAuthProvider();
       
       // Force selection to avoid instant login loop issues during testing
@@ -145,9 +150,18 @@ export const db = {
         prompt: 'select_account'
       });
 
-      const result = await auth.signInWithPopup(provider);
+      let result;
+      try {
+        result = await auth.signInWithPopup(provider);
+      } catch (popupError: any) {
+        console.warn("Popup blocked or not supported in this environment:", popupError.code);
+        if (popupError.code === 'auth/operation-not-supported-in-this-environment' || popupError.code === 'auth/popup-blocked') {
+            throw new Error("Google Sign-In is restricted by your browser or this preview environment. Please sign up with an Email & Password instead.");
+        }
+        throw popupError;
+      }
+
       const user = result.user;
-      
       if (!user) throw new Error("Google Sign In failed - No user returned");
       
       // Check if profile exists
@@ -176,12 +190,6 @@ export const db = {
       return { profile: templateProfile, isNewUser: true };
     } catch (error: any) {
       console.error("❌ Google Sign In error:", error);
-      if (error.code === 'auth/operation-not-supported-in-this-environment') {
-          throw new Error("Google Sign In is not supported in this preview environment. Please try opening the app in a new window or deploying it.");
-      }
-      if (error.code === 'auth/popup-closed-by-user') {
-        throw new Error("Sign in cancelled.");
-      }
       throw new Error(error.message || "Google Sign In failed.");
     }
   },
@@ -216,8 +224,6 @@ export const db = {
               if (user) {
                 console.log("✅ Found active session for user:", user.uid);
                 const profile = await fetchProfile(user.uid);
-                // If profile is missing, it might be a new Google user who hasn't finished setup
-                // In that case, we return null so the UI redirects them to auth/setup
                 resolve(profile);
               } else {
                 console.log("ℹ️ No active session found");
@@ -269,6 +275,23 @@ export const db = {
   },
 
   /**
+   * Upgrade user to Premium plan
+   */
+  upgradeToPremium: async (uid: string): Promise<void> => {
+    await ensureInitialized();
+    try {
+      await firestore.collection('users').doc(uid).update({
+        plan: 'Premium',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      console.log("💎 User upgraded to Premium");
+    } catch (error: any) {
+      console.error("❌ Upgrade error:", error);
+      throw error;
+    }
+  },
+
+  /**
    * Get all journal entries for the current user
    */
   getJournalEntries: async (): Promise<JournalEntry[]> => {
@@ -294,7 +317,6 @@ export const db = {
 
       const entries: JournalEntry[] = snapshot.docs.map(doc => {
         const data = doc.data();
-        // Handle potential timestamp issues safely
         let timestamp = new Date();
         if (data.timestamp && (data.timestamp as firebase.firestore.Timestamp).toDate) {
           timestamp = (data.timestamp as firebase.firestore.Timestamp).toDate();
@@ -329,7 +351,6 @@ export const db = {
         throw new Error("User not authenticated. Cannot add journal entry.");
       }
       
-      // Sanitize input to remove undefined values which Firestore rejects
       const payload: Record<string, any> = {
         weight: entry.weight,
         energy: entry.energy,

@@ -1,11 +1,12 @@
 
-import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal } from '../types';
 import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon, MicIcon, BroadcastIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips } from '../services/geminiService';
-import { db } from '../services/db';
+import { db, auth } from '../services/db';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { ThemeContext } from '../contexts/ThemeContext';
+import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
 
 // --- Reusable UI Components ---
 
@@ -38,14 +39,12 @@ const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: Das
 const EmergencyButton: React.FC<{ activePage: DashboardPage }> = ({ activePage }) => {
   const [showModal, setShowModal] = useState(false);
   
-  // Hide the SOS button on the tracker page to avoid overlap with the "Add Meal" button.
   if (activePage === 'tracker') {
     return null;
   }
 
   return (
     <>
-      {/* Position container to match app width so button stays with app on wide screens */}
       <div className="fixed bottom-24 left-0 right-0 w-full sm:max-w-md md:max-w-lg mx-auto pointer-events-none z-50 px-4">
         <button onClick={() => setShowModal(true)} className="pointer-events-auto float-right bg-gradient-to-b from-red-500 to-red-700 text-white rounded-full w-16 h-16 flex items-center justify-center text-lg font-bold animate-pulse transition-all hover:scale-105 active:scale-95 active:translate-y-1 border border-white/20 relative overflow-hidden shadow-lg" style={{ boxShadow: '0 4px 0 #7f1d1d, 0 8px 10px rgba(0,0,0,0.3)' }}>
             <span className="relative z-10 drop-shadow-md">SOS</span>
@@ -96,9 +95,9 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
     useEffect(() => {
         const intervalId = setInterval(() => {
             setCurrentImageIndex(prevIndex => (prevIndex + 1) % imageUrls.length);
-        }, 5000); // Change image every 5 seconds for a smoother effect
+        }, 5000);
 
-        return () => clearInterval(intervalId); // Cleanup on component unmount
+        return () => clearInterval(intervalId);
     }, [imageUrls.length]);
     
     return (
@@ -381,7 +380,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
         fetchData();
     }, [fetchData]);
 
-    // Compute Today's Nutrients
     const todaysNutrients = useMemo<NutrientInfo>(() => {
         const today = new Date().toDateString();
         return loggedMeals
@@ -402,7 +400,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
         { name: 'Salt', value: todaysNutrients.salt, goal: 2.3, unit: 'g', color: '#A3E635' },
     ];
 
-    // --- Meal Handlers ---
     const handleAddMeal = async () => {
         if (!mealName.trim()) return;
         setIsAddingMeal(true);
@@ -425,7 +422,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
         setIsAddingMeal(false);
     };
 
-    // --- Journal Handlers ---
     const handleJournalChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setNewJournalEntry(prev => ({ ...prev, [name]: value }));
@@ -443,11 +439,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
             return;
         }
 
-         if (newJournalEntry.bp && (bp === undefined || isNaN(bp))) {
-             alert("Please enter a valid number for BP.");
-             return;
-        }
-
         try {
             await db.addJournalEntry({ weight, bp, energy, notes: notes || undefined });
             setNewJournalEntry({ weight: '', bp: '', energy: '', notes: '' });
@@ -459,7 +450,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
         }
     };
 
-    // Combine history for display
     const formatTimestamp = (isoString: string) => {
         return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
@@ -476,7 +466,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
         <div className="p-6 animate-fade-in pb-24 relative min-h-full">
             <h2 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Tracker</h2>
 
-            {/* Nutrition Goals Section */}
             <div className="mb-8">
                 <h3 className="text-xl font-bold text-emerald-800 dark:text-emerald-300 mb-4">Today's Nutrition</h3>
                 <div className="grid grid-cols-3 gap-2 text-center">
@@ -505,7 +494,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                 </div>
             </div>
 
-            {/* Health Trends Section */}
             <div className="mb-8">
                 <h3 className="text-xl font-bold text-emerald-800 dark:text-emerald-300 mb-4">Health Trends</h3>
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-emerald-50 dark:border-slate-700 relative">
@@ -538,7 +526,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                 </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex gap-3 mb-8">
                 <button onClick={() => setIsAddMealModalOpen(true)} className="btn-primary flex-1 flex flex-col items-center justify-center py-4">
                     <PlusIcon className="w-6 h-6 mb-1" />
@@ -550,7 +537,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                 </button>
             </div>
 
-            {/* Recent Activity */}
             <div>
                 <h3 className="text-xl font-bold text-emerald-800 dark:text-emerald-300 mb-4">Activity Log</h3>
                 {historyItems.length > 0 ? (
@@ -570,9 +556,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                                             <p className="text-xs text-gray-500 dark:text-gray-400">
                                                 {new Date(item.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} • {formatTimestamp(item.timestamp)}
                                             </p>
-                                            {!isMeal && (item as JournalEntry).notes && (
-                                                <p className="text-xs text-gray-400 italic mt-0.5 max-w-[150px] truncate">"{(item as JournalEntry).notes}"</p>
-                                            )}
                                         </div>
                                     </div>
                                     <div className="text-right">
@@ -597,7 +580,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                 )}
             </div>
 
-            {/* Add Meal Modal */}
             {isAddMealModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fade-in" onClick={() => setIsAddMealModalOpen(false)}>
                     <div className="bg-white p-6 rounded-2xl shadow-2xl text-center w-full max-w-xs dark:bg-slate-800 animate-fade-in-up border border-emerald-100 dark:border-slate-600" onClick={e => e.stopPropagation()}>
@@ -621,7 +603,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                 </div>
             )}
 
-            {/* Add Journal Modal */}
             {isAddJournalModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fade-in" onClick={() => setIsAddJournalModalOpen(false)}>
                     <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-xs dark:bg-slate-800 animate-fade-in-up border border-emerald-100 dark:border-slate-600" onClick={e => e.stopPropagation()}>
@@ -635,13 +616,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                                     required step="0.1"
                                 />
                             </div>
-                             <div>
-                                <label htmlFor="bp" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">BP (Systolic) <span className="normal-case font-normal text-gray-400">(Optional)</span></label>
-                                <input
-                                    type="number" id="bp" name="bp" value={newJournalEntry.bp} onChange={handleJournalChange}
-                                    className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
-                                />
-                            </div>
                             <div>
                                 <label htmlFor="energy" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Energy (1-10)</label>
                                 <input
@@ -650,33 +624,17 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                                     required min="1" max="10"
                                 />
                             </div>
-                             <div>
-                                <label htmlFor="notes" className="block text-xs font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Notes</label>
-                                <textarea
-                                    id="notes" name="notes" value={newJournalEntry.notes} onChange={handleJournalChange}
-                                    placeholder="How are you feeling?"
-                                    rows={3}
-                                    className="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-brand-green focus:border-brand-green bg-gray-50 shadow-inner"
-                                />
-                            </div>
-                            
-                            {/* Premium Upsell Note */}
                             {userProfile.plan === 'Free' && (
                                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 p-3 rounded-xl flex items-start gap-3">
                                     <PremiumIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                                     <p className="text-xs text-amber-800 dark:text-amber-200 leading-snug">
-                                        <span className="font-bold">Upgrade to Premium</span> to get exclusive feedback and interactions with a nutritionist on your daily check-ins.
+                                        <span className="font-bold">Upgrade to Premium</span> to get exclusive feedback and interactions with a nutritionist.
                                     </p>
                                 </div>
                             )}
-
                             <div className="flex gap-2 pt-4">
-                                <button type="button" onClick={() => setIsAddJournalModalOpen(false)} className="btn-tertiary flex-1">
-                                    Cancel
-                                </button>
-                                <button type="submit" className="btn-primary flex-1">
-                                    Save
-                                </button>
+                                <button type="button" onClick={() => setIsAddJournalModalOpen(false)} className="btn-tertiary flex-1">Cancel</button>
+                                <button type="submit" className="btn-primary flex-1">Save</button>
                             </div>
                         </form>
                     </div>
@@ -686,10 +644,311 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
     );
 };
 
-const SymptomTipsScreen: React.FC = () => {
-    // Updated storage key to force refresh of old, generic tips
-    const SYMPTOM_STORAGE_KEY = 'nutrican_saved_symptom_tips_v2';
+const PaymentModal: React.FC<{ onPaymentSuccess: () => void; closeModal: () => void }> = ({ onPaymentSuccess, closeModal }) => {
+    const [step, setStep] = useState<'method' | 'processing' | 'success'>('method');
+    const [method, setMethod] = useState<'MTN' | 'Airtel' | null>(null);
+    const [phone, setPhone] = useState('');
 
+    const handlePay = () => {
+        if (!method || phone.length < 9) return;
+        setStep('processing');
+        setTimeout(() => {
+            setStep('success');
+            setTimeout(() => {
+                onPaymentSuccess();
+                closeModal();
+            }, 2500);
+        }, 3000);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-fade-in" onClick={closeModal}>
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 w-full max-w-sm border border-emerald-50 dark:border-slate-800 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                {step === 'method' && (
+                    <>
+                        <h2 className="text-2xl font-bold mb-2 text-emerald-900 dark:text-white text-center">Upgrade to Premium</h2>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm text-center mb-8">Choose your payment method</p>
+                        
+                        <div className="space-y-4 mb-8">
+                            <button 
+                                onClick={() => setMethod('MTN')}
+                                className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${method === 'MTN' ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 shadow-lg' : 'border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800'}`}
+                            >
+                                <div className="flex items-center">
+                                    <div className="w-10 h-10 bg-yellow-400 rounded-lg mr-3 flex items-center justify-center font-bold text-slate-800">MTN</div>
+                                    <span className="font-bold text-slate-800 dark:text-white">MTN Mobile Money</span>
+                                </div>
+                                {method === 'MTN' && <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-white"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg></div>}
+                            </button>
+                            <button 
+                                onClick={() => setMethod('Airtel')}
+                                className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${method === 'Airtel' ? 'border-red-500 bg-red-50 dark:bg-red-900/20 shadow-lg' : 'border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800'}`}
+                            >
+                                <div className="flex items-center">
+                                    <div className="w-10 h-10 bg-red-600 rounded-lg mr-3 flex items-center justify-center font-bold text-white italic">Airtel</div>
+                                    <span className="font-bold text-slate-800 dark:text-white">Airtel Money</span>
+                                </div>
+                                {method === 'Airtel' && <div className="w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg></div>}
+                            </button>
+                        </div>
+
+                        <div className="mb-8">
+                            <label className="block text-xs font-bold text-gray-400 uppercase mb-2 ml-1">Phone Number</label>
+                            <input 
+                                type="tel" 
+                                placeholder="07XX XXX XXX" 
+                                value={phone}
+                                onChange={e => setPhone(e.target.value)}
+                                className="w-full p-4 bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-2xl text-lg font-bold outline-none focus:border-emerald-500 dark:focus:border-emerald-500 transition-all shadow-inner"
+                            />
+                        </div>
+
+                        <button 
+                            disabled={!method || phone.length < 9}
+                            onClick={handlePay}
+                            className="btn-primary w-full disabled:opacity-50 h-14 text-lg"
+                        >
+                            Pay UGX 50,000 / month
+                        </button>
+                    </>
+                )}
+
+                {step === 'processing' && (
+                    <div className="py-12 flex flex-col items-center justify-center text-center animate-fade-in">
+                        <div className="w-24 h-24 relative mb-6">
+                            <div className="absolute inset-0 bg-emerald-100 dark:bg-emerald-900/30 rounded-full animate-ping opacity-75"></div>
+                            <div className="relative w-full h-full bg-emerald-600 rounded-full flex items-center justify-center shadow-lg">
+                                <LogoIcon className="w-12 h-12 text-white animate-spin" />
+                            </div>
+                        </div>
+                        <h2 className="text-2xl font-bold text-emerald-900 dark:text-white mb-2">Processing Payment</h2>
+                        <p className="text-gray-500 dark:text-gray-400">Please check your phone for a USSD push notification to confirm your PIN.</p>
+                    </div>
+                )}
+
+                {step === 'success' && (
+                    <div className="py-12 flex flex-col items-center justify-center text-center animate-fade-in">
+                        <div className="w-24 h-24 bg-emerald-100 dark:bg-emerald-900 rounded-full flex items-center justify-center shadow-lg mb-6">
+                             <svg className="w-12 h-12 text-emerald-600 dark:text-emerald-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                        <h2 className="text-3xl font-bold text-emerald-900 dark:text-white mb-2">Welcome to Premium!</h2>
+                        <p className="text-gray-500 dark:text-gray-400">Payment successful. You now have full access to NutriCan Live and professional nutritionists.</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// --- Live Section Utilities ---
+
+function decode(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function decodeAudioData(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}
+
+function encode(bytes: Uint8Array) {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+const LiveSession: React.FC<{ userProfile: UserProfile; onEnd: () => void }> = ({ userProfile, onEnd }) => {
+    const [status, setStatus] = useState<'connecting' | 'active' | 'closed'>('connecting');
+    const [transcript, setTranscript] = useState<{role: 'user' | 'model', text: string}[]>([]);
+    
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const outputContextRef = useRef<AudioContext | null>(null);
+    const sessionRef = useRef<any>(null);
+    const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+    const nextStartTimeRef = useRef(0);
+
+    const startSession = useCallback(async () => {
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+            
+            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 16000});
+            outputContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
+            
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            const sessionPromise = ai.live.connect({
+                model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+                callbacks: {
+                    onopen: () => {
+                        setStatus('active');
+                        const source = audioContextRef.current!.createMediaStreamSource(stream);
+                        const scriptProcessor = audioContextRef.current!.createScriptProcessor(4096, 1, 1);
+                        scriptProcessor.onaudioprocess = (e) => {
+                            const inputData = e.inputBuffer.getChannelData(0);
+                            const int16 = new Int16Array(inputData.length);
+                            for (let i = 0; i < inputData.length; i++) {
+                                int16[i] = inputData[i] * 32768;
+                            }
+                            const blob = {
+                                data: encode(new Uint8Array(int16.buffer)),
+                                mimeType: 'audio/pcm;rate=16000'
+                            };
+                            sessionPromise.then(session => session.sendRealtimeInput({ media: blob }));
+                        };
+                        source.connect(scriptProcessor);
+                        scriptProcessor.connect(audioContextRef.current!.destination);
+                    },
+                    onmessage: async (message: LiveServerMessage) => {
+                        const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+                        if (base64Audio) {
+                            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputContextRef.current!.currentTime);
+                            const audioBuffer = await decodeAudioData(decode(base64Audio), outputContextRef.current!, 24000, 1);
+                            const source = outputContextRef.current!.createBufferSource();
+                            source.buffer = audioBuffer;
+                            source.connect(outputContextRef.current!.destination);
+                            source.start(nextStartTimeRef.current);
+                            nextStartTimeRef.current += audioBuffer.duration;
+                            sourcesRef.current.add(source);
+                        }
+                        
+                        if (message.serverContent?.outputTranscription) {
+                             const text = message.serverContent.outputTranscription.text;
+                             setTranscript(prev => {
+                                 const last = prev[prev.length - 1];
+                                 if (last?.role === 'model') return [...prev.slice(0, -1), { role: 'model', text: last.text + text }];
+                                 return [...prev, { role: 'model', text }];
+                             });
+                        }
+                        if (message.serverContent?.inputTranscription) {
+                            const text = message.serverContent.inputTranscription.text;
+                            setTranscript(prev => {
+                                 const last = prev[prev.length - 1];
+                                 if (last?.role === 'user') return [...prev.slice(0, -1), { role: 'user', text: last.text + text }];
+                                 return [...prev, { role: 'user', text }];
+                            });
+                        }
+                    },
+                    onclose: () => setStatus('closed'),
+                    onerror: () => setStatus('closed')
+                },
+                config: {
+                    responseModalities: [Modality.AUDIO],
+                    outputAudioTranscription: {},
+                    inputAudioTranscription: {},
+                    speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
+                    systemInstruction: `You are Dr. Whitney, a specialized oncology nutritionist at NutriCan. The user is ${userProfile.name}, a ${userProfile.age} year old dealing with ${userProfile.cancerType} cancer (${userProfile.cancerStage}). Their health profile includes: ${userProfile.otherConditions.join(', ')}. Provide compassionate, real-time nutrition advice based on Ugandan local foods. Keep responses concise and audible. Start by welcoming ${userProfile.name} to their live session.`
+                }
+            });
+            sessionRef.current = await sessionPromise;
+        } catch (err) {
+            console.error(err);
+            setStatus('closed');
+        }
+    }, [userProfile]);
+
+    useEffect(() => {
+        startSession();
+        return () => {
+            sessionRef.current?.close();
+            audioContextRef.current?.close();
+            outputContextRef.current?.close();
+        };
+    }, [startSession]);
+
+    return (
+        <div className="fixed inset-0 bg-slate-900 z-[200] flex flex-col p-6 animate-fade-in overflow-hidden">
+             <div className="flex justify-between items-center mb-12">
+                 <div className="flex items-center gap-3">
+                     <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg animate-pulse">
+                         <BroadcastIcon className="w-6 h-6 text-white" />
+                     </div>
+                     <div>
+                         <h2 className="text-white font-bold text-lg">Dr. Whitney</h2>
+                         <div className="flex items-center gap-1.5">
+                             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping"></div>
+                             <span className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Live Session</span>
+                         </div>
+                     </div>
+                 </div>
+                 <button onClick={onEnd} className="bg-white/10 p-3 rounded-full text-white hover:bg-white/20 transition-all shadow-lg active:scale-95">
+                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                 </button>
+             </div>
+
+             <div className="flex-grow flex flex-col items-center justify-center relative">
+                 {/* Visualizer Simulation */}
+                 <div className="w-64 h-64 relative flex items-center justify-center">
+                      <div className="absolute inset-0 bg-emerald-500/10 rounded-full animate-pulse-glow scale-150"></div>
+                      <div className="absolute inset-0 bg-teal-500/20 rounded-full animate-pulse-glow delay-300"></div>
+                      <div className="w-48 h-48 bg-gradient-to-br from-emerald-600 to-teal-800 rounded-full shadow-2xl flex items-center justify-center border-4 border-white/10 relative z-10 overflow-hidden group">
+                           <LogoIcon className="w-24 h-24 text-white opacity-80 group-hover:scale-110 transition-transform duration-700" />
+                      </div>
+                 </div>
+                 
+                 {/* Status text */}
+                 <div className="mt-12 text-center">
+                      {status === 'connecting' && <p className="text-emerald-400 font-bold animate-pulse text-xl">Establishing Connection...</p>}
+                      {status === 'active' && <p className="text-white font-bold text-2xl tracking-tight">Listening...</p>}
+                      {status === 'closed' && <p className="text-red-400 font-bold text-xl">Session Terminated</p>}
+                 </div>
+             </div>
+
+             {/* Live Transcription Peek */}
+             <div className="h-32 bg-white/5 backdrop-blur-md rounded-3xl p-4 mt-8 overflow-y-auto shadow-inner border border-white/10">
+                 {transcript.length === 0 ? (
+                      <p className="text-white/30 italic text-center text-sm py-8">Transcription will appear here...</p>
+                 ) : (
+                     <div className="space-y-3">
+                         {transcript.map((t, i) => (
+                             <p key={i} className={`text-sm ${t.role === 'user' ? 'text-teal-300 text-right' : 'text-emerald-100 text-left'} font-medium`}>
+                                 <span className="opacity-50 uppercase text-[10px] block mb-0.5">{t.role === 'user' ? 'You' : 'Dr. Whitney'}</span>
+                                 {t.text}
+                             </p>
+                         ))}
+                     </div>
+                 )}
+             </div>
+
+             <div className="mt-8 flex justify-center gap-6">
+                 <button className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-white border border-white/10 shadow-lg active:scale-95 transition-all">
+                      <MicIcon className="w-6 h-6" />
+                 </button>
+                 <button onClick={onEnd} className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center text-white shadow-glow-red active:scale-90 transition-all border-4 border-white/20">
+                      <VideoCallIcon className="w-8 h-8" />
+                 </button>
+                 <button className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-white border border-white/10 shadow-lg active:scale-95 transition-all">
+                      <ShareIcon className="w-6 h-6" />
+                 </button>
+             </div>
+        </div>
+    );
+};
+
+const SymptomTipsScreen: React.FC = () => {
+    const SYMPTOM_STORAGE_KEY = 'nutrican_saved_symptom_tips_v2';
     const [viewingSymptom, setViewingSymptom] = useState<SymptomType | null>(null);
     const [currentTips, setCurrentTips] = useState<RecommendedFood[] | null>(null);
     const [loading, setLoading] = useState(false);
@@ -698,7 +957,6 @@ const SymptomTipsScreen: React.FC = () => {
             const saved = localStorage.getItem(SYMPTOM_STORAGE_KEY);
             return saved ? JSON.parse(saved) : {};
         } catch (error) {
-            console.error("Failed to parse saved tips:", error);
             return {};
         }
     });
@@ -741,17 +999,12 @@ const SymptomTipsScreen: React.FC = () => {
         setViewingSymptom(symptom);
     };
 
-    const isCurrentTipSaved = viewingSymptom && savedTips[viewingSymptom] && JSON.stringify(savedTips[viewingSymptom]) === JSON.stringify(currentTips);
-
     if (viewingSymptom) {
         return (
             <div className="p-6 animate-fade-in min-h-full">
-                <button onClick={() => setViewingSymptom(null)} className="btn-small-gradient mb-4 inline-flex items-center gap-2">
-                    <span>&larr; Back</span>
-                </button>
+                <button onClick={() => setViewingSymptom(null)} className="btn-small-gradient mb-4 inline-flex items-center gap-2"><span>&larr; Back</span></button>
                 <h2 className="text-2xl font-bold mb-4 dark:text-white text-emerald-900">Tips for {viewingSymptom}</h2>
                 {loading && <div className="text-center p-8"><LogoIcon className="animate-spin h-10 w-10 mx-auto text-emerald-600" /></div>}
-                
                 {currentTips && (
                     <div className="space-y-4 animate-fade-in-up">
                         {currentTips.map((food, index) => (
@@ -764,25 +1017,11 @@ const SymptomTipsScreen: React.FC = () => {
                             </div>
                         ))}
                         <div className="flex gap-2 mt-6">
-                            <button 
-                                onClick={handleSaveTips}
-                                disabled={isCurrentTipSaved}
-                                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isCurrentTipSaved ? 'Saved' : 'Save Tips'}
-                            </button>
-                             <button 
-                                onClick={() => fetchAndSetTips(viewingSymptom)}
-                                disabled={loading}
-                                className="btn-secondary flex-1"
-                            >
-                                Refresh Ideas
-                            </button>
+                            <button onClick={handleSaveTips} className="btn-primary flex-1">Save Tips</button>
+                             <button onClick={() => fetchAndSetTips(viewingSymptom)} className="btn-secondary flex-1">Refresh Ideas</button>
                         </div>
                     </div>
                 )}
-                
-                {!loading && !currentTips && <p className="text-center text-red-500 p-8">Could not load tips. Please try again.</p>}
             </div>
         );
     }
@@ -790,208 +1029,69 @@ const SymptomTipsScreen: React.FC = () => {
     return (
         <div className="p-6 animate-fade-in">
             <h2 className="text-3xl font-bold mb-4 text-emerald-900 dark:text-white">Symptom Tips</h2>
-            <p className="text-gray-600 mb-6 dark:text-gray-400">Select a symptom to get personalized food recommendations.</p>
+            <p className="text-gray-600 mb-6 dark:text-gray-400">Select a symptom for food recommendations.</p>
             <div className="space-y-4">
                 {Object.values(SymptomType).map(symptom => {
                     const config = symptomConfig[symptom];
                     return (
-                        <button 
-                            key={symptom} 
-                            onClick={() => handleViewSymptom(symptom)}
-                            className={`flex items-center w-full text-left p-5 rounded-2xl shadow-button hover:shadow-button-hover active:scale-95 active:shadow-button-active transition-all duration-300 border bg-gradient-to-r ${config.bg} ${config.border} relative overflow-hidden`}
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent h-1/2 pointer-events-none"></div>
-                            <div className={`p-2 bg-white/80 rounded-full mr-4 shadow-sm dark:bg-slate-800/80 relative z-10`}>
-                                <config.icon className={`w-6 h-6 ${config.color}`} />
-                            </div>
+                        <button key={symptom} onClick={() => handleViewSymptom(symptom)} className={`flex items-center w-full text-left p-5 rounded-2xl shadow-button hover:shadow-button-hover active:scale-95 transition-all border bg-gradient-to-r ${config.bg} ${config.border} relative overflow-hidden`}>
+                            <div className="p-2 bg-white/80 rounded-full mr-4 shadow-sm dark:bg-slate-800/80 relative z-10"><config.icon className={`w-6 h-6 ${config.color}`} /></div>
                             <span className={`font-bold text-lg flex-grow ${config.color} relative z-10`}>{symptom}</span>
-                            <span className={`text-xl font-bold ${config.color} relative z-10`}>&rarr;</span>
                         </button>
                     )
                 })}
             </div>
-
-            {Object.keys(savedTips).length > 0 && (
-                <div className="mt-8">
-                    <h3 className="text-lg font-bold mb-3 text-emerald-900 dark:text-white border-t border-emerald-100 pt-4 dark:border-slate-700">Saved</h3>
-                    <div className="space-y-2">
-                        {Object.keys(savedTips).map(symptom => (
-                            <button 
-                                key={symptom} 
-                                onClick={() => handleViewSymptom(symptom as SymptomType)}
-                                className="btn-secondary w-full text-left flex justify-between items-center h-12"
-                            >
-                                <span>{symptom}</span>
-                                <span className="text-xs bg-white/20 text-white px-2 py-1 rounded-full">View</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
 
-const ToggleSwitch: React.FC<{ isEnabled: boolean; onToggle: () => void; color: string; }> = ({ isEnabled, onToggle, color }) => {
-    return (
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" checked={isEnabled} onChange={onToggle} className="sr-only peer" />
-          <div className={`w-11 h-6 bg-gray-200 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all shadow-inner ${isEnabled ? color : ''}`}></div>
-        </label>
-    );
-};
-
-const ReminderCard: React.FC<{
-    title: string;
-    description: string;
-    isEnabled: boolean;
-    onToggle: () => void;
-}> = ({ title, description, isEnabled, onToggle }) => {
-    const baseClasses = "p-5 rounded-2xl flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300 border relative overflow-hidden";
-    const onClasses = "bg-gradient-to-r from-emerald-600 to-teal-600 border-emerald-700 text-white shadow-lg shadow-emerald-500/20";
-    const offClasses = "bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700";
-
-    return (
-        <div className={`${baseClasses} ${isEnabled ? onClasses : offClasses}`}>
-            {isEnabled && <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent h-1/2 pointer-events-none"></div>}
-            <div className="flex items-center relative z-10">
-                <div className={`p-2 rounded-xl mr-4 transition-colors ${isEnabled ? 'bg-white/20' : 'bg-emerald-100 dark:bg-slate-700'}`}>
-                    <BellIcon className={`w-6 h-6 transition-colors ${isEnabled ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`} />
-                </div>
-                <div>
-                    <h3 className={`font-bold text-lg transition-colors ${isEnabled ? 'text-white' : 'text-emerald-900 dark:text-white'}`}>{title}</h3>
-                    <p className={`text-xs font-medium transition-colors ${isEnabled ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>{description}</p>
-                </div>
-            </div>
-            <div className="relative z-10">
-                <ToggleSwitch isEnabled={isEnabled} onToggle={onToggle} color="bg-emerald-500" />
-            </div>
-        </div>
-    );
-};
+const ToggleSwitch: React.FC<{ isEnabled: boolean; onToggle: () => void; color: string; }> = ({ isEnabled, onToggle, color }) => (
+    <label className="relative inline-flex items-center cursor-pointer">
+      <input type="checkbox" checked={isEnabled} onChange={onToggle} className="sr-only peer" />
+      <div className={`w-11 h-6 bg-gray-200 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all shadow-inner ${isEnabled ? color : ''}`}></div>
+    </label>
+);
 
 const RemindersScreen: React.FC = () => {
     const [reminders, setReminders] = useState([
         { id: 1, title: 'Drink Water', description: 'Every 2 hours', isEnabled: true },
         { id: 2, title: 'Take Medication', description: 'After lunch', isEnabled: true },
         { id: 3, title: 'Log Meal', description: 'At 8 PM', isEnabled: false },
-        { id: 4, title: 'Morning Walk', description: '30 mins', isEnabled: true },
     ]);
-
-    const toggleReminder = (id: number) => {
-        setReminders(prev => prev.map(r => r.id === id ? { ...r, isEnabled: !r.isEnabled } : r));
-    };
-
+    const toggleReminder = (id: number) => setReminders(prev => prev.map(r => r.id === id ? { ...r, isEnabled: !r.isEnabled } : r));
     return (
         <div className="p-6 animate-fade-in pb-8">
-            <h2 className="text-3xl font-bold mb-2 text-emerald-900 dark:text-white">Reminders</h2>
-            <p className="text-gray-600 mb-6 dark:text-gray-400">Stay on track with your health goals.</p>
-            
+            <h2 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Reminders</h2>
             <div className="space-y-4">
-                {reminders.map(reminder => (
-                    <ReminderCard 
-                        key={reminder.id}
-                        title={reminder.title}
-                        description={reminder.description}
-                        isEnabled={reminder.isEnabled}
-                        onToggle={() => toggleReminder(reminder.id)}
-                    />
+                {reminders.map(r => (
+                    <div key={r.id} className={`p-5 rounded-2xl flex items-center justify-between shadow-sm border ${r.isEnabled ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'}`}>
+                        <div className="flex items-center">
+                            <div className={`p-2 rounded-xl mr-4 ${r.isEnabled ? 'bg-white/20' : 'bg-emerald-100'}`}><BellIcon className="w-6 h-6" /></div>
+                            <div><h3 className="font-bold">{r.title}</h3><p className="text-xs opacity-80">{r.description}</p></div>
+                        </div>
+                        <ToggleSwitch isEnabled={r.isEnabled} onToggle={() => toggleReminder(r.id)} color="bg-emerald-500" />
+                    </div>
                 ))}
             </div>
-
-            <button className="btn-secondary w-full mt-6 flex items-center justify-center gap-2" onClick={() => alert("This is a demo. Custom reminders coming soon!")}>
-                <PlusIcon className="w-5 h-5" />
-                Add New Reminder
-            </button>
         </div>
     );
 };
 
 const LibraryScreen: React.FC = () => {
   const documents = [
-    {
-        title: "Nutrition Basics",
-        desc: "A comprehensive guide to understanding macronutrients and their role in cancer recovery.",
-        size: "2.4 MB",
-        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Good_Food_Display_-_NCI_Visuals_Online.jpg/640px-Good_Food_Display_-_NCI_Visuals_Online.jpg"
-    },
-    {
-        title: "Chemo Side Effects",
-        desc: "Practical tips for managing nausea, fatigue, and appetite changes during chemotherapy.",
-        size: "1.8 MB",
-        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Pill_bottle_and_pills.jpg/640px-Pill_bottle_and_pills.jpg"
-    },
-    {
-        title: "Hydration & Health",
-        desc: "Why water is critical for your recovery and how to stay hydrated when you don't feel like drinking.",
-        size: "1.2 MB",
-        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Glass_of_water.jpg/640px-Glass_of_water.jpg"
-    },
-    {
-        title: "Food Safety Guide",
-        desc: "Critical hygiene practices to avoid infection when your immune system is compromised.",
-        size: "3.1 MB",
-        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Washing_hands_002.jpg/640px-Washing_hands_002.jpg"
-    },
-    {
-        title: "Understanding BMI",
-        desc: "What your Body Mass Index means for your treatment plan and nutritional needs.",
-        size: "1.5 MB",
-        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/BMI_chart.png/640px-BMI_chart.png"
-    },
-    {
-        title: "Fatigue Fighters",
-        desc: "Gentle exercises and energy conservation techniques to keep you moving.",
-        size: "2.2 MB",
-        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Woman_jogging.jpg/640px-Woman_jogging.jpg"
-    },
-    {
-        title: "Mental Resilience",
-        desc: "Mindfulness and coping strategies for the emotional journey of cancer treatment.",
-        size: "2.9 MB",
-        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Woman_meditating_on_beach.jpg/640px-Woman_meditating_on_beach.jpg"
-    },
-    {
-        title: "Cervical Cancer 101",
-        desc: "An educational overview of cervical cancer stages, treatments, and terminology.",
-        size: "4.5 MB",
-        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Cervical_Cancer_Awareness_Ribbon.png/640px-Cervical_Cancer_Awareness_Ribbon.png"
-    },
-    {
-        title: "Caregiver's Handbook",
-        desc: "How friends and family can provide effective physical and emotional support.",
-        size: "2.0 MB",
-        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Holding_hands.jpg/640px-Holding_hands.jpg"
-    },
-    {
-        title: "Post-Treatment Life",
-        desc: "Navigating the 'new normal': diet, exercise, and follow-up care after treatment.",
-        size: "3.5 MB",
-        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Healthy_lifestyle.jpg/640px-Healthy_lifestyle.jpg"
-    }
+    { title: "Nutrition Basics", desc: "Guide to recovery diet.", size: "2.4 MB", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Good_Food_Display_-_NCI_Visuals_Online.jpg/640px-Good_Food_Display_-_NCI_Visuals_Online.jpg" },
+    { title: "Chemo Side Effects", desc: "Tips for nausea & fatigue.", size: "1.8 MB", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Pill_bottle_and_pills.jpg/640px-Pill_bottle_and_pills.jpg" },
   ];
-
   return (
     <div className="p-6 animate-fade-in pb-24">
-      <h1 className="text-3xl font-bold mb-2 text-emerald-900 dark:text-white">Library</h1>
-      <p className="text-gray-600 mb-6 dark:text-gray-400">Download offline resources for your journey.</p>
-      
-      {/* Responsive Grid: 1 col on mobile, 2 on tablet/web */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {documents.map((doc, index) => (
-          <div key={index} className="flex bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-md border border-emerald-50 dark:border-slate-700 overflow-hidden transition-all hover:scale-[1.02] active:scale-95">
-             <img src={doc.img} alt={doc.title} className="w-20 h-24 object-cover rounded-xl flex-shrink-0 bg-gray-200" />
+      <h1 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Library</h1>
+      <div className="grid grid-cols-1 gap-4">
+        {documents.map((doc, i) => (
+          <div key={i} className="flex bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-md border border-emerald-50 dark:border-slate-700 overflow-hidden">
+             <img src={doc.img} alt={doc.title} className="w-20 h-24 object-cover rounded-xl" />
              <div className="ml-4 flex flex-col justify-between flex-grow">
-                <div>
-                    <h3 className="font-bold text-emerald-900 dark:text-white text-lg leading-tight mb-1">{doc.title}</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{doc.desc}</p>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded-md dark:bg-emerald-900/30 dark:text-emerald-400">{doc.size}</span>
-                    <button className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    </button>
-                </div>
+                <div><h3 className="font-bold text-emerald-900 dark:text-white text-lg">{doc.title}</h3><p className="text-xs text-gray-500">{doc.desc}</p></div>
+                <div className="flex items-center justify-between mt-2"><span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded-md">{doc.size}</span><button className="text-emerald-600"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button></div>
              </div>
           </div>
         ))}
@@ -1000,160 +1100,65 @@ const LibraryScreen: React.FC = () => {
   );
 };
 
-const DoctorConnectScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
+const DoctorConnectScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => void }> = ({ userProfile, onUpgradeRequest }) => {
     if (userProfile.plan === 'Premium') {
-        // Premium View
         return (
             <div className="p-6 h-full flex flex-col justify-center animate-fade-in">
                 <h1 className="text-3xl font-bold mb-8 text-emerald-900 dark:text-white text-center">Doctor Connect</h1>
                 <div className="space-y-5 animate-stagger-children">
                     <button className="btn-tertiary w-full flex items-center p-5 h-auto !justify-start">
-                        <div className="bg-white/50 p-3 rounded-full mr-4">
-                            <ChatBubbleIcon className="w-6 h-6 text-emerald-900" />
-                        </div>
-                        <div>
-                            <p className="font-bold text-lg text-white text-left">Chat</p>
-                            <p className="text-xs text-white text-left opacity-80">Message your nutritionist</p>
-                        </div>
+                        <div className="bg-white/50 p-3 rounded-full mr-4"><ChatBubbleIcon className="w-6 h-6 text-emerald-900" /></div>
+                        <div><p className="font-bold text-lg text-white">Chat</p><p className="text-xs text-white opacity-80">Message your nutritionist</p></div>
                     </button>
                     <button className="btn-secondary w-full flex items-center p-5 h-auto !justify-start">
-                         <div className="bg-white/30 p-3 rounded-full mr-4">
-                            <VideoCallIcon className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                             <p className="font-bold text-lg text-white text-left">Video Call</p>
-                             <p className="text-xs text-white text-left opacity-90">Schedule a live session</p>
-                        </div>
+                         <div className="bg-white/30 p-3 rounded-full mr-4"><VideoCallIcon className="w-6 h-6 text-white" /></div>
+                        <div><p className="font-bold text-lg text-white">Video Call</p><p className="text-xs text-white opacity-90">Schedule a live session</p></div>
                     </button>
                     <button className="btn-primary w-full flex items-center p-5 h-auto !justify-start">
-                        <div className="bg-white/20 p-3 rounded-full mr-4">
-                            <ShareIcon className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <p className="font-bold text-lg text-white text-left">Share Progress</p>
-                            <p className="text-xs text-white text-left opacity-90">Send logs and reports</p>
-                        </div>
+                        <div className="bg-white/20 p-3 rounded-full mr-4"><ShareIcon className="w-6 h-6 text-white" /></div>
+                        <div><p className="font-bold text-lg text-white">Share Progress</p><p className="text-xs text-white opacity-90">Send logs and reports</p></div>
                     </button>
                 </div>
             </div>
         );
     }
-
-    // Free View (Teaser with Features)
-    const premiumFeatures = [
-        "Unlimited Chat with Nutritionists",
-        "Weekly Video Consultations",
-        "Personalized Diet Adjustments",
-        "Priority Support",
-        "Medical Report Analysis"
-    ];
-
     return (
         <div className="p-6 text-center flex flex-col items-center justify-center min-h-full animate-fade-in pb-24">
             <h1 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Doctor Connect</h1>
             <div className="border border-emerald-200 p-6 rounded-2xl dark:border-emerald-800 w-full bg-white/80 dark:bg-slate-800/80 shadow-xl backdrop-blur-sm">
-                <div className="bg-gradient-to-br from-emerald-100 to-teal-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner dark:from-emerald-900 dark:to-slate-800">
-                    <PremiumIcon className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
-                </div>
+                <div className="bg-gradient-to-br from-emerald-100 to-teal-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 dark:from-emerald-900"><PremiumIcon className="w-10 h-10 text-emerald-600" /></div>
                 <h2 className="text-xl font-bold text-emerald-900 dark:text-white mb-2">Unlock Professional Care</h2>
                 <p className="text-gray-600 mb-6 dark:text-gray-400 text-sm">Get expert guidance tailored to your journey.</p>
-                
-                <div className="space-y-3 mb-8 text-left">
-                    {premiumFeatures.map((feature, index) => (
-                        <div key={index} className="flex items-center text-sm text-gray-700 dark:text-gray-300">
-                            <div className="bg-emerald-100 dark:bg-emerald-900/50 p-1 rounded-full mr-3 text-emerald-600 dark:text-emerald-400 flex-shrink-0">
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                            </div>
-                            <span>{feature}</span>
-                        </div>
-                    ))}
-                </div>
-
-                <button className="btn-primary shadow-glow-primary w-full group relative overflow-hidden">
-                    <span className="relative z-10 group-hover:scale-105 transition-transform inline-block">Upgrade to Premium</span>
-                     <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 to-teal-400/20 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                </button>
+                <button onClick={onUpgradeRequest} className="btn-primary shadow-glow-primary w-full group relative overflow-hidden"><span className="relative z-10">Upgrade to Premium</span></button>
             </div>
         </div>
     );
 };
 
-const LiveScreen: React.FC = () => {
+const LiveScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => void }> = ({ userProfile, onUpgradeRequest }) => {
+    const [isSessionActive, setIsSessionActive] = useState(false);
+
+    if (userProfile.plan !== 'Premium') {
+        return (
+            <div className="p-6 animate-fade-in flex flex-col items-center justify-center h-full pb-24 text-center">
+                 <div className="w-24 h-24 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-slate-700 dark:to-slate-800 rounded-3xl flex items-center justify-center shadow-lg mb-6"><BroadcastIcon className="w-12 h-12 text-gray-400" /></div>
+                 <h1 className="text-4xl font-bold text-emerald-900 dark:text-white mb-2">NutriCan Live</h1>
+                 <p className="text-gray-500 mb-8 max-w-xs">Live audio/video consultations with Dr. Whitney are exclusive to Premium members.</p>
+                 <button onClick={onUpgradeRequest} className="btn-primary w-full">Unlock Live Features</button>
+            </div>
+        );
+    }
+
+    if (isSessionActive) {
+        return <LiveSession userProfile={userProfile} onEnd={() => setIsSessionActive(false)} />;
+    }
+
     return (
-        <div className="p-6 animate-fade-in flex flex-col h-full pb-24 relative">
-             {/* Live Badge */}
-            <div className="absolute top-6 left-6 z-10 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-md animate-pulse uppercase tracking-widest shadow-lg">
-                Coming Soon
-            </div>
-
-            <div className="flex-grow flex flex-col items-center justify-center text-center mt-8">
-                <div className="w-24 h-24 bg-gradient-to-br from-emerald-600 to-teal-800 rounded-3xl flex items-center justify-center shadow-glow-primary-md mb-6 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
-                    <BroadcastIcon className="w-12 h-12 text-white relative z-10" />
-                </div>
-
-                <h1 className="text-4xl font-bold text-emerald-900 dark:text-white mb-2">NutriCan Live</h1>
-                <p className="text-emerald-700 dark:text-emerald-400 text-lg font-medium mb-8">Real-time care, right where you are.</p>
-
-                {/* Simulated Video Interface Preview */}
-                <div className="w-full max-w-sm bg-slate-900 rounded-2xl aspect-video mb-8 relative overflow-hidden shadow-2xl border border-slate-700 group">
-                    {/* Placeholder Doctor Image */}
-                    <img 
-                        src="https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FSlide%20Image%2Fdoctor%20on%20phone.png?alt=media&token=afc9b7e2-717a-455d-96b2-47774b046185" 
-                        alt="Video Call Preview" 
-                        className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" 
-                    />
-                    
-                    {/* Overlay UI Elements */}
-                    <div className="absolute bottom-4 left-4 flex space-x-2">
-                         <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center shadow-lg"><MicIcon className="w-4 h-4 text-white" /></div>
-                         <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center shadow-lg"><VideoCallIcon className="w-4 h-4 text-white" /></div>
-                    </div>
-                    
-                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-md border border-white/30 px-4 py-2 rounded-full">
-                         <p className="text-white font-bold text-sm">Connect with Dr. Whitney</p>
-                    </div>
-                </div>
-
-                {/* Feature List */}
-                <div className="w-full space-y-3">
-                    <div className="flex items-center p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700">
-                        <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg mr-3 text-emerald-700 dark:text-emerald-300">
-                            <VideoCallIcon className="w-5 h-5" />
-                        </div>
-                        <div className="text-left">
-                            <p className="font-bold text-sm text-emerald-900 dark:text-white">Video Stream</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Consult face-to-face in HD</p>
-                        </div>
-                    </div>
-
-                     <div className="flex items-center p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700">
-                        <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg mr-3 text-blue-700 dark:text-blue-300">
-                            <MicIcon className="w-5 h-5" />
-                        </div>
-                        <div className="text-left">
-                            <p className="font-bold text-sm text-emerald-900 dark:text-white">Audio Notes</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Leave quick voice updates</p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center p-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700">
-                        <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-lg mr-3 text-purple-700 dark:text-purple-300">
-                            <ChatBubbleIcon className="w-5 h-5" />
-                        </div>
-                        <div className="text-left">
-                            <p className="font-bold text-sm text-emerald-900 dark:text-white">Live Chat</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Instant text support</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-             <div className="mt-6">
-                 <button className="btn-primary w-full" onClick={() => alert("You've been added to the waitlist!")}>
-                     Notify Me When Live
-                 </button>
-             </div>
+        <div className="p-6 animate-fade-in flex flex-col h-full pb-24 text-center items-center justify-center">
+             <div className="w-32 h-32 bg-gradient-to-br from-emerald-600 to-teal-800 rounded-full flex items-center justify-center shadow-glow-primary-md mb-8 animate-pulse-glow"><BroadcastIcon className="w-16 h-16 text-white" /></div>
+             <h1 className="text-3xl font-bold text-emerald-900 dark:text-white mb-2">Ready to Connect?</h1>
+             <p className="text-emerald-700 dark:text-emerald-400 mb-8">Dr. Whitney is available for a real-time nutrition session.</p>
+             <button onClick={() => setIsSessionActive(true)} className="btn-primary w-full py-5 text-xl">Start Live Interaction</button>
         </div>
     );
 };
@@ -1161,92 +1166,33 @@ const LiveScreen: React.FC = () => {
 
 const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void }> = ({ userProfile, onLogout }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
-    
-    const menuItems = [
-      { label: "Edit Profile", action: () => {} },
-      { label: "Theme", action: toggleTheme, isToggle: true },
-      { label: "Switch Plan", action: () => {} },
-      { label: "Privacy Settings", action: () => {} },
-      { label: "Help Center", action: () => {} },
-    ];
-
-    const calculateBMI = () => {
+    const bmi = useMemo(() => {
         if (userProfile.height && userProfile.weight) {
-            const heightInMeters = userProfile.height / 100;
-            const bmi = (userProfile.weight / (heightInMeters * heightInMeters)).toFixed(1);
-            return bmi;
+            return (userProfile.weight / ((userProfile.height / 100) ** 2)).toFixed(1);
         }
         return 'N/A';
-    };
-    
-    const getBMILabel = (bmiStr: string) => {
-        const bmi = parseFloat(bmiStr);
-        if (isNaN(bmi)) return '';
-        if (bmi < 18.5) return 'Underweight';
-        if (bmi < 25) return 'Healthy';
-        if (bmi < 30) return 'Overweight';
-        return 'Obese';
-    };
-
-    const bmi = calculateBMI();
-    const bmiLabel = getBMILabel(bmi);
+    }, [userProfile.height, userProfile.weight]);
     
     return (
         <div className="p-6 animate-fade-in">
-            <div className="flex flex-col items-center mb-8 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-                <div className="relative">
-                    <div className="w-28 h-28 rounded-full p-1 bg-gradient-to-r from-teal-500 to-emerald-500 shadow-lg mb-4">
-                         <div className="w-full h-full bg-white dark:bg-slate-800 rounded-full flex items-center justify-center">
-                            <UserIcon className="w-14 h-14 text-emerald-600" />
-                         </div>
-                    </div>
+            <div className="flex flex-col items-center mb-8">
+                <div className="w-28 h-28 rounded-full p-1 bg-gradient-to-r from-teal-500 to-emerald-500 shadow-lg mb-4">
+                     <div className="w-full h-full bg-white dark:bg-slate-800 rounded-full flex items-center justify-center"><UserIcon className="w-14 h-14 text-emerald-600" /></div>
                 </div>
                 <h2 className="text-2xl font-bold dark:text-white text-emerald-900">{userProfile.name}</h2>
-                <p className="text-emerald-600 dark:text-emerald-400 font-medium text-sm mb-4">{userProfile.email || 'guest@nutrican.app'}</p>
-                
-                {/* Health Stats Card */}
-                <div className="w-full grid grid-cols-3 gap-2 mb-2">
-                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700 text-center">
-                        <p className="text-xs text-gray-500 uppercase font-bold">Height</p>
-                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{userProfile.height || '-'} <span className="text-xs font-normal">cm</span></p>
-                    </div>
-                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700 text-center">
-                        <p className="text-xs text-gray-500 uppercase font-bold">Weight</p>
-                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{userProfile.weight || '-'} <span className="text-xs font-normal">kg</span></p>
-                    </div>
-                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700 text-center">
-                        <p className="text-xs text-gray-500 uppercase font-bold">BMI</p>
-                        <p className="text-lg font-bold text-emerald-900 dark:text-white">{bmi}</p>
-                    </div>
+                <div className={`mt-2 px-3 py-1 rounded-full text-xs font-bold uppercase ${userProfile.plan === 'Premium' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-emerald-100 text-emerald-800'}`}>
+                    {userProfile.plan} Plan
                 </div>
-                {bmiLabel && <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full">{bmiLabel}</span>}
+                <div className="w-full grid grid-cols-3 gap-2 mt-6">
+                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700 text-center"><p className="text-xs text-gray-500 uppercase font-bold">Height</p><p className="font-bold">{userProfile.height}cm</p></div>
+                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700 text-center"><p className="text-xs text-gray-500 uppercase font-bold">Weight</p><p className="font-bold">{userProfile.weight}kg</p></div>
+                    <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-emerald-50 dark:border-slate-700 text-center"><p className="text-xs text-gray-500 uppercase font-bold">BMI</p><p className="font-bold">{bmi}</p></div>
+                </div>
             </div>
-
-            <div className="space-y-3 animate-stagger-children">
-                {menuItems.map((item, index) => (
-                    <button 
-                        key={item.label}
-                        onClick={item.action} 
-                        className="btn-tertiary w-full !justify-between !px-6 group"
-                        style={{ animationDelay: `${200 + index * 100}ms` }}
-                    >
-                        <span className="text-white group-hover:text-emerald-100">{item.label}</span>
-                        {item.isToggle ? (
-                            <span className="bg-white/50 text-emerald-900 px-3 py-1 rounded-lg text-xs font-bold shadow-sm">
-                                {theme === 'dark' ? 'Dark' : 'Light'}
-                            </span>
-                        ) : (
-                            <span className="text-white group-hover:text-emerald-100">&rarr;</span>
-                        )}
-                    </button>
-                ))}
-                <button 
-                  onClick={onLogout} 
-                  className="btn-primary w-full mt-6 !bg-gradient-to-b !from-slate-700 !to-slate-800 !border-slate-600"
-                  style={{ animationDelay: `${200 + menuItems.length * 100}ms`, boxShadow: '0 4px 0 #334155, 0 8px 10px rgba(0,0,0,0.2)' }}
-                >
-                  Log Out
-                </button>
+            <div className="space-y-3">
+                <button className="btn-tertiary w-full !justify-between !px-6"><span>Edit Profile</span><span>&rarr;</span></button>
+                <button onClick={toggleTheme} className="btn-tertiary w-full !justify-between !px-6"><span>Theme</span><span className="bg-white/20 px-2 py-0.5 rounded text-xs uppercase font-bold">{theme}</span></button>
+                <button onClick={onLogout} className="btn-primary w-full mt-6 !bg-slate-800 !border-slate-700">Log Out</button>
             </div>
         </div>
     );
@@ -1263,15 +1209,29 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
   const [activePage, setActivePage] = useState<DashboardPage>('home');
   const [modalContent, setModalContent] = useState<React.ReactNode | null>(null);
+  const [showPayment, setShowPayment] = useState(false);
+  const [localProfile, setLocalProfile] = useState(userProfile);
+
+  const handlePaymentSuccess = async () => {
+      try {
+          const user = auth.currentUser;
+          if (user) {
+              await db.upgradeToPremium(user.uid);
+              setLocalProfile(prev => ({ ...prev, plan: 'Premium' }));
+          }
+      } catch (err) {
+          console.error(err);
+      }
+  };
 
   const pages = useMemo(() => ({
-    home: <HomeScreen userProfile={userProfile} setActivePage={setActivePage} setModal={setModalContent} />,
-    tracker: <TrackerScreen userProfile={userProfile} />,
-    live: <LiveScreen />,
+    home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModalContent} />,
+    tracker: <TrackerScreen userProfile={localProfile} />,
+    live: <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
     library: <LibraryScreen />,
-    'doctor-connect': <DoctorConnectScreen userProfile={userProfile} />,
-    profile: <ProfileScreen userProfile={userProfile} onLogout={onLogout} />,
-  }), [userProfile, onLogout]);
+    'doctor-connect': <DoctorConnectScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
+    profile: <ProfileScreen userProfile={localProfile} onLogout={onLogout} />,
+  }), [localProfile, onLogout]);
 
   const CurrentPage = pages[activePage] || pages.home;
 
@@ -1281,6 +1241,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
       <EmergencyButton activePage={activePage} />
       <BottomNavBar activePage={activePage} onNavigate={setActivePage} />
       {modalContent && <Modal closeModal={() => setModalContent(null)}>{modalContent}</Modal>}
+      {showPayment && <PaymentModal onPaymentSuccess={handlePaymentSuccess} closeModal={() => setShowPayment(false)} />}
     </div>
   );
 };
