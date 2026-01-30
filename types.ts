@@ -112,3 +112,23 @@ export interface SymptomTip {
   symptom: SymptomType;
   foods: RecommendedFood[];
 }
+
+// --- New Types for Doctor Connect ---
+
+export interface ChatMessage {
+  id: string;
+  text: string;
+  role: 'user' | 'model'; // 'model' represents the doctor
+  timestamp: Date;
+  isSystem?: boolean; // For auto-generated reports shared in chat
+}
+
+export interface DoctorProfile {
+  id: string;
+  name: string;
+  specialty: string;
+  image: string;
+  personality: string; // System instruction nuance
+  greeting: string;
+  isOnline: boolean;
+}

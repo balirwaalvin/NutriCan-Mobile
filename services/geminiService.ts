@@ -1,7 +1,6 @@
 
-
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { UserProfile, FoodSafetyResult, FoodSafetyStatus, WeeklyMealPlan, Meal, NutrientInfo, SymptomType, RecommendedFood } from '../types';
+import { GoogleGenAI, GenerateContentResponse, Chat } from "@google/genai";
+import { UserProfile, FoodSafetyResult, FoodSafetyStatus, WeeklyMealPlan, Meal, NutrientInfo, SymptomType, RecommendedFood, DoctorProfile, ChatMessage } from '../types';
 
 if (!process.env.API_KEY) {
   console.warn("API_KEY environment variable not set. Gemini API calls will fail.");
@@ -9,97 +8,108 @@ if (!process.env.API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
-// --- Image Mapping for Meals ---
+// --- Comprehensive Image Mapping for Ugandan Meals ---
+const FOOD_IMAGE_MAP: { [key: string]: string } = {
+    // --- Staples (Carbs) ---
+    'matoke': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Matoke.JPG/1280px-Matoke.JPG',
+    'bananas': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Matoke.JPG/1280px-Matoke.JPG',
+    'plantain': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Matoke.JPG/1280px-Matoke.JPG',
+    'posho': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Ugali_%26_Sukuma_Wiki.jpg/1280px-Ugali_%26_Sukuma_Wiki.jpg',
+    'ugali': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Ugali_%26_Sukuma_Wiki.jpg/1280px-Ugali_%26_Sukuma_Wiki.jpg',
+    'maize': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Ugali_%26_Sukuma_Wiki.jpg/1280px-Ugali_%26_Sukuma_Wiki.jpg',
+    'corn': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Ugali_%26_Sukuma_Wiki.jpg/1280px-Ugali_%26_Sukuma_Wiki.jpg',
+    'rice': 'https://images.unsplash.com/photo-1516684732162-798a0062be99?w=800&q=80',
+    'pilau': 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=800&q=80',
+    'potato': 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=800&q=80',
+    'irish': 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=800&q=80',
+    'sweet potato': 'https://images.unsplash.com/photo-1596097635121-14b63b7a0c19?w=800&q=80',
+    'yams': 'https://images.unsplash.com/photo-1596097635121-14b63b7a0c19?w=800&q=80',
+    'cassava': 'https://images.unsplash.com/photo-1635352690947-68b209424c08?w=800&q=80',
+    'kalo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Millet_porridge.jpg/1280px-Millet_porridge.jpg',
+    'millet': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Millet_porridge.jpg/1280px-Millet_porridge.jpg',
+    'pumpkin': 'https://images.unsplash.com/photo-1570586437263-ab629fccc818?w=800&q=80',
+    'chapati': 'https://images.unsplash.com/photo-1626074353765-517a681e40be?w=800&q=80',
+    'rolex': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Rolex_Uganda.jpg/1280px-Rolex_Uganda.jpg',
+    'katogo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Matoke.JPG/1280px-Matoke.JPG',
+    'bread': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&q=80',
+    'toast': 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=800&q=80',
+    'oats': 'https://images.unsplash.com/photo-1505253758473-96b7015fcd40?w=800&q=80',
+    'porridge': 'https://images.unsplash.com/photo-1505253758473-96b7015fcd40?w=800&q=80',
+
+    // --- Proteins ---
+    'fish': 'https://images.unsplash.com/photo-1519708227418-c8fd9a3a2b7b?w=800&q=80',
+    'tilapia': 'https://images.unsplash.com/photo-1519708227418-c8fd9a3a2b7b?w=800&q=80',
+    'perch': 'https://images.unsplash.com/photo-1519708227418-c8fd9a3a2b7b?w=800&q=80',
+    'mukene': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Dried_fish_market.jpg/1280px-Dried_fish_market.jpg',
+    'silver fish': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Dried_fish_market.jpg/1280px-Dried_fish_market.jpg',
+    'chicken': 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=800&q=80',
+    'luwombo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Luwombo.jpg/1280px-Luwombo.jpg',
+    'beef': 'https://images.unsplash.com/photo-1574484284008-be9d6e50cc3d?w=800&q=80',
+    'meat': 'https://images.unsplash.com/photo-1574484284008-be9d6e50cc3d?w=800&q=80',
+    'goat': 'https://images.unsplash.com/photo-1574484284008-be9d6e50cc3d?w=800&q=80', 
+    'liver': 'https://images.unsplash.com/photo-1574484284008-be9d6e50cc3d?w=800&q=80',
+    'egg': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=800&q=80',
+    'beans': 'https://images.unsplash.com/photo-1590741270415-467406a445d0?w=800&q=80',
+    'peas': 'https://images.unsplash.com/photo-1589178347738-963b51676dfc?w=800&q=80',
+    'cowpeas': 'https://images.unsplash.com/photo-1589178347738-963b51676dfc?w=800&q=80',
+    'g-nut': 'https://images.unsplash.com/photo-1604152135912-04a022e23696?w=800&q=80',
+    'groundnut': 'https://images.unsplash.com/photo-1604152135912-04a022e23696?w=800&q=80',
+    'peanut': 'https://images.unsplash.com/photo-1604152135912-04a022e23696?w=800&q=80',
+    'yoghurt': 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=800&q=80',
+    'yogurt': 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=800&q=80',
+    'milk': 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=800&q=80',
+
+    // --- Vegetables ---
+    'greens': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800&q=80',
+    'spinach': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800&q=80',
+    'dodo': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800&q=80',
+    'nakati': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800&q=80',
+    'sukuma': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800&q=80',
+    'vegetable': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800&q=80',
+    'cabbage': 'https://images.unsplash.com/photo-1611099831778-98e3b567d12f?w=800&q=80',
+    'avocado': 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=800&q=80',
+    'salad': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&q=80',
+    'garden egg': 'https://images.unsplash.com/photo-1615485925763-867862f80c6c?w=800&q=80',
+    'eggplant': 'https://images.unsplash.com/photo-1615485925763-867862f80c6c?w=800&q=80',
+    'ntula': 'https://images.unsplash.com/photo-1615485925763-867862f80c6c?w=800&q=80',
+    'carrot': 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=800&q=80',
+
+    // --- Fruits ---
+    'fruit': 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=800&q=80',
+    'mango': 'https://images.unsplash.com/photo-1553279768-865429fa0078?w=800&q=80',
+    'pineapple': 'https://images.unsplash.com/photo-1550258987-190a2d41a8ba?w=800&q=80',
+    'watermelon': 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=800&q=80',
+    'papaya': 'https://images.unsplash.com/photo-1617117557561-44ca703ae50f?w=800&q=80',
+    'pawpaw': 'https://images.unsplash.com/photo-1617117557561-44ca703ae50f?w=800&q=80',
+    'orange': 'https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=800&q=80',
+    'passion': 'https://images.unsplash.com/photo-1536617066864-41da0045f442?w=800&q=80',
+    'apple': 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=800&q=80',
+
+    // --- General/Misc ---
+    'tea': 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=800&q=80',
+    'juice': 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=800&q=80',
+    'stew': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=800&q=80',
+    'soup': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=800&q=80',
+};
 
 const getMealPhotoUrl = (mealName: string): string => {
-    // Use a reliable, general-purpose image as a fallback.
-    const defaultImage = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Good_Food_Display_-_NCI_Visuals_Online.jpg/1280px-Good_Food_Display_-_NCI_Visuals_Online.jpg';
+    // High-quality fallback image (Unsplash) - Healthy Plate
+    const defaultImage = 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=800&q=80'; 
+    
     if (!mealName) return defaultImage;
 
-    // Map keywords to specific, high-availability images from Wikimedia Commons for maximum reliability
-    const imageMap: { [key: string]: string } = {
-        'fish': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Fish_Mulligatawny_Soup.jpg/1024px-Fish_Mulligatawny_Soup.jpg',
-        'tilapia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Fish_Mulligatawny_Soup.jpg/1024px-Fish_Mulligatawny_Soup.jpg',
-        'nile perch': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Fish_Mulligatawny_Soup.jpg/1024px-Fish_Mulligatawny_Soup.jpg',
-        'mukene': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Dried_fish_market.jpg/1280px-Dried_fish_market.jpg',
-        'chicken': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Luwombo.jpg/1280px-Luwombo.jpg',
-        'luwombo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Luwombo.jpg/1280px-Luwombo.jpg',
-        'stew': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Beef_stew_with_potatoes_and_carrots.jpg/1280px-Beef_stew_with_potatoes_and_carrots.jpg',
-        'beef': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Beef_stew_with_potatoes_and_carrots.jpg/1280px-Beef_stew_with_potatoes_and_carrots.jpg',
-        'goat': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Goat_Curry.jpg/1280px-Goat_Curry.jpg',
-        'katogo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Matoke.JPG/1280px-Matoke.JPG',
-        'matoke': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Matoke.JPG/1280px-Matoke.JPG',
-        'plantain': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Matoke.JPG/1280px-Matoke.JPG',
-        'posho': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Ugali_%26_Sukuma_Wiki.jpg/1280px-Ugali_%26_Sukuma_Wiki.jpg',
-        'ugali': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Ugali_%26_Sukuma_Wiki.jpg/1280px-Ugali_%26_Sukuma_Wiki.jpg',
-        'greens': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg/1280px-Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg',
-        'dodo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg/1280px-Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg',
-        'nakati': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg/1280px-Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg',
-        'spinach': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg/1280px-Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg',
-        'sukuma': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg/1280px-Sukuma_wiki_-_gegr%C3%BCnter_Gr%C3%BCnkohl.jpg',
-        'cabbage': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Kopytka_z_kiszona_kapusta_02.jpg/1280px-Kopytka_z_kiszona_kapusta_02.jpg',
-        'vegetable': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Vegetable_Stir_Fry.jpg/1280px-Vegetable_Stir_Fry.jpg',
-        'potatoes': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Patates.jpg/1280px-Patates.jpg',
-        'irish': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Patates.jpg/1280px-Patates.jpg',
-        'fruit': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Culinary_fruits_front_view.jpg/1280px-Culinary_fruits_front_view.jpg',
-        'salad': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Salad_platter.jpg/1280px-Salad_platter.jpg',
-        'porridge': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Millet_porridge.jpg/1280px-Millet_porridge.jpg',
-        'oats': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Oatmeal_with_berries.jpg/1024px-Oatmeal_with_berries.jpg',
-        'millet': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Millet_porridge.jpg/1280px-Millet_porridge.jpg',
-        'kalo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Millet_porridge.jpg/1280px-Millet_porridge.jpg',
-        'groundnut': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg/1280px-Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg',
-        'g-nut': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg/1280px-Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg',
-        'peanut': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg/1280px-Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg',
-        'binyebwa': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg/1280px-Groundnut_Stew_-_Peanut_Butter_Stew_-_Maafe.jpg',
-        'egg': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Avocado_toast_with_egg.jpg/1280px-Avocado_toast_with_egg.jpg',
-        'rolex': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Rolex_Uganda.jpg/1280px-Rolex_Uganda.jpg',
-        'avocado': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Avocado_toast_with_egg.jpg/1280px-Avocado_toast_with_egg.jpg',
-        'beans': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Rajma_chawal_1.jpg/1280px-Rajma_chawal_1.jpg',
-        'rice': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/White_rice.jpg/1280px-White_rice.jpg',
-        'pilau': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/White_rice.jpg/1280px-White_rice.jpg',
-        'peas': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Split_pea_soup.jpg/1280px-Split_pea_soup.jpg',
-        'cowpeas': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Split_pea_soup.jpg/1280px-Split_pea_soup.jpg',
-        'cassava': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Mogo_%26_cassava%29.jpg/1280px-Mogo_%26_cassava%29.jpg',
-        'yam': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Boiled_Sweet_Potatoes.jpg/1280px-Boiled_Sweet_Potatoes.jpg',
-        'sweet potato': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Boiled_Sweet_Potatoes.jpg/1280px-Boiled_Sweet_Potatoes.jpg',
-        'pumpkin': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/French_soup.jpg/1280px-French_soup.jpg',
-        'soup': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Vegetarian_Curry.jpeg/1280px-Vegetarian_Curry.jpeg',
-        'broth': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Vegetarian_Curry.jpeg/1280px-Vegetarian_Curry.jpeg',
-        'chapati': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Chapati_02.jpg/1280px-Chapati_02.jpg',
-        'tea': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Tea_plantations_in_Munnar%2C_Kerala.jpg/1280px-Tea_plantations_in_Munnar%2C_Kerala.jpg',
-        'drink': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Tea_plantations_in_Munnar%2C_Kerala.jpg/1280px-Tea_plantations_in_Munnar%2C_Kerala.jpg',
-        'ginger': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Ginger_Root.jpg/1280px-Ginger_Root.jpg',
-        'lemon': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Lemon.jpg/1280px-Lemon.jpg',
-        'mango': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Hapus_Mango.jpg/1280px-Hapus_Mango.jpg',
-        'pineapple': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Pineapple_and_cross_section.jpg/1280px-Pineapple_and_cross_section.jpg',
-        'watermelon': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Taiwan_2009_Tainan_City_Organic_Farm_Watermelon.jpg/1280px-Taiwan_2009_Tainan_City_Organic_Farm_Watermelon.jpg',
-        'papaya': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Papaya_cross_section_BNC.jpg/1280px-Papaya_cross_section_BNC.jpg',
-        'orange': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Oranges_-_whole-halved-segment.jpg/1280px-Oranges_-_whole-halved-segment.jpg',
-        'passion': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Passion_fruit_packed_with_edible_seeds.jpg/1280px-Passion_fruit_packed_with_edible_seeds.jpg',
-        'juice': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Glass_of_orange_juice.jpg/1280px-Glass_of_orange_juice.jpg',
-        'water': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Glass_of_water.jpg/800px-Glass_of_water.jpg',
-        'hydration': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Glass_of_water.jpg/800px-Glass_of_water.jpg',
-        'yoghurt': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Bowl_of_yogurt.jpg/1280px-Bowl_of_yogurt.jpg',
-        'yogurt': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Bowl_of_yogurt.jpg/1280px-Bowl_of_yogurt.jpg',
-        'milk': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Glass_of_Milk_%2833657535532%29.jpg/1280px-Glass_of_Milk_%2833657535532%29.jpg',
-        'cracker': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Cream_crackers_stack.jpg/1280px-Cream_crackers_stack.jpg',
-        'biscuit': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Cream_crackers_stack.jpg/1280px-Cream_crackers_stack.jpg',
-        'toast': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Toast-2.jpg/1280px-Toast-2.jpg',
-        'bread': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Toast-2.jpg/1280px-Toast-2.jpg',
-        'ice': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Strawberry_ice_cream_cone_%285076899310%29.jpg/1280px-Strawberry_ice_cream_cone_%285076899310%29.jpg',
-        'cold': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Strawberry_ice_cream_cone_%285076899310%29.jpg/1280px-Strawberry_ice_cream_cone_%285076899310%29.jpg',
-    };
-
     const lowerMealName = mealName.toLowerCase();
-    for (const key in imageMap) {
+    
+    // Check if any key in our map exists in the meal name string
+    for (const key in FOOD_IMAGE_MAP) {
         if (lowerMealName.includes(key)) {
-            return imageMap[key];
+            return FOOD_IMAGE_MAP[key];
         }
     }
 
+    // If no specific match, returns the default to ensure NO broken images.
     return defaultImage;
 };
-
 
 export const checkFoodSafety = async (foodName: string, userProfile: UserProfile): Promise<FoodSafetyResult> => {
   const conditions = [userProfile.cancerType, ...userProfile.otherConditions].join(', ');
@@ -143,12 +153,9 @@ export const checkFoodSafety = async (foodName: string, userProfile: UserProfile
   }
 };
 
-
 export const generateMealPlan = async (userProfile: UserProfile): Promise<WeeklyMealPlan | null> => {
     const conditions = [userProfile.cancerType, ...userProfile.otherConditions].join(', ');
     
-    // Calculate BMI
-    // Weight in kg, Height in cm. Formula: kg / m^2
     let bmiInfo = '';
     let bmiValue = 0;
     if (userProfile.height && userProfile.weight) {
@@ -162,31 +169,30 @@ export const generateMealPlan = async (userProfile: UserProfile): Promise<Weekly
         bmiInfo = `The patient's BMI is ${bmiValue} (${status}).`;
     }
 
+    // UPDATED PROMPT: Strictly restricts output to common Ugandan foods in our Image Map
     const prompt = `
       Generate a 7-day weekly meal plan for a patient with ${conditions} and Cervical Cancer.
       ${bmiInfo}
-      The meals should be based on local Ugandan cuisine.
-      Crucially, the plan must EXCLUDE sugary foods (like sodas, sweets), pastries, and any deep-fried items. Meals should be healthy and low in fat.
+      
+      CRITICAL INSTRUCTION: You must ONLY recommend meal items from the following list of common Ugandan foods to ensure valid images are available:
+      - Staples: Matoke, Rice, Posho, Sweet Potatoes, Irish Potatoes, Cassava, Yams, Kalo (Millet), Pumpkin, Chapati (only if healthy).
+      - Proteins: Beans, Peas, Groundnuts (G-nut sauce), Fish (Tilapia, Nile Perch, Mukene), Chicken (Stew/Luwombo), Beef, Goat, Eggs, Yoghurt.
+      - Vegetables: Greens (Dodo, Nakati, Sukuma Wiki), Cabbage, Spinach, Avocado, Garden Eggs (Ntula).
+      - Fruits: Watermelon, Pineapple, Papaya (Pawpaw), Mango, Passion Fruit, Oranges.
+      - Drinks: Water, Milk Tea (limit sugar), Porridge (Millet/Maize), Fruit Juice.
+
+      Do NOT suggest obscure local dishes that are not in the list above.
+      
+      The plan must EXCLUDE sugary foods (sodas, cakes), pastries, and deep-fried items. Meals should be healthy and low in fat.
+      
       For each meal (breakfast, lunch, dinner) of each day, provide:
-      1. "name"
+      1. "name" (Use the names from the list above, e.g., "Matoke with G-nut Sauce")
       2. "description"
-      3. "reason" (Explain precisely why this meal is recommended based on their BMI of ${bmiValue} and condition. If underweight, focus on nutrient density/bulking. If overweight, focus on satiety/low-calorie. Max 2 sentences.)
+      3. "reason" (Explain precisely why this meal is recommended based on their BMI of ${bmiValue} and condition. Max 2 sentences.)
       4. "category" (Must be "Protein", "Carbs", "Balanced", or "Veggies").
       
       Respond in a single JSON object with a single key "weekPlan". The value should be an array of 7 day-objects.
       Each day-object should have a "day" (e.g., "Monday") and keys for "breakfast", "lunch", and "dinner".
-      
-      Example format:
-      {
-        "day": "Monday",
-        "breakfast": {
-            "name": "Katogo", 
-            "description": "Matoke cooked with lean beef.", 
-            "reason": "Provides iron for strength and complex carbs for sustained energy, aiding weight maintenance.",
-            "category": "Balanced"
-        },
-        ...
-      }
     `;
 
     try {
@@ -230,6 +236,10 @@ export const swapMeal = async (userProfile: UserProfile, mealToSwap: Meal, day: 
         A patient with ${conditions} (${bmiInfo}) needs a replacement for their ${mealType} on ${day}.
         The current meal is "${mealToSwap.name}".
         Suggest a different, healthy Ugandan local dish.
+        
+        CRITICAL: ONLY choose from these supported foods:
+        Matoke, Rice, Posho, Sweet Potatoes, Cassava, Yams, Kalo, Pumpkin, Beans, Peas, G-nut sauce, Fish, Chicken, Beef, Goat, Eggs, Greens, Cabbage, Avocado.
+        
         The new meal MUST NOT be sugary, a pastry, or deep-fried. It should be low-fat.
         Provide a "name", "description", "reason" (Why is this specific swap good for their BMI and conditions?), and "category" ("Protein", "Carbs", "Balanced", or "Veggies").
         Respond in a single JSON object.
@@ -298,18 +308,18 @@ export const getSymptomTips = async (symptom: SymptomType): Promise<RecommendedF
     const prompt = `
         Generate a list of 4-5 highly specific and effective local Ugandan food recommendations for a patient with cervical cancer experiencing ${symptom}.
         Focus on foods that are scientifically or traditionally known to help with ${symptom} specifically.
+        Use ONLY common foods from this list to ensure images are available: Ginger, Posho, Rice, Yoghurt, Papaya, Watermelon, Greens, Beans, Fish, Matoke, Pumpkin, Eggs.
+        
         For example, if the symptom is Nausea, suggest ginger, dry crackers, or bland foods. 
         If the symptom is Constipation, suggest high fiber foods like papayas or green vegetables.
-        If the symptom is Mouth Wounds, suggest soft, blended, or cold foods.
         The recommendations MUST be distinct and tailored to ${symptom}.
-        Avoid sugary, fried, spicy, or very fatty foods.
         Respond ONLY with a JSON object. The object should have a single key "recommendations", which is an array of objects.
         Each object in the array should have a "name" (string) and a "description" (string, max 20 words).
         
         Example structure:
         {
           "recommendations": [
-            {"name": "Ginger Tea (Tangawizi)", "description": "Soothes the stomach and is known to effectively reduce nausea."},
+            {"name": "Ginger Tea", "description": "Soothes the stomach and is known to effectively reduce nausea."},
             {"name": "Plain Posho", "description": "A bland, easy-to-digest carbohydrate that provides energy without upsetting the stomach."}
           ]
         }
@@ -338,5 +348,60 @@ export const getSymptomTips = async (symptom: SymptomType): Promise<RecommendedF
     } catch (error) {
         console.error("Error generating symptom tips:", error);
         return null;
+    }
+};
+
+// --- Doctor Connect AI Logic ---
+
+export const getDoctorChatResponse = async (
+    doctor: DoctorProfile,
+    userProfile: UserProfile,
+    history: ChatMessage[],
+    newMessage: string
+): Promise<string> => {
+    // 1. Build Persona
+    const bmi = userProfile.height && userProfile.weight ? (userProfile.weight / ((userProfile.height / 100) ** 2)).toFixed(1) : "Unknown";
+    
+    const systemInstruction = `
+        You are ${doctor.name}, a ${doctor.specialty} with NutriCan.
+        
+        Your Persona: ${doctor.personality}.
+        
+        Patient Context:
+        - Name: ${userProfile.name}
+        - Age: ${userProfile.age}
+        - Condition: ${userProfile.cancerType} (${userProfile.cancerStage})
+        - Comorbidities: ${userProfile.otherConditions.join(', ') || 'None'}
+        - BMI: ${bmi}
+        - Treatment: ${userProfile.treatmentStages.join(', ') || 'Not specified'}
+
+        Instructions:
+        - Respond to the user's latest message in character.
+        - Keep advice medically sound but relevant to Ugandan/East African context where possible (local foods).
+        - Be concise (max 3-4 sentences typically).
+        - If the user shares a system report (starts with [Health Report]), analyze it briefly and give encouragement.
+    `;
+
+    // 2. Format History for Gemini API
+    // Gemini 2.5 API expects history in { role: 'user' | 'model', parts: [{ text: string }] } format
+    const formattedHistory = history.map(msg => ({
+        role: msg.role === 'model' ? 'model' : 'user',
+        parts: [{ text: msg.text }]
+    }));
+
+    try {
+        const chat: Chat = ai.chats.create({
+            model: 'gemini-2.5-flash',
+            config: {
+                systemInstruction: systemInstruction,
+            },
+            history: formattedHistory as any, // Cast to any to bypass strict type check on role strings if necessary
+        });
+
+        const response: GenerateContentResponse = await chat.sendMessage({ message: newMessage });
+        return response.text || "I'm sorry, I'm having trouble connecting right now. Please try again.";
+    } catch (error) {
+        console.error("Error in doctor chat:", error);
+        return "I apologize, but I'm currently unavailable. Please check your internet connection.";
     }
 };

@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
-import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal } from '../types';
-import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon, MicIcon, BroadcastIcon } from './Icons';
-import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips } from '../services/geminiService';
+import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal, DoctorProfile, ChatMessage } from '../types';
+import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon, MicIcon, BroadcastIcon, ChevronLeftIcon } from './Icons';
+import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips, getDoctorChatResponse } from '../services/geminiService';
 import { db, auth } from '../services/db';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { ThemeContext } from '../contexts/ThemeContext';
@@ -1100,36 +1100,270 @@ const LibraryScreen: React.FC = () => {
   );
 };
 
+// --- Doctor Connect Feature Components ---
+
+const AVAILABLE_DOCTORS: DoctorProfile[] = [
+    {
+        id: 'dr_whitney',
+        name: 'Dr. Whitney',
+        specialty: 'Oncology Nutrition Specialist',
+        image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&q=80',
+        personality: 'Compassionate, warm, and highly empathetic. Uses terms like "my dear" and focuses on emotional well-being alongside food.',
+        greeting: "Hello dear, I'm Dr. Whitney. I'm here to support you with gentle nourishment plans. How are you feeling today?",
+        isOnline: true,
+    },
+    {
+        id: 'dr_dorcas',
+        name: 'Dr. Dorcas',
+        specialty: 'Clinical Dietitian',
+        image: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=400&q=80',
+        personality: 'Clinical, precise, scientific, and direct. Focuses on nutrient density, percentages, and medical facts.',
+        greeting: "Good day. I am Dr. Dorcas. Let's look at your nutritional data and optimize your intake for recovery.",
+        isOnline: false,
+    },
+    {
+        id: 'dr_liz',
+        name: 'Dr. Liz',
+        specialty: 'Integrative Health Coach',
+        image: 'https://images.unsplash.com/photo-1614608682850-e0d6ed316d47?w=400&q=80',
+        personality: 'Holistic, traditional, and nature-focused. Recommends local herbs, natural remedies, and lifestyle balance.',
+        greeting: "Hi! I'm Dr. Liz. Healing comes from nature. Let's talk about local foods and how to balance your energy.",
+        isOnline: true,
+    }
+];
+
+const ChatInterface: React.FC<{ doctor: DoctorProfile, userProfile: UserProfile, onBack: () => void }> = ({ doctor, userProfile, onBack }) => {
+    const [messages, setMessages] = useState<ChatMessage[]>([
+        { id: '1', role: 'model', text: doctor.greeting, timestamp: new Date() }
+    ]);
+    const [input, setInput] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    const handleSend = async () => {
+        if (!input.trim()) return;
+
+        const userMsg: ChatMessage = {
+            id: Date.now().toString(),
+            role: 'user',
+            text: input,
+            timestamp: new Date()
+        };
+
+        setMessages(prev => [...prev, userMsg]);
+        setInput('');
+        setIsTyping(true);
+
+        // Call Gemini
+        const replyText = await getDoctorChatResponse(doctor, userProfile, [...messages, userMsg], input);
+
+        const doctorMsg: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            role: 'model',
+            text: replyText,
+            timestamp: new Date()
+        };
+
+        setMessages(prev => [...prev, doctorMsg]);
+        setIsTyping(false);
+    };
+
+    const handleShareVitals = () => {
+        const bmi = userProfile.height && userProfile.weight 
+            ? (userProfile.weight / ((userProfile.height / 100) ** 2)).toFixed(1) 
+            : "Unknown";
+            
+        const report = `[Health Report Shared]
+        Patient: ${userProfile.name}
+        BMI: ${bmi}
+        Weight: ${userProfile.weight}kg
+        Stage: ${userProfile.cancerStage}
+        Please analyze this.`;
+
+        const userMsg: ChatMessage = {
+            id: Date.now().toString(),
+            role: 'user',
+            text: "I'm sharing my latest health snapshot with you.",
+            timestamp: new Date(),
+            isSystem: true
+        };
+        
+        setMessages(prev => [...prev, userMsg]);
+        setIsTyping(true);
+
+        // Invisible system prompt to AI
+        getDoctorChatResponse(doctor, userProfile, [...messages, { ...userMsg, text: report }], report)
+            .then(replyText => {
+                const doctorMsg: ChatMessage = {
+                    id: (Date.now() + 1).toString(),
+                    role: 'model',
+                    text: replyText,
+                    timestamp: new Date()
+                };
+                setMessages(prev => [...prev, doctorMsg]);
+                setIsTyping(false);
+            });
+    };
+
+    return (
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 animate-fade-in relative z-20">
+            {/* Header */}
+            <div className="bg-white dark:bg-slate-800 p-4 shadow-sm flex items-center justify-between border-b dark:border-slate-700">
+                <div className="flex items-center">
+                    <button onClick={onBack} className="mr-3 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700">
+                        <ChevronLeftIcon className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                    </button>
+                    <div className="relative">
+                        <img src={doctor.image} alt={doctor.name} className="w-10 h-10 rounded-full object-cover border-2 border-emerald-100" />
+                        {doctor.isOnline && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-slate-800"></div>}
+                    </div>
+                    <div className="ml-3">
+                        <h3 className="font-bold text-gray-800 dark:text-white text-sm">{doctor.name}</h3>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{doctor.specialty}</p>
+                    </div>
+                </div>
+                <button className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-full text-emerald-600 dark:text-emerald-400">
+                   <VideoCallIcon className="w-5 h-5" />
+                </button>
+            </div>
+
+            {/* Chat Area */}
+            <div className="flex-grow overflow-y-auto p-4 space-y-4 pb-24">
+                {messages.map((msg) => (
+                    <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] rounded-2xl p-3 shadow-sm relative ${
+                            msg.role === 'user' 
+                                ? msg.isSystem 
+                                    ? 'bg-blue-50 border border-blue-200 text-blue-800 rounded-br-none'
+                                    : 'bg-emerald-600 text-white rounded-br-none' 
+                                : 'bg-white dark:bg-slate-800 dark:text-gray-200 border dark:border-slate-700 rounded-bl-none'
+                        }`}>
+                            {msg.isSystem && (
+                                <div className="flex items-center gap-2 mb-1 border-b border-blue-200 pb-1">
+                                    <ChartIcon className="w-4 h-4" />
+                                    <span className="text-xs font-bold uppercase">System Info</span>
+                                </div>
+                            )}
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                            <p className={`text-[10px] mt-1 text-right ${msg.role === 'user' && !msg.isSystem ? 'text-emerald-100' : 'text-gray-400'}`}>
+                                {msg.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </p>
+                        </div>
+                    </div>
+                ))}
+                {isTyping && (
+                    <div className="flex justify-start">
+                         <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl rounded-bl-none shadow-sm border dark:border-slate-700 flex space-x-1">
+                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                         </div>
+                    </div>
+                )}
+                <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Area */}
+            <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-800 p-3 border-t dark:border-slate-700 flex flex-col gap-2 shadow-lg">
+                {/* Quick Actions */}
+                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                    <button onClick={handleShareVitals} className="whitespace-nowrap px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 text-xs font-bold rounded-full border border-blue-100 dark:border-blue-800 flex items-center gap-1 active:scale-95 transition-transform">
+                        <ChartIcon className="w-3 h-3" />
+                        Share Vitals
+                    </button>
+                    <button className="whitespace-nowrap px-3 py-1.5 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-300 text-xs font-bold rounded-full border border-orange-100 dark:border-orange-800 flex items-center gap-1 active:scale-95 transition-transform">
+                        <BowlIcon className="w-3 h-3" />
+                        Share Meal Log
+                    </button>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                    <button className="p-2 text-gray-400 hover:text-emerald-600 transition-colors">
+                        <PlusIcon className="w-6 h-6" />
+                    </button>
+                    <input 
+                        type="text" 
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                        placeholder="Type your message..."
+                        className="flex-grow bg-gray-100 dark:bg-slate-700 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white transition-all"
+                    />
+                    <button onClick={handleSend} disabled={!input.trim()} className="p-2.5 bg-emerald-600 rounded-full text-white shadow-md disabled:opacity-50 disabled:shadow-none active:scale-95 transition-all">
+                        <svg className="w-5 h-5 translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const DoctorConnectScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => void }> = ({ userProfile, onUpgradeRequest }) => {
-    if (userProfile.plan === 'Premium') {
+    const [selectedDoctor, setSelectedDoctor] = useState<DoctorProfile | null>(null);
+
+    // If not premium, show upgrade gate
+    if (userProfile.plan !== 'Premium') {
         return (
-            <div className="p-6 h-full flex flex-col justify-center animate-fade-in">
-                <h1 className="text-3xl font-bold mb-8 text-emerald-900 dark:text-white text-center">Doctor Connect</h1>
-                <div className="space-y-5 animate-stagger-children">
-                    <button className="btn-tertiary w-full flex items-center p-5 h-auto !justify-start">
-                        <div className="bg-white/50 p-3 rounded-full mr-4"><ChatBubbleIcon className="w-6 h-6 text-emerald-900" /></div>
-                        <div><p className="font-bold text-lg text-white">Chat</p><p className="text-xs text-white opacity-80">Message your nutritionist</p></div>
-                    </button>
-                    <button className="btn-secondary w-full flex items-center p-5 h-auto !justify-start">
-                         <div className="bg-white/30 p-3 rounded-full mr-4"><VideoCallIcon className="w-6 h-6 text-white" /></div>
-                        <div><p className="font-bold text-lg text-white">Video Call</p><p className="text-xs text-white opacity-90">Schedule a live session</p></div>
-                    </button>
-                    <button className="btn-primary w-full flex items-center p-5 h-auto !justify-start">
-                        <div className="bg-white/20 p-3 rounded-full mr-4"><ShareIcon className="w-6 h-6 text-white" /></div>
-                        <div><p className="font-bold text-lg text-white">Share Progress</p><p className="text-xs text-white opacity-90">Send logs and reports</p></div>
-                    </button>
+            <div className="p-6 text-center flex flex-col items-center justify-center min-h-full animate-fade-in pb-24">
+                <h1 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Doctor Connect</h1>
+                <div className="border border-emerald-200 p-6 rounded-2xl dark:border-emerald-800 w-full bg-white/80 dark:bg-slate-800/80 shadow-xl backdrop-blur-sm">
+                    <div className="bg-gradient-to-br from-emerald-100 to-teal-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 dark:from-emerald-900"><PremiumIcon className="w-10 h-10 text-emerald-600" /></div>
+                    <h2 className="text-xl font-bold text-emerald-900 dark:text-white mb-2">Unlock Professional Care</h2>
+                    <p className="text-gray-600 mb-6 dark:text-gray-400 text-sm">Get expert guidance tailored to your journey.</p>
+                    <button onClick={onUpgradeRequest} className="btn-primary shadow-glow-primary w-full group relative overflow-hidden"><span className="relative z-10">Upgrade to Premium</span></button>
                 </div>
             </div>
         );
     }
+
+    // If Chat Active
+    if (selectedDoctor) {
+        return <ChatInterface doctor={selectedDoctor} userProfile={userProfile} onBack={() => setSelectedDoctor(null)} />;
+    }
+
+    // Doctor Selection View
     return (
-        <div className="p-6 text-center flex flex-col items-center justify-center min-h-full animate-fade-in pb-24">
-            <h1 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Doctor Connect</h1>
-            <div className="border border-emerald-200 p-6 rounded-2xl dark:border-emerald-800 w-full bg-white/80 dark:bg-slate-800/80 shadow-xl backdrop-blur-sm">
-                <div className="bg-gradient-to-br from-emerald-100 to-teal-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 dark:from-emerald-900"><PremiumIcon className="w-10 h-10 text-emerald-600" /></div>
-                <h2 className="text-xl font-bold text-emerald-900 dark:text-white mb-2">Unlock Professional Care</h2>
-                <p className="text-gray-600 mb-6 dark:text-gray-400 text-sm">Get expert guidance tailored to your journey.</p>
-                <button onClick={onUpgradeRequest} className="btn-primary shadow-glow-primary w-full group relative overflow-hidden"><span className="relative z-10">Upgrade to Premium</span></button>
+        <div className="p-6 h-full flex flex-col animate-fade-in pb-24">
+            <h1 className="text-3xl font-bold mb-2 text-emerald-900 dark:text-white">Doctor Connect</h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">Choose a specialist to chat with.</p>
+            
+            <div className="space-y-4 animate-stagger-children">
+                {AVAILABLE_DOCTORS.map((doctor, index) => (
+                    <div key={doctor.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-md border border-emerald-50 dark:border-slate-700 flex items-start gap-4 transition-transform active:scale-[0.98]" style={{ animationDelay: `${index * 100}ms` }}>
+                        <div className="relative flex-shrink-0">
+                            <img src={doctor.image} alt={doctor.name} className="w-16 h-16 rounded-xl object-cover shadow-sm" />
+                            {doctor.isOnline && (
+                                <span className="absolute -bottom-1 -right-1 flex h-4 w-4">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-4 w-4 bg-green-500 border-2 border-white dark:border-slate-800"></span>
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex-grow">
+                            <div className="flex justify-between items-start">
+                                <h3 className="font-bold text-lg text-emerald-900 dark:text-white">{doctor.name}</h3>
+                                {doctor.isOnline && <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full uppercase">Online</span>}
+                            </div>
+                            <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1">{doctor.specialty}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug line-clamp-2">{doctor.personality}</p>
+                            <button 
+                                onClick={() => setSelectedDoctor(doctor)}
+                                className="mt-3 w-full py-2 bg-emerald-50 dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 text-sm font-bold rounded-lg hover:bg-emerald-100 dark:hover:bg-slate-600 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <ChatBubbleIcon className="w-4 h-4" />
+                                Start Chat
+                            </button>
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );
