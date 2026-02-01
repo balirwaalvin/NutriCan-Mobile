@@ -2,6 +2,7 @@
   "name": "NutriCan",
   "description": "A personalized nutrition and wellness assistant for cancer patients, offering meal plans, food safety checks, symptom tracking, and progress journaling to support them through their journey.",
   "requestFramePermissions": [
-    "microphone"
+    "microphone",
+    "camera"
   ]
 }

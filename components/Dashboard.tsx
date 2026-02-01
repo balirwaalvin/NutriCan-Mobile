@@ -287,12 +287,19 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!food) return;
+        if (!food.trim()) {
+            alert("Please enter a food item to check.");
+            return;
+        }
         setLoading(true);
         setResult(null);
         const safetyResult = await checkFoodSafety(food, userProfile);
         setResult(safetyResult);
         setLoading(false);
+    };
+
+    const handleSuggestionClick = (suggestion: string) => {
+        setFood(suggestion);
     };
 
     const statusStyles = {
@@ -311,37 +318,86 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
     };
 
     return (
-        <div className="p-6 animate-fade-in">
-            <h2 className="text-3xl font-bold mb-6 text-emerald-900 dark:text-white">Food Safety</h2>
-            <form onSubmit={handleSearch} className="flex gap-2 mb-6">
-                <input 
-                    type="text"
-                    value={food}
-                    onChange={(e) => setFood(e.target.value)}
-                    placeholder="e.g., Avocado"
-                    className="flex-grow p-4 border-2 rounded-2xl bg-white border-emerald-100 dark:bg-slate-800 dark:border-slate-600 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all shadow-inner"
-                />
+        <div className="p-6 animate-fade-in max-w-sm mx-auto">
+            <div className="mb-6">
+                <h2 className="text-3xl font-bold text-emerald-900 dark:text-white mb-2">Food Safety</h2>
+                {!result && !loading && (
+                    <div className="bg-emerald-50 dark:bg-slate-800 p-4 rounded-2xl border border-emerald-100 dark:border-slate-700 mb-4 animate-fade-in-up">
+                        <div className="flex items-center gap-3 mb-2">
+                             <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-full"><BowlIcon className="w-5 h-5 text-emerald-700 dark:text-emerald-400" /></div>
+                             <h4 className="font-bold text-emerald-900 dark:text-emerald-300 text-sm">AI Food Guard</h4>
+                        </div>
+                        <p className="text-xs text-emerald-800 dark:text-gray-400 leading-relaxed">
+                            Wondering if a meal is safe during treatment? Enter any food item (e.g., "Sushi", "Honey", "Cabbage") and we'll check it against your specific medical profile to see if it's safe, should be limited, or avoided entirely.
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            <form onSubmit={handleSearch} className="flex gap-2 mb-4 relative z-10">
+                <div className="relative flex-grow">
+                    <input 
+                        type="text"
+                        value={food}
+                        onChange={(e) => setFood(e.target.value)}
+                        placeholder="Enter a meal or ingredient..."
+                        className="w-full p-4 border-2 rounded-2xl bg-white border-emerald-100 dark:bg-slate-800 dark:border-slate-600 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all shadow-inner text-sm"
+                    />
+                    {food && !loading && (
+                        <button type="button" onClick={() => setFood('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-emerald-600">
+                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    )}
+                </div>
                 <button type="submit" className="bg-gradient-to-b from-teal-800 to-emerald-900 text-white p-3 rounded-2xl shadow-button hover:shadow-button-hover active:scale-95 transition-all flex items-center justify-center w-14 relative overflow-hidden">
                     <span className="relative z-10"><SearchIcon className="w-6 h-6"/></span>
                      <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent h-1/2 pointer-events-none"></div>
                 </button>
             </form>
 
-            {loading && <div className="text-center p-8"><LogoIcon className="animate-spin h-10 w-10 mx-auto text-emerald-600" /><p className="mt-2 text-gray-500">Checking safety...</p></div>}
+            {!result && !loading && (
+                <div className="mb-6 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 ml-1">Try searching for:</p>
+                    <div className="flex flex-wrap gap-2">
+                        {['Honey', 'Raw Fish', 'Matoke', 'Avocado', 'Pineapple'].map(item => (
+                            <button 
+                                key={item} 
+                                onClick={() => handleSuggestionClick(item)}
+                                className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-emerald-100 dark:border-slate-700 rounded-full text-xs font-medium text-emerald-800 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+                            >
+                                {item}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {loading && <div className="text-center p-12 animate-fade-in"><LogoIcon className="animate-spin h-12 w-12 mx-auto text-emerald-600" /><p className="mt-4 text-emerald-700 font-bold dark:text-emerald-400">Analyzing data...</p></div>}
+            
             {result && (
                 <div className={`p-5 rounded-2xl border-l-8 shadow-lg ${statusStyles[result.status].base} ${statusStyles[result.status].shadow} animate-fade-in transform transition-all`}>
                     <div className="flex items-start">
                         <div className="mr-4 mt-1">
-                             {result.status === FoodSafetyStatus.SAFE ? <BowlIcon className="w-8 h-8 text-emerald-600" /> : <div className="w-8 h-8 rounded-full bg-current opacity-20"></div>}
+                             {result.status === FoodSafetyStatus.SAFE ? <div className="p-2 bg-emerald-200 rounded-full"><BowlIcon className="w-6 h-6 text-emerald-800" /></div> : <div className="p-2 bg-current opacity-20 rounded-full"><LogoIcon className="w-6 h-6" /></div>}
                         </div>
                         <div>
                             <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-bold text-xl capitalize">{food}</h3>
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${statusStyles[result.status].base} bg-white/50 shadow-sm`}>{result.status}</span>
+                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${statusStyles[result.status].base} bg-white/50 shadow-sm`}>{result.status}</span>
                             </div>
-                            <p className="text-base font-medium opacity-90">{result.reason}</p>
+                            <p className="text-sm font-medium opacity-90 leading-relaxed">{result.reason}</p>
                         </div>
                     </div>
+                    <button onClick={() => { setResult(null); setFood(''); }} className="mt-6 text-xs font-bold uppercase tracking-wider text-current opacity-60 hover:opacity-100 flex items-center gap-1">
+                         <ChevronLeftIcon className="w-4 h-4" /> Check another food
+                    </button>
+                </div>
+            )}
+            
+            {!result && !loading && (
+                <div className="mt-12 text-center opacity-40">
+                    <LogoIcon className="w-16 h-16 mx-auto mb-2 grayscale" />
+                    <p className="text-[10px] uppercase font-bold tracking-widest">NutriCan Intelligence</p>
                 </div>
             )}
         </div>
@@ -780,9 +836,13 @@ function encode(bytes: Uint8Array) {
   return btoa(binary);
 }
 
-const LiveSession: React.FC<{ userProfile: UserProfile; onEnd: () => void }> = ({ userProfile, onEnd }) => {
+const LiveSession: React.FC<{ userProfile: UserProfile; onEnd: () => void; mode: 'audio' | 'video' }> = ({ userProfile, onEnd, mode }) => {
     const [status, setStatus] = useState<'connecting' | 'active' | 'closed'>('connecting');
     const [transcript, setTranscript] = useState<{role: 'user' | 'model', text: string}[]>([]);
+    const [showChat, setShowChat] = useState(false);
+    const [chatInput, setChatInput] = useState('');
+    const [audioNotes, setAudioNotes] = useState<{id: number, time: string}[]>([]);
+    const videoRef = useRef<HTMLVideoElement>(null);
     
     const audioContextRef = useRef<AudioContext | null>(null);
     const outputContextRef = useRef<AudioContext | null>(null);
@@ -797,7 +857,12 @@ const LiveSession: React.FC<{ userProfile: UserProfile; onEnd: () => void }> = (
             audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 16000});
             outputContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
             
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaConfig = { audio: true, video: mode === 'video' };
+            const stream = await navigator.mediaDevices.getUserMedia(mediaConfig);
+            
+            if (mode === 'video' && videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
             
             const sessionPromise = ai.live.connect({
                 model: 'gemini-2.5-flash-native-audio-preview-12-2025',
@@ -859,7 +924,7 @@ const LiveSession: React.FC<{ userProfile: UserProfile; onEnd: () => void }> = (
                     outputAudioTranscription: {},
                     inputAudioTranscription: {},
                     speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
-                    systemInstruction: `You are Dr. Whitney, a specialized oncology nutritionist at NutriCan. The user is ${userProfile.name}, a ${userProfile.age} year old dealing with ${userProfile.cancerType} cancer (${userProfile.cancerStage}). Their health profile includes: ${userProfile.otherConditions.join(', ')}. Provide compassionate, real-time nutrition advice based on Ugandan local foods. Keep responses concise and audible. Start by welcoming ${userProfile.name} to their live session.`
+                    systemInstruction: `You are Dr. Whitney, a specialized oncology nutritionist at NutriCan. The user is ${userProfile.name}, a ${userProfile.age} year old dealing with ${userProfile.cancerType} cancer (${userProfile.cancerStage}). Their health profile includes: ${userProfile.otherConditions.join(', ')}. Provide compassionate, real-time nutrition advice based on Ugandan local foods. Keep responses concise and audible. Start by welcoming ${userProfile.name} to their live ${mode === 'audio' ? 'voice' : 'video'} session.`
                 }
             });
             sessionRef.current = await sessionPromise;
@@ -867,7 +932,7 @@ const LiveSession: React.FC<{ userProfile: UserProfile; onEnd: () => void }> = (
             console.error(err);
             setStatus('closed');
         }
-    }, [userProfile]);
+    }, [userProfile, mode]);
 
     useEffect(() => {
         startSession();
@@ -878,70 +943,196 @@ const LiveSession: React.FC<{ userProfile: UserProfile; onEnd: () => void }> = (
         };
     }, [startSession]);
 
+    const handleSendChat = () => {
+        if (!chatInput.trim()) return;
+        setTranscript(prev => [...prev, { role: 'user', text: chatInput }]);
+        setChatInput('');
+    };
+
+    const recordAudioNote = () => {
+        const now = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        setAudioNotes(prev => [...prev, { id: Date.now(), time: now }]);
+        alert("Audio note captured and timestamped.");
+    };
+
     return (
-        <div className="fixed inset-0 bg-slate-900 z-[200] flex flex-col p-6 animate-fade-in overflow-hidden">
-             <div className="flex justify-between items-center mb-12">
-                 <div className="flex items-center gap-3">
-                     <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg animate-pulse">
-                         <BroadcastIcon className="w-6 h-6 text-white" />
-                     </div>
-                     <div>
-                         <h2 className="text-white font-bold text-lg">Dr. Whitney</h2>
-                         <div className="flex items-center gap-1.5">
-                             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping"></div>
-                             <span className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Live Session</span>
-                         </div>
-                     </div>
-                 </div>
-                 <button onClick={onEnd} className="bg-white/10 p-3 rounded-full text-white hover:bg-white/20 transition-all shadow-lg active:scale-95">
-                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                 </button>
-             </div>
-
-             <div className="flex-grow flex flex-col items-center justify-center relative">
-                 {/* Visualizer Simulation */}
-                 <div className="w-64 h-64 relative flex items-center justify-center">
-                      <div className="absolute inset-0 bg-emerald-500/10 rounded-full animate-pulse-glow scale-150"></div>
-                      <div className="absolute inset-0 bg-teal-500/20 rounded-full animate-pulse-glow delay-300"></div>
-                      <div className="w-48 h-48 bg-gradient-to-br from-emerald-600 to-teal-800 rounded-full shadow-2xl flex items-center justify-center border-4 border-white/10 relative z-10 overflow-hidden group">
-                           <LogoIcon className="w-24 h-24 text-white opacity-80 group-hover:scale-110 transition-transform duration-700" />
+        <div className="fixed inset-0 bg-slate-900 z-[200] flex flex-col p-0 animate-fade-in overflow-hidden">
+             {/* Header UI (Shared) */}
+             <div className="absolute top-6 left-6 right-6 flex justify-between items-center z-30">
+                  <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg animate-pulse">
+                          <BroadcastIcon className="w-5 h-5 text-white" />
                       </div>
-                 </div>
-                 
-                 {/* Status text */}
-                 <div className="mt-12 text-center">
-                      {status === 'connecting' && <p className="text-emerald-400 font-bold animate-pulse text-xl">Establishing Connection...</p>}
-                      {status === 'active' && <p className="text-white font-bold text-2xl tracking-tight">Listening...</p>}
-                      {status === 'closed' && <p className="text-red-400 font-bold text-xl">Session Terminated</p>}
-                 </div>
+                      <div>
+                          <h2 className="text-white font-bold text-sm">Dr. Whitney</h2>
+                          <div className="flex items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></div>
+                              <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest">{mode === 'audio' ? 'Live Audio' : 'Live Interaction'}</span>
+                          </div>
+                      </div>
+                  </div>
+                  <button onClick={onEnd} className="bg-white/10 p-2 rounded-full text-white hover:bg-white/20 transition-all backdrop-blur-md">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
              </div>
 
-             {/* Live Transcription Peek */}
-             <div className="h-32 bg-white/5 backdrop-blur-md rounded-3xl p-4 mt-8 overflow-y-auto shadow-inner border border-white/10">
-                 {transcript.length === 0 ? (
-                      <p className="text-white/30 italic text-center text-sm py-8">Transcription will appear here...</p>
-                 ) : (
-                     <div className="space-y-3">
-                         {transcript.map((t, i) => (
-                             <p key={i} className={`text-sm ${t.role === 'user' ? 'text-teal-300 text-right' : 'text-emerald-100 text-left'} font-medium`}>
-                                 <span className="opacity-50 uppercase text-[10px] block mb-0.5">{t.role === 'user' ? 'You' : 'Dr. Whitney'}</span>
-                                 {t.text}
-                             </p>
-                         ))}
+             {/* Mode Based Feed View */}
+             <div className="relative flex-grow bg-black flex flex-col items-center justify-center overflow-hidden">
+                  {mode === 'audio' ? (
+                       /* Pure Audio Interface */
+                       <div className="flex flex-col items-center justify-center space-y-12 animate-fade-in w-full">
+                            <div className="relative w-64 h-64 flex items-center justify-center">
+                                 <div className="absolute inset-0 bg-emerald-500/10 rounded-full animate-pulse-glow scale-150"></div>
+                                 <div className="absolute inset-0 bg-teal-500/20 rounded-full animate-pulse-glow delay-300"></div>
+                                 <div className="w-48 h-48 bg-gradient-to-br from-emerald-600 to-teal-800 rounded-full shadow-2xl flex items-center justify-center border-4 border-white/10 relative z-10 overflow-hidden group">
+                                      <LogoIcon className="w-24 h-24 text-white opacity-80 group-hover:scale-110 transition-transform duration-700" />
+                                 </div>
+                            </div>
+                            <div className="text-center z-10">
+                                 <p className="text-emerald-400 font-bold animate-pulse text-xl">{status === 'connecting' ? 'Connecting to Dr. Whitney...' : 'Dr. Whitney is Listening'}</p>
+                                 <p className="text-white/40 text-xs uppercase font-bold tracking-widest mt-2">Real-time Audio Link</p>
+                            </div>
+                       </div>
+                  ) : (
+                       /* Video Consultation Interface (Simulated Feed + PIP) */
+                       <>
+                            <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=800&q=80" className="w-full h-full object-cover opacity-80" alt="Dr. Whitney Feed" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-slate-900/60 pointer-events-none"></div>
+                            
+                            {/* Patient PIP - Real Camera */}
+                            <div className="absolute top-24 right-6 w-24 h-32 bg-slate-800 rounded-xl border-2 border-white/20 shadow-xl overflow-hidden z-20">
+                                 <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover grayscale-[30%] contrast-125" />
+                                 <div className="absolute bottom-1 right-1 bg-black/40 px-1 rounded text-[8px] text-white font-bold uppercase">YOU</div>
+                            </div>
+                       </>
+                  )}
+
+                  {/* Shared Status Indicator */}
+                  <div className="absolute bottom-32 left-0 right-0 flex justify-center pointer-events-none z-20">
+                       <div className="bg-emerald-500/10 backdrop-blur-md px-4 py-2 rounded-full border border-emerald-500/20 animate-pulse">
+                            <p className="text-emerald-400 text-xs font-bold uppercase tracking-wider">{status === 'active' ? 'Live Session Active' : 'Establishing Secure Link'}</p>
+                       </div>
+                  </div>
+
+                  {/* Shared Chat Overlay */}
+                  {showChat && (
+                      <div className="absolute inset-x-6 bottom-32 top-24 bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl flex flex-col z-40 animate-fade-in-up">
+                           <div className="p-4 border-b border-white/5 flex justify-between items-center">
+                                <h3 className="text-white font-bold text-sm">Session Chat</h3>
+                                <button onClick={() => setShowChat(false)} className="text-white/40"><PlusIcon className="w-5 h-5 rotate-45" /></button>
+                           </div>
+                           <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                                {transcript.length === 0 ? (
+                                    <p className="text-white/20 italic text-center text-xs mt-10">Messages will appear here...</p>
+                                ) : (
+                                    transcript.map((t, i) => (
+                                        <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                             <div className={`max-w-[80%] p-3 rounded-2xl text-xs ${t.role === 'user' ? 'bg-emerald-600 text-white rounded-tr-none' : 'bg-white/10 text-emerald-50 rounded-tl-none border border-white/5'}`}>
+                                                  {t.text}
+                                             </div>
+                                        </div>
+                                    ))
+                                )}
+                           </div>
+                           <div className="p-3 border-t border-white/5 flex gap-2">
+                                <input value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Type message..." className="flex-grow bg-white/5 border border-white/10 rounded-full px-4 py-2 text-xs text-white outline-none focus:border-emerald-500" />
+                                <button onClick={handleSendChat} className="p-2 bg-emerald-600 rounded-full text-white"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg></button>
+                           </div>
+                      </div>
+                  )}
+             </div>
+
+             {/* Controls Area (Shared) */}
+             <div className="bg-slate-900 px-8 py-8 flex flex-col items-center gap-6 z-30">
+                 {/* Transcription Ticker */}
+                 <div className="w-full h-12 flex items-center justify-center text-center overflow-hidden">
+                      <p className="text-white/60 text-sm font-medium animate-fade-in truncate max-w-xs">
+                           {transcript[transcript.length-1]?.text || (mode === 'audio' ? "Speak naturally to start..." : "Dr. Whitney can see you now...")}
+                      </p>
+                 </div>
+
+                 <div className="flex items-center gap-6">
+                     <button onClick={() => setShowChat(!showChat)} className={`w-14 h-14 rounded-full flex items-center justify-center border transition-all active:scale-90 ${showChat ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-white/5 border-white/10 text-white/60'}`}>
+                          <ChatBubbleIcon className="w-6 h-6" />
+                     </button>
+                     <button onClick={recordAudioNote} className="w-14 h-14 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white/60 transition-all active:scale-90 relative">
+                          <MicIcon className="w-6 h-6" />
+                          <div className="absolute -top-1 -right-1 bg-teal-500 text-[8px] font-bold px-1.5 py-0.5 rounded-full text-white">REC</div>
+                     </button>
+                     <button onClick={onEnd} className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center text-white shadow-glow-red active:scale-90 transition-all border-4 border-white/20">
+                          <VideoCallIcon className="w-8 h-8" />
+                     </button>
+                     <button className="w-14 h-14 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-white/60 transition-all active:scale-90">
+                          <ShareIcon className="w-6 h-6" />
+                     </button>
+                 </div>
+
+                 {/* Shared Indicators */}
+                 {audioNotes.length > 0 && (
+                     <div className="flex gap-2 items-center">
+                          <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></span>
+                          <span className="text-[10px] text-teal-400 font-bold uppercase tracking-widest">{audioNotes.length} Audio Note captured</span>
                      </div>
                  )}
              </div>
+        </div>
+    );
+};
 
-             <div className="mt-8 flex justify-center gap-6">
-                 <button className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-white border border-white/10 shadow-lg active:scale-95 transition-all">
-                      <MicIcon className="w-6 h-6" />
-                 </button>
-                 <button onClick={onEnd} className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center text-white shadow-glow-red active:scale-90 transition-all border-4 border-white/20">
-                      <VideoCallIcon className="w-8 h-8" />
-                 </button>
-                 <button className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-white border border-white/10 shadow-lg active:scale-95 transition-all">
-                      <ShareIcon className="w-6 h-6" />
-                 </button>
+const LiveFeaturePreview: React.FC<{ onStartAudio: () => void; onStartVideo: () => void }> = ({ onStartAudio, onStartVideo }) => {
+    return (
+        <div className="p-6 animate-fade-in flex flex-col h-full pb-24 overflow-y-auto no-scrollbar">
+             <div className="bg-emerald-100 dark:bg-emerald-900/30 p-6 rounded-[2.5rem] mb-8 text-center relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent"></div>
+                  <div className="w-20 h-20 bg-white dark:bg-emerald-800 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl">
+                       <BroadcastIcon className="w-10 h-10 text-emerald-600" />
+                  </div>
+                  <h1 className="text-3xl font-bold text-emerald-900 dark:text-white mb-2">NutriCan Live</h1>
+                  <p className="text-emerald-700 dark:text-emerald-400 font-medium">Interactive Oncology Support</p>
+                  <div className="mt-4 inline-block bg-teal-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">Beta Experience</div>
+             </div>
+
+             <div className="space-y-6 mb-12">
+                  <button onClick={onStartAudio} className="w-full bg-white dark:bg-slate-800 p-5 rounded-3xl border border-emerald-100 dark:border-slate-700 shadow-md text-left flex items-center gap-5 group active:scale-[0.98] transition-all">
+                       <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center group-hover:bg-emerald-600 transition-colors">
+                            <MicIcon className="w-8 h-8 text-emerald-600 group-hover:text-white" />
+                       </div>
+                       <div className="flex-grow">
+                            <h3 className="text-emerald-900 dark:text-emerald-100 font-bold text-lg">Live Audio</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Pure voice interaction powered by NutriCan ML Model for deep focus.</p>
+                       </div>
+                       <ChevronLeftIcon className="w-6 h-6 text-emerald-300 rotate-180" />
+                  </button>
+
+                  <button onClick={onStartVideo} className="w-full bg-white dark:bg-slate-800 p-5 rounded-3xl border border-emerald-100 dark:border-slate-700 shadow-md text-left flex items-center gap-5 group active:scale-[0.98] transition-all">
+                       <div className="w-16 h-16 bg-teal-50 dark:bg-teal-900/30 rounded-2xl flex items-center justify-center group-hover:bg-teal-600 transition-colors">
+                            <VideoCallIcon className="w-8 h-8 text-teal-600 group-hover:text-white" />
+                       </div>
+                       <div className="flex-grow">
+                            <h3 className="text-emerald-900 dark:text-emerald-100 font-bold text-lg">Live Video</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">See and show side effects or meals visually for better feedback.</p>
+                       </div>
+                       <ChevronLeftIcon className="w-6 h-6 text-emerald-300 rotate-180" />
+                  </button>
+             </div>
+
+             <div className="mt-auto space-y-8">
+                  <section>
+                       <h3 className="text-emerald-900 dark:text-emerald-300 font-bold text-lg mb-4 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-emerald-600 rounded-lg flex items-center justify-center text-white text-[10px]">P</span>
+                            Patient Benefits
+                       </h3>
+                       <div className="grid gap-3">
+                            <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-emerald-50 dark:border-slate-700">
+                                 <h4 className="text-xs font-bold text-emerald-800 dark:text-emerald-100 mb-0.5">Instant Audio Notes</h4>
+                                 <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">Capture vital snippets of advice so you never forget health instructions.</p>
+                            </div>
+                            <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-emerald-50 dark:border-slate-700">
+                                 <h4 className="text-xs font-bold text-emerald-800 dark:text-emerald-100 mb-0.5">Visual Portion Checks</h4>
+                                 <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">Show your meal to the camera for real-time quantity and safety analysis.</p>
+                            </div>
+                       </div>
+                  </section>
              </div>
         </div>
     );
@@ -1116,7 +1307,7 @@ const AVAILABLE_DOCTORS: DoctorProfile[] = [
         id: 'dr_dorcas',
         name: 'Dr. Dorcas',
         specialty: 'Clinical Dietitian',
-        image: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=400&q=80',
+        image: 'https://images.unsplash.com/photo-1594824476967-48b8b964273f?w=400&q=80',
         personality: 'Clinical, precise, scientific, and direct. Focuses on nutrient density, percentages, and medical facts.',
         greeting: "Good day. I am Dr. Dorcas. Let's look at your nutritional data and optimize your intake for recovery.",
         isOnline: false,
@@ -1371,30 +1562,34 @@ const DoctorConnectScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest
 
 const LiveScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => void }> = ({ userProfile, onUpgradeRequest }) => {
     const [isSessionActive, setIsSessionActive] = useState(false);
+    const [sessionMode, setSessionMode] = useState<'audio' | 'video'>('audio');
+    const [showPreview, setShowPreview] = useState(true);
 
     if (userProfile.plan !== 'Premium') {
         return (
             <div className="p-6 animate-fade-in flex flex-col items-center justify-center h-full pb-24 text-center">
                  <div className="w-24 h-24 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-slate-700 dark:to-slate-800 rounded-3xl flex items-center justify-center shadow-lg mb-6"><BroadcastIcon className="w-12 h-12 text-gray-400" /></div>
                  <h1 className="text-4xl font-bold text-emerald-900 dark:text-white mb-2">NutriCan Live</h1>
-                 <p className="text-gray-500 mb-8 max-w-xs">Live audio/video consultations with Dr. Whitney are exclusive to Premium members.</p>
+                 <p className="text-gray-500 mb-8 max-w-xs">Live consultations with Dr. Whitney are exclusive to Premium members.</p>
                  <button onClick={onUpgradeRequest} className="btn-primary w-full">Unlock Live Features</button>
             </div>
         );
     }
 
     if (isSessionActive) {
-        return <LiveSession userProfile={userProfile} onEnd={() => setIsSessionActive(false)} />;
+        return <LiveSession userProfile={userProfile} mode={sessionMode} onEnd={() => setIsSessionActive(false)} />;
     }
 
-    return (
-        <div className="p-6 animate-fade-in flex flex-col h-full pb-24 text-center items-center justify-center">
-             <div className="w-32 h-32 bg-gradient-to-br from-emerald-600 to-teal-800 rounded-full flex items-center justify-center shadow-glow-primary-md mb-8 animate-pulse-glow"><BroadcastIcon className="w-16 h-16 text-white" /></div>
-             <h1 className="text-3xl font-bold text-emerald-900 dark:text-white mb-2">Ready to Connect?</h1>
-             <p className="text-emerald-700 dark:text-emerald-400 mb-8">Dr. Whitney is available for a real-time nutrition session.</p>
-             <button onClick={() => setIsSessionActive(true)} className="btn-primary w-full py-5 text-xl">Start Live Interaction</button>
-        </div>
-    );
+    if (showPreview) {
+        return (
+            <LiveFeaturePreview 
+                onStartAudio={() => { setSessionMode('audio'); setShowPreview(false); setIsSessionActive(true); }} 
+                onStartVideo={() => { setSessionMode('video'); setShowPreview(false); setIsSessionActive(true); }} 
+            />
+        );
+    }
+
+    return null;
 };
 
 
