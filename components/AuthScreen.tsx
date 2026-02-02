@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { UserProfile, CancerType, CancerStage, OtherCondition, TreatmentStage } from '../types';
 import { LogoIcon, ChevronLeftIcon } from './Icons';
@@ -256,13 +257,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
       </h1>
       <input type="text" name="name" placeholder="Nickname" value={formData.name} onChange={handleChange} className={commonInputClasses} required />
       
-      <div className="flex space-x-2">
-          <input type="number" name="age" placeholder="Age" value={formData.age} onChange={handleChange} className={commonInputClasses} required />
-          <select name="gender" value={formData.gender} onChange={handleChange} className={commonInputClasses}>
-            <option>Female</option>
-            <option>Male</option>
-          </select>
-      </div>
+      <input type="number" name="age" placeholder="Age" value={formData.age} onChange={handleChange} className={commonInputClasses} required />
 
       <div className="flex space-x-2">
           <input type="number" name="height" placeholder="Height (cm)" value={formData.height} onChange={handleChange} className={commonInputClasses} required min="50" max="300" />
