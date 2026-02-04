@@ -22,7 +22,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isGoogleSignUp, setIsGoogleSignUp] = useState(false);
 
   // Update view if initialView prop changes
   useEffect(() => {
@@ -105,11 +104,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
           if (step > 1) {
               setStep(step - 1);
           } else {
-              if (isGoogleSignUp) {
-                  // If they cancel google sign up flow, maybe sign them out and go back to initial
-                  db.signOut(); 
-                  setIsGoogleSignUp(false);
-              }
               setView('initial');
               setStep(1);
           }
@@ -120,6 +114,22 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
           onBack();
       }
       setError(null);
+  };
+
+  const handleGuestLogin = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+          // Perform real anonymous auth so database rules work
+          const profile = await db.signInAnonymously();
+          onAuthSuccess(profile);
+      } catch (err: any) {
+          console.error("Guest login failed", err);
+          // Fallback to simple local guest state if Firebase fails entirely
+          onContinueAsGuest(); 
+      } finally {
+          setIsLoading(false);
+      }
   };
 
   const handleSignUpSubmit = async (e: React.FormEvent) => {
@@ -148,14 +158,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
             plan: 'Free',
         };
 
-        if (isGoogleSignUp) {
-            // User is already authenticated via Google, just save the profile
-            await db.saveProfile(profile);
-        } else {
-            // Standard email/pass sign up
-            await db.signUp(formData.email, formData.password, profile);
-        }
-        
+        // Standard email/pass sign up
+        await db.signUp(formData.email, formData.password, profile);
         onAuthSuccess(profile);
     } catch (err: any) {
         setError(err.message || "An unexpected error occurred during sign up.");
@@ -179,32 +183,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const { profile, isNewUser } = await db.signInWithGoogle();
-      
-      if (isNewUser) {
-        // If user is new, redirect to Sign Up flow to fill details
-        setIsGoogleSignUp(true);
-        setFormData(prev => ({
-            ...prev,
-            name: profile.name,
-            email: profile.email,
-        }));
-        setView('signUp');
-        setStep(1); // Start at Step 1 to verify/fill Age/Height/Weight
-      } else {
-         onAuthSuccess(profile);
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const commonInputClasses = "w-full p-3 border-2 rounded-xl bg-white border-emerald-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none shadow-inner";
 
   // Spinner Component
@@ -214,32 +192,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
       </div>
   );
 
-  const renderGoogleButton = () => (
-    <>
-      <div className="relative my-4">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-gray-300 dark:border-slate-600"></div>
-        </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-white dark:bg-slate-900/50 text-gray-500 rounded-full">Or continue with</span>
-        </div>
-      </div>
-      
-      <button 
-        type="button" 
-        onClick={handleGoogleSignIn} 
-        className="w-full py-3 px-4 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl text-gray-700 dark:text-white font-bold flex items-center justify-center gap-3 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-95"
-        disabled={isLoading}
-      >
-         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-         Google
-      </button>
-    </>
-  );
-
   const renderSignUpStep1 = () => {
-    // For Google users, password is implicitly valid (not used)
-    const isPasswordValid = isGoogleSignUp || formData.password.length >= 6;
+    const isPasswordValid = formData.password.length >= 6;
 
     const handleStep1Submit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -253,7 +207,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
     return (
     <form onSubmit={handleStep1Submit} className="space-y-4 relative max-w-sm mx-auto">
       <h1 className="text-2xl font-bold text-emerald-900 text-center dark:text-gray-100">
-          {isGoogleSignUp ? 'Complete Your Profile' : 'Create Your Account'}
+          Create Your Account
       </h1>
       <input type="text" name="name" placeholder="Nickname" value={formData.name} onChange={handleChange} className={commonInputClasses} required />
       
@@ -264,9 +218,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
           <input type="number" name="weight" placeholder="Weight (kg)" value={formData.weight} onChange={handleChange} className={commonInputClasses} required min="20" max="300" />
       </div>
 
-      <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} className={commonInputClasses} required disabled={isGoogleSignUp} />
+      <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} className={commonInputClasses} required />
       
-      {!isGoogleSignUp && (
       <div>
         <input 
             type="password" 
@@ -290,20 +243,15 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
             </span>
         </div>
       </div>
-      )}
       
       {error && step === 1 && <div className="p-3 bg-red-100 border border-red-200 text-red-700 rounded-xl text-sm text-center animate-pulse">{error}</div>}
 
       <button type="submit" className="btn-primary mt-6">Next</button>
-
-      {!isGoogleSignUp && renderGoogleButton()}
       
-      {!isGoogleSignUp && (
-        <div className="relative mt-8 pt-4 border-t border-emerald-100 dark:border-slate-700">
+      <div className="relative mt-8 pt-4 border-t border-emerald-100 dark:border-slate-700">
             <p className="mb-3 font-medium text-center text-gray-600 dark:text-gray-400 text-sm">Already have an account?</p>
             <button type="button" onClick={() => { setView('signIn'); setError(null); }} className="btn-tertiary w-full">Sign In</button>
-        </div>
-      )}
+      </div>
     </form>
     );
   };
@@ -427,8 +375,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
       <button type="submit" className="btn-primary mt-6 mb-2" disabled={isLoading}>
         {isLoading ? 'Signing In...' : 'Sign In'}
       </button>
-
-      {renderGoogleButton()}
       
       <div className="relative mt-8 pt-4 border-t border-emerald-100 dark:border-slate-700">
         <p className="mb-3 font-medium text-center text-gray-600 dark:text-gray-400 text-sm">Don't have an account?</p>
@@ -452,16 +398,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
                 <span className="px-3 text-emerald-700 dark:text-gray-400 text-sm font-bold">OR</span>
                 <div className="h-px bg-emerald-200 dark:bg-slate-600 w-full"></div>
             </div>
-            
-             <button 
-                type="button" 
-                onClick={handleGoogleSignIn} 
-                className="w-full py-3 px-4 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-xl text-gray-700 dark:text-white font-bold flex items-center justify-center gap-3 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-95 mb-4"
-                disabled={isLoading}
-            >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-                Google
-            </button>
 
             <button onClick={() => { setView('signIn'); setError(null); }} className="btn-secondary text-lg mt-4">
                 Sign In with Email
@@ -496,8 +432,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
       
       {/* Ensure guest button is only visible when appropriate and doesn't overlap heavily */}
       {(view === 'initial') && (
-       <button onClick={onContinueAsGuest} className="btn-tertiary absolute bottom-8 left-8 right-8 sm:left-1/2 sm:right-auto sm:w-64 sm:-ml-32 w-auto backdrop-blur-sm text-sm py-3 z-10">
-        Continue as Guest
+       <button onClick={handleGuestLogin} disabled={isLoading} className="btn-tertiary absolute bottom-8 left-8 right-8 sm:left-1/2 sm:right-auto sm:w-64 sm:-ml-32 w-auto backdrop-blur-sm text-sm py-3 z-10 disabled:opacity-50">
+        {isLoading ? 'Entering...' : 'Continue as Guest'}
       </button>
       )}
     </div>

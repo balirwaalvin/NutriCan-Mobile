@@ -1,3 +1,4 @@
+
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
@@ -89,7 +90,7 @@ export const db = {
               createdAt: firebase.firestore.FieldValue.serverTimestamp(),
               updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           });
-          console.log("✅ User profile saved to Firestore for Google user");
+          console.log("✅ User profile saved to Firestore for authenticated user");
           return profile;
       } catch (error: any) {
           console.error("❌ Error saving profile:", error);
@@ -131,7 +132,53 @@ export const db = {
   },
 
   /**
-   * Sign in with Google
+   * Sign in anonymously (Guest Mode)
+   */
+  signInAnonymously: async (): Promise<UserProfile> => {
+    try {
+      console.log("👻 Initiating Anonymous Sign In...");
+      await ensureInitialized();
+      
+      const result = await auth.signInAnonymously();
+      const user = result.user;
+      if (!user) throw new Error("Anonymous auth failed");
+      
+      console.log("✅ Anonymous user signed in:", user.uid);
+
+      // Check if profile exists (unlikely for new anon, but possible if persisted)
+      const existing = await fetchProfile(user.uid);
+      if (existing) return existing;
+
+      // Create default profile for guest
+      const profile: UserProfile = {
+          name: 'Guest',
+          age: 30,
+          email: '',
+          gender: 'Female', 
+          height: 165,
+          weight: 60,
+          cancerType: CancerType.CERVICAL,
+          cancerStage: CancerStage.EARLY,
+          otherConditions: [],
+          treatmentStages: [],
+          plan: 'Free',
+      };
+      
+      await firestore.collection('users').doc(user.uid).set({
+          ...profile,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      
+      return profile;
+    } catch (error: any) {
+      console.error("❌ Anonymous Sign In error:", error);
+      throw new Error(error.message || "Guest login failed.");
+    }
+  },
+
+  /**
+   * Sign in with Google (Deprecated in preview env due to popup blocking)
    */
   signInWithGoogle: async (): Promise<{ profile: UserProfile, isNewUser: boolean }> => {
     try {
@@ -144,11 +191,7 @@ export const db = {
       }
 
       const provider = new firebase.auth.GoogleAuthProvider();
-      
-      // Force selection to avoid instant login loop issues during testing
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
+      provider.setCustomParameters({ prompt: 'select_account' });
 
       let result;
       try {
@@ -164,20 +207,16 @@ export const db = {
       const user = result.user;
       if (!user) throw new Error("Google Sign In failed - No user returned");
       
-      // Check if profile exists
       const existingProfile = await fetchProfile(user.uid);
       if (existingProfile) {
-        console.log("✅ Found existing profile for Google user");
         return { profile: existingProfile, isNewUser: false };
       }
 
-      // Return a template profile for new users to fill out
-      console.log("📝 New Google user detected, preparing for profile creation...");
       const templateProfile: UserProfile = {
         name: user.displayName || 'User',
         age: 30, 
         email: user.email || '',
-        gender: 'Prefer not to say',
+        gender: 'Female',
         height: 165,
         weight: 60,
         cancerType: CancerType.CERVICAL,
@@ -255,7 +294,6 @@ export const db = {
         throw new Error("User not authenticated. Cannot update profile.");
       }
 
-      // Update in Firestore
       await firestore.collection('users').doc(user.uid).update({
         ...updates,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
