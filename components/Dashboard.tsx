@@ -6,7 +6,7 @@ import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSympto
 import { db, auth } from '../services/db';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { ThemeContext } from '../contexts/ThemeContext';
-import { GoogleGenAI, Modality } from "@google/genai";
+import { GoogleGenAI, Modality, LiveServerMessage, Blob } from "@google/genai";
 
 // --- Shared Props Interface ---
 interface DashboardProps {
@@ -14,9 +14,47 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
+// --- Audio Encoding/Decoding Utilities ---
+function decodeBase64(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function encodeBase64(bytes: Uint8Array) {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+async function decodeAudioData(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}
+
 // --- Reusable UI Components ---
 
-// Added the missing Modal component to resolve "Cannot find name 'Modal'" errors.
 const Modal: React.FC<{ children: React.ReactNode; closeModal: () => void }> = ({ children, closeModal }) => (
   <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-6 animate-fade-in" onClick={closeModal}>
     <div className="bg-white dark:bg-emerald-950 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[3.5rem] relative shadow-2xl animate-fade-in-up border-4 border-emerald-500/20" onClick={e => e.stopPropagation()}>
@@ -177,23 +215,355 @@ const PaymentModal: React.FC<{ onPaymentSuccess: () => void; closeModal: () => v
     );
 };
 
-// --- Live Portal Sections ---
+// --- Sub-Screens ---
+
+const SymptomTipsScreen: React.FC = () => {
+    const [selectedSymptom, setSelectedSymptom] = useState<SymptomType | null>(null);
+    const [tips, setTips] = useState<RecommendedFood[] | null>(null);
+    const [loading, setLoading] = useState(false);
+    const handleSymptomSelect = async (symptom: SymptomType) => {
+        setSelectedSymptom(symptom);
+        setLoading(true);
+        const result = await getSymptomTips(symptom);
+        setTips(result);
+        setLoading(false);
+    };
+    return (
+        <div className="p-4 pb-16 min-h-[60vh]">
+            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">Symptom Hub</h2>
+            <p className="text-gray-500 mb-8 font-medium">Dietary comfort for recovery.</p>
+            {!selectedSymptom ? (
+                <div className="grid grid-cols-2 gap-5">
+                    {Object.values(SymptomType).map((symptom) => (
+                        <div key={symptom} className="card-button-wrapper">
+                          <button onClick={() => handleSymptomSelect(symptom)} className="w-full h-full p-6 flex flex-col items-center gap-3 text-center transition-all active:scale-95 group">
+                              <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl text-brand-green group-hover:rotate-12 transition-transform">
+                                  <NauseaIcon className="w-7 h-7" />
+                              </div>
+                              <span className="text-[11px] font-black text-emerald-900 dark:text-emerald-100 uppercase tracking-tighter">{symptom}</span>
+                          </button>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="animate-fade-in">
+                    <button onClick={() => setSelectedSymptom(null)} className="flex items-center gap-2 text-brand-green font-black mb-8">
+                        <ChevronLeftIcon className="w-5 h-5" /> Back to list
+                    </button>
+                    {loading ? (
+                        <div className="text-center py-20 animate-pulse"><LogoIcon className="animate-spin w-14 h-14 mx-auto text-brand-green" /></div>
+                    ) : (
+                        <div className="space-y-6">
+                            {tips?.map((tip, idx) => (
+                                <div key={idx} className="glass-panel rounded-[2.5rem] overflow-hidden flex gap-5 p-5 items-center border border-white/40 shadow-xl">
+                                    <img src={tip.photoUrl} alt={tip.name} className="w-24 h-24 object-cover rounded-3xl shadow-md" />
+                                    <div className="flex-grow">
+                                        <p className="font-black text-emerald-950 dark:text-white text-base mb-1">{tip.name}</p>
+                                        <p className="text-xs text-gray-500 dark:text-emerald-100/60 leading-relaxed font-medium">{tip.description}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const RemindersScreen: React.FC = () => {
+    const reminders = [
+        { title: 'Hydration', time: 'Every 2 hours', icon: BowlIcon, color: 'text-sky-500' },
+        { title: 'Vitamin Check', time: '9:00 AM', icon: BellIcon, color: 'text-rose-500' },
+        { title: 'Evening Walk', time: '5:30 PM', icon: HomeIcon, color: 'text-emerald-500' },
+    ];
+    return (
+        <div className="p-4 pb-16">
+            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">My Alerts</h2>
+            <p className="text-gray-500 mb-10 font-medium">Staying on schedule.</p>
+            <div className="space-y-5">
+                {reminders.map((rem, i) => (
+                    <div key={i} className="glass-panel p-6 rounded-[2.5rem] flex items-center gap-6 shadow-xl border-l-4 border-brand-green">
+                        <div className={`p-4 bg-white dark:bg-emerald-900/30 rounded-2xl shadow-inner ${rem.color}`}>
+                            <rem.icon className="w-7 h-7" />
+                        </div>
+                        <div>
+                            <p className="font-black text-lg text-emerald-950 dark:text-white">{rem.title}</p>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{rem.time}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            <div className="card-button-wrapper mt-10">
+              <button className="btn-primary w-full shadow-glow-primary">Add Reminder</button>
+            </div>
+        </div>
+    );
+};
+
+const MealPlanScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
+  const [mealPlan, setMealPlan] = useState<WeeklyMealPlan | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedDayIndex, setSelectedDayIndex] = useState((new Date().getDay() + 6) % 7);
+  const [swappingState, setSwappingState] = useState<{dayIndex: number, mealType: string} | null>(null);
+  const fetchMealPlan = useCallback(async () => {
+    setLoading(true);
+    const plan = await generateMealPlan(userProfile);
+    setMealPlan(plan);
+    setLoading(false);
+  }, [userProfile]);
+  useEffect(() => { fetchMealPlan(); }, [fetchMealPlan]);
+  const handleSwapMeal = async (dayIndex: number, mealType: 'breakfast' | 'lunch' | 'dinner') => {
+    if (!mealPlan) return;
+    setSwappingState({ dayIndex, mealType });
+    const mealToSwap = mealPlan[dayIndex][mealType];
+    const newMeal = await swapMeal(userProfile, mealToSwap, mealPlan[dayIndex].day, mealType);
+    if (newMeal && mealPlan) {
+      const updatedPlan = [...mealPlan];
+      updatedPlan[dayIndex] = { ...updatedPlan[dayIndex], [mealType]: newMeal };
+      setMealPlan(updatedPlan);
+    }
+    setSwappingState(null);
+  };
+  if (loading) return <div className="p-20 text-center flex flex-col items-center justify-center h-full"><LogoIcon className="animate-spin h-16 w-16 text-brand-green mb-4" /><p className="font-black text-emerald-900 dark:text-emerald-300">Building your menu...</p></div>;
+  if (!mealPlan) return <div className="p-10 text-center">Failed to load plan.</div>;
+  const dayShortNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  return (
+    <div className="p-4 pb-20">
+      <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Weekly Plan</h2>
+      <div className="flex justify-between gap-2 mb-10 bg-emerald-100/50 dark:bg-emerald-900/20 p-2 rounded-[2.5rem] overflow-x-auto no-scrollbar shadow-inner border border-emerald-500/10">
+        {dayShortNames.map((day, index) => (
+          <button key={day} onClick={() => setSelectedDayIndex(index)} className={`px-5 py-3 rounded-2xl font-black text-[11px] transition-all duration-300 ${selectedDayIndex === index ? 'bg-brand-green text-white shadow-glow-primary scale-105' : 'text-emerald-900/40 dark:text-white/40'}`}>
+            {day}
+          </button>
+        ))}
+      </div>
+      <div key={selectedDayIndex} className="space-y-10 animate-fade-in">
+        {(['breakfast', 'lunch', 'dinner'] as const).map((type) => (
+          <MealCard key={type} meal={mealPlan[selectedDayIndex][type]} title={type.charAt(0).toUpperCase() + type.slice(1)} delay={100} onSwap={() => handleSwapMeal(selectedDayIndex, type)} isSwapping={swappingState?.dayIndex === selectedDayIndex && swappingState?.mealType === type} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () => void, isSwapping: boolean }> = ({ meal, title, delay, onSwap, isSwapping }) => {
+    return (
+        <div className="glass-panel rounded-[3rem] shadow-2xl overflow-hidden animate-fade-in-up group relative border border-white/40" style={{ animationDelay: `${delay}ms` }}>
+            <div className="relative h-48 overflow-hidden">
+                <img src={meal.photoUrl} alt={meal.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"/>
+                <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 to-transparent"></div>
+                {isSwapping && <div className="absolute inset-0 glass-panel flex items-center justify-center"><LogoIcon className="animate-spin h-14 w-14 text-brand-green" /></div>}
+                <div className="absolute bottom-6 left-8 right-8">
+                  <span className="text-[9px] font-black uppercase text-brand-green bg-white px-3 py-1 rounded-full mb-2 inline-block shadow-lg tracking-widest">{title}</span>
+                  <p className="font-black text-2xl text-white drop-shadow-2xl">{meal.name}</p>
+                </div>
+            </div>
+            <div className="p-8">
+                <p className="text-gray-600 text-sm mb-6 dark:text-emerald-100/70 leading-relaxed font-bold">{meal.description}</p>
+                <div className="mb-8 p-5 bg-emerald-50 dark:bg-emerald-900/30 rounded-[2rem] border-l-4 border-brand-green shadow-inner">
+                    <p className="text-xs text-emerald-900 dark:text-emerald-100 italic font-medium leading-relaxed">“{meal.reason}”</p>
+                </div>
+                <div className="card-button-wrapper">
+                  <button onClick={onSwap} disabled={isSwapping} className="btn-primary w-full !text-base shadow-glow-primary">Swap for something else</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
+    const [food, setFood] = useState('');
+    const [result, setResult] = useState<FoodSafetyResult | null>(null);
+    const [loading, setLoading] = useState(false);
+    const handleSearch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!food.trim()) return;
+        setLoading(true);
+        const safetyResult = await checkFoodSafety(food, userProfile);
+        setResult(safetyResult);
+        setLoading(false);
+    };
+    return (
+        <div className="p-4 pb-20 page-transition">
+            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">Food Scanner</h2>
+            <p className="text-gray-500 mb-10 font-medium">Safe nutrition, better health.</p>
+            <form onSubmit={handleSearch} className="relative mb-12">
+                <input type="text" value={food} onChange={(e) => setFood(e.target.value)} placeholder="Type meal name..." className="w-full pl-8 pr-20 py-6 glass-panel rounded-[2.5rem] text-lg font-black outline-none focus:ring-4 focus:ring-brand-green/20 transition-all shadow-inner border-2 border-white/50" />
+                <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 bg-brand-green p-4 rounded-full text-white shadow-glow-primary active:scale-90 transition-all">
+                    <SearchIcon className="w-6 h-6"/>
+                </button>
+            </form>
+            {loading && <div className="text-center py-20 animate-pulse"><LogoIcon className="animate-spin h-16 w-16 mx-auto text-brand-green" /></div>}
+            {result && (
+                <div className={`p-8 rounded-[3rem] shadow-2xl animate-fade-in-up border-b-8 ${result.status === FoodSafetyStatus.SAFE ? 'bg-emerald-50 border-emerald-500 dark:bg-emerald-900/20' : 'bg-red-50 border-red-500 dark:bg-red-900/20'}`}>
+                    <div className="flex flex-col items-center text-center">
+                        <div className={`p-5 rounded-[2rem] mb-6 ${result.status === FoodSafetyStatus.SAFE ? 'bg-emerald-500 shadow-emerald-500/30' : 'bg-red-500 shadow-red-500/30'} shadow-xl`}>
+                           {result.status === FoodSafetyStatus.SAFE ? <BowlIcon className="w-10 h-10 text-white" /> : <LogoIcon className="w-10 h-10 text-white" />}
+                        </div>
+                        <h3 className="text-3xl font-black mb-4 capitalize text-emerald-950 dark:text-white">{food}</h3>
+                        <div className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-8 ${result.status === FoodSafetyStatus.SAFE ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+                            {result.status}
+                        </div>
+                        <p className="text-gray-700 dark:text-emerald-100 font-bold text-lg leading-relaxed">{result.reason}</p>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- Live Portal Sections with Gemini Live ---
 
 const LiveSessionUI: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
     const [modality, setModality] = useState<'audio' | 'video'>('audio');
-    const [isConnecting, setIsConnecting] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [isModelSpeaking, setIsModelSpeaking] = useState(false);
 
-    const handleConnect = () => {
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const inputAudioContextRef = useRef<AudioContext | null>(null);
+    const nextStartTimeRef = useRef(0);
+    const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+    const sessionRef = useRef<any>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const frameIntervalRef = useRef<number | null>(null);
+
+    const stopSession = useCallback(() => {
+        if (sessionRef.current) {
+            sessionRef.current.close();
+            sessionRef.current = null;
+        }
+        if (frameIntervalRef.current) {
+            window.clearInterval(frameIntervalRef.current);
+            frameIntervalRef.current = null;
+        }
+        for (const source of sourcesRef.current) {
+            source.stop();
+        }
+        sourcesRef.current.clear();
+        setIsConnected(false);
+        setIsConnecting(false);
+    }, []);
+
+    const startSession = async () => {
         setIsConnecting(true);
-        setTimeout(() => {
-            setIsConnecting(false);
-            setIsConnected(true);
-        }, 2000);
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+
+        if (!audioContextRef.current) {
+            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        }
+        if (!inputAudioContextRef.current) {
+            inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: modality === 'video' });
+        if (videoRef.current && modality === 'video') {
+            videoRef.current.srcObject = stream;
+        }
+
+        const sessionPromise = ai.live.connect({
+            model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+            callbacks: {
+                onopen: () => {
+                    setIsConnecting(false);
+                    setIsConnected(true);
+                    
+                    // Audio streaming
+                    const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
+                    const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
+                    scriptProcessor.onaudioprocess = (e) => {
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        const l = inputData.length;
+                        const int16 = new Int16Array(l);
+                        for (let i = 0; i < l; i++) {
+                            int16[i] = inputData[i] * 32768;
+                        }
+                        const pcmBlob: Blob = {
+                            data: encodeBase64(new Uint8Array(int16.buffer)),
+                            mimeType: 'audio/pcm;rate=16000',
+                        };
+                        sessionPromise.then((session) => {
+                            session.sendRealtimeInput({ media: pcmBlob });
+                        });
+                    };
+                    source.connect(scriptProcessor);
+                    scriptProcessor.connect(inputAudioContextRef.current!.destination);
+
+                    // Video streaming if enabled
+                    if (modality === 'video' && canvasRef.current && videoRef.current) {
+                        const ctx = canvasRef.current.getContext('2d');
+                        frameIntervalRef.current = window.setInterval(() => {
+                            if (!videoRef.current || !ctx) return;
+                            canvasRef.current!.width = videoRef.current.videoWidth || 640;
+                            canvasRef.current!.height = videoRef.current.videoHeight || 480;
+                            ctx.drawImage(videoRef.current, 0, 0, canvasRef.current!.width, canvasRef.current!.height);
+                            canvasRef.current!.toBlob(async (blob) => {
+                                if (blob) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                        const base64Data = (reader.result as string).split(',')[1];
+                                        sessionPromise.then(s => s.sendRealtimeInput({
+                                            media: { data: base64Data, mimeType: 'image/jpeg' }
+                                        }));
+                                    };
+                                    reader.readAsDataURL(blob);
+                                }
+                            }, 'image/jpeg', 0.6);
+                        }, 1000);
+                    }
+                },
+                onmessage: async (message: LiveServerMessage) => {
+                    if (message.serverContent?.modelTurn?.parts[0]?.inlineData?.data) {
+                        setIsModelSpeaking(true);
+                        const audioData = decodeBase64(message.serverContent.modelTurn.parts[0].inlineData.data);
+                        nextStartTimeRef.current = Math.max(nextStartTimeRef.current, audioContextRef.current!.currentTime);
+                        const buffer = await decodeAudioData(audioData, audioContextRef.current!, 24000, 1);
+                        const source = audioContextRef.current!.createBufferSource();
+                        source.buffer = buffer;
+                        source.connect(audioContextRef.current!.destination);
+                        source.addEventListener('ended', () => {
+                            sourcesRef.current.delete(source);
+                            if (sourcesRef.current.size === 0) setIsModelSpeaking(false);
+                        });
+                        source.start(nextStartTimeRef.current);
+                        nextStartTimeRef.current += buffer.duration;
+                        sourcesRef.current.add(source);
+                    }
+                    if (message.serverContent?.interrupted) {
+                        for (const s of sourcesRef.current) {
+                            s.stop();
+                        }
+                        sourcesRef.current.clear();
+                        nextStartTimeRef.current = 0;
+                        setIsModelSpeaking(false);
+                    }
+                },
+                onclose: () => stopSession(),
+                onerror: () => stopSession(),
+            },
+            config: {
+                responseModalities: [Modality.AUDIO],
+                speechConfig: {
+                    voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
+                },
+                systemInstruction: `You are a warm and knowledgeable cancer nutrition specialist at NutriCan.
+                User: ${userProfile.name}, Age: ${userProfile.age}, Condition: ${userProfile.cancerType}.
+                Assist with real-time food advice, symptom management, and emotional support.
+                Be encouraging and concise.`
+            }
+        });
+
+        sessionRef.current = await sessionPromise;
     };
 
+    useEffect(() => {
+        return () => stopSession();
+    }, [stopSession]);
+
     return (
-        <div className="p-8 pb-40 animate-fade-in-up flex flex-col min-h-screen">
+        <div className="p-4 pb-40 animate-fade-in-up flex flex-col min-h-screen">
             <h1 className="text-3xl font-black mb-2 text-emerald-950 dark:text-white tracking-tighter">NutriCan Live</h1>
             <p className="text-gray-500 mb-10 font-medium">Real-time recovery consultation.</p>
 
@@ -201,15 +571,12 @@ const LiveSessionUI: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                 {isConnected ? (
                   <div className="w-full animate-fade-in">
                     <div className={`w-full aspect-video rounded-[2.5rem] mb-8 relative overflow-hidden bg-emerald-950 shadow-inner flex items-center justify-center ${modality === 'video' ? 'block' : 'hidden'}`}>
-                        <div className="absolute inset-0 bg-gradient-to-t from-emerald-950 to-transparent"></div>
-                        <video className="w-full h-full object-cover opacity-60" autoPlay muted loop>
-                            <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
-                        </video>
-                        <div className="relative z-10 flex flex-col items-center">
-                             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center animate-pulse mb-4">
-                                <VideoCallIcon className="w-6 h-6 text-white" />
-                             </div>
-                             <p className="text-white/80 font-black text-sm uppercase tracking-widest">Live Specialist Feed</p>
+                        <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+                        <canvas ref={canvasRef} className="hidden" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/60 to-transparent pointer-events-none"></div>
+                        <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2">
+                             <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                             <p className="text-white font-black text-xs uppercase tracking-widest">Live Video Consult</p>
                         </div>
                     </div>
 
@@ -217,19 +584,19 @@ const LiveSessionUI: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                         <div className="flex flex-col items-center justify-center py-10">
                             <div className="flex items-center gap-1 h-12 mb-8">
                                 {[...Array(12)].map((_, i) => (
-                                    <div key={i} className="w-1.5 bg-brand-green rounded-full animate-bounce" style={{ height: `${Math.random() * 100}%`, animationDelay: `${i * 0.1}s` }}></div>
+                                    <div key={i} className={`w-1.5 bg-brand-green rounded-full ${isModelSpeaking ? 'animate-bounce' : 'opacity-40'}`} style={{ height: isModelSpeaking ? `${20 + Math.random() * 80}%` : '10%', animationDelay: `${i * 0.1}s` }}></div>
                                 ))}
                             </div>
-                            <p className="text-emerald-900 dark:text-emerald-300 font-black text-xl mb-1 uppercase tracking-tighter">Dr. Whitney</p>
-                            <p className="text-gray-500 text-xs font-bold mb-10 uppercase tracking-widest">Listening...</p>
+                            <p className="text-emerald-900 dark:text-emerald-300 font-black text-xl mb-1 uppercase tracking-tighter">NutriCan AI Expert</p>
+                            <p className="text-gray-500 text-xs font-bold mb-10 uppercase tracking-widest">{isModelSpeaking ? 'Speaking...' : 'Listening...'}</p>
                         </div>
                     )}
 
                     <div className="flex justify-center gap-6">
-                        <button onClick={() => setModality(modality === 'audio' ? 'video' : 'audio')} className="p-5 glass-panel rounded-full shadow-lg active:scale-90 transition-all border-2 border-emerald-500/20">
+                        <button onClick={() => { stopSession(); setModality(modality === 'audio' ? 'video' : 'audio'); }} className="p-5 glass-panel rounded-full shadow-lg active:scale-90 transition-all border-2 border-emerald-500/20">
                             {modality === 'audio' ? <VideoCallIcon className="w-6 h-6 text-brand-green" /> : <MicIcon className="w-6 h-6 text-brand-green" />}
                         </button>
-                        <button onClick={() => setIsConnected(false)} className="p-5 bg-red-500 text-white rounded-full shadow-lg active:scale-90 transition-all">
+                        <button onClick={stopSession} className="p-5 bg-red-500 text-white rounded-full shadow-lg active:scale-90 transition-all">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
@@ -243,40 +610,27 @@ const LiveSessionUI: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                         </div>
                     </div>
                     <h3 className="text-2xl font-black text-emerald-950 dark:text-white mb-3">Connect to Expert</h3>
-                    <p className="text-gray-500 font-bold text-sm mb-12 max-w-[200px] mx-auto leading-relaxed">Instantly speak with a specialized cancer nutritionist.</p>
+                    <p className="text-gray-500 font-bold text-sm mb-12 max-w-[200px] mx-auto leading-relaxed">Instantly speak with a specialized cancer nutritionist via {modality}.</p>
                     <div className="card-button-wrapper w-full max-w-[240px]">
-                        <button onClick={handleConnect} disabled={isConnecting} className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-5">
+                        <button onClick={startSession} disabled={isConnecting} className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-5">
                             {isConnecting ? 'Establishing Link...' : 'Join Live Room'}
                         </button>
                     </div>
                   </div>
                 )}
             </div>
-
-            <div className="mt-12 grid grid-cols-1 gap-6">
-                <div className="card-button-wrapper">
-                    <button className="w-full flex items-center gap-6 p-6 group">
-                        <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-[1.5rem] group-hover:rotate-6 transition-transform">
-                            <ChatBubbleIcon className="w-7 h-7 text-brand-green" />
-                        </div>
-                        <div className="text-left">
-                            <p className="font-black text-emerald-950 dark:text-white text-lg leading-tight">Consultation Logs</p>
-                            <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">Review past sessions</p>
-                        </div>
-                    </button>
-                </div>
+            
+            <div className="mt-8 flex justify-center gap-4">
+                <button onClick={() => setModality('audio')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${modality === 'audio' ? 'bg-brand-green text-white shadow-glow-primary' : 'glass-panel text-gray-400'}`}>Audio Mode</button>
+                <button onClick={() => setModality('video')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${modality === 'video' ? 'bg-brand-green text-white shadow-glow-primary' : 'glass-panel text-gray-400'}`}>Video Mode</button>
             </div>
         </div>
     );
 };
 
 const LiveScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => void }> = ({ userProfile, onUpgradeRequest }) => {
-    // Correct access check: profile.plan property
     const isPremium = userProfile.plan === 'Premium';
-
-    if (isPremium) {
-        return <LiveSessionUI userProfile={userProfile} />;
-    }
+    if (isPremium) return <LiveSessionUI userProfile={userProfile} />;
 
     return (
         <div className="p-10 page-transition flex flex-col items-center justify-center h-screen pb-40 text-center relative overflow-hidden">
@@ -287,7 +641,7 @@ const LiveScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => v
              <h1 className="text-4xl font-black text-emerald-950 dark:text-white mb-6 tracking-tighter">NutriCan Pro</h1>
              <p className="text-gray-600 dark:text-emerald-100/70 mb-12 max-w-xs font-bold text-lg leading-relaxed">Access real-time voice and video nutrition strategy sessions.</p>
              <div className="card-button-wrapper w-full max-w-xs">
-                <button onClick={onUpgradeRequest} className="btn-primary w-full py-6 text-xl shadow-glow-large uppercase tracking-[0.2em] text-xs">Unlock Live Features</button>
+                <button onClick={onUpgradeRequest} className="btn-primary w-full py-6 text-xl shadow-glow-large uppercase tracking-[0.2em] text-xs">Unlock Pro (15,000 UGX)</button>
              </div>
              <div className="mt-14 flex flex-wrap justify-center gap-4 animate-fade-in" style={{ animationDelay: '0.6s' }}>
                 <div className="glass-panel px-5 py-3 rounded-2xl border border-emerald-500/20 text-[10px] font-black uppercase text-brand-green tracking-widest">Uganda Specialized</div>
@@ -404,6 +758,8 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void }
     );
 };
 
+// --- Main Dashboard Component ---
+
 const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
   const [activePage, setActivePage] = useState<DashboardPage>('home');
   const [modalContent, setModalContent] = useState<React.ReactNode | null>(null);
@@ -412,9 +768,9 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
 
   const screens = useMemo(() => ({
     home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModalContent} />,
-    tracker: <div className="p-10">Tracker Logic Placeholder</div>, 
+    tracker: <div className="p-10 text-center flex flex-col items-center justify-center min-h-[60vh]"><ChartIcon className="w-16 h-16 text-emerald-300 mb-4"/><p className="font-black text-emerald-900 dark:text-white">Health data synchronization in progress...</p></div>, 
     live: <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
-    library: <div className="p-10">Library Logic Placeholder</div>,
+    library: <div className="p-10 text-center flex flex-col items-center justify-center min-h-[60vh]"><BookIcon className="w-16 h-16 text-emerald-300 mb-4"/><p className="font-black text-emerald-900 dark:text-white">Knowledge base loading...</p></div>,
     profile: <ProfileScreen userProfile={localProfile} onLogout={onLogout} />,
     'doctor-connect': <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
   }), [localProfile, onLogout]);
@@ -427,18 +783,12 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
       {modalContent && <Modal closeModal={() => setModalContent(null)}>{modalContent}</Modal>}
       {showPayment && (
         <PaymentModal 
-          onPaymentSuccess={() => setLocalProfile(p => ({...p, plan: 'Premium'}))} 
+          onPaymentSuccess={() => { setLocalProfile(p => ({...p, plan: 'Premium'})); setShowPayment(false); }} 
           closeModal={() => setShowPayment(false)} 
         />
       )}
     </div>
   );
 };
-
-// --- Missing sub-screens defined again to fix reference errors from trimmed blocks ---
-const SymptomTipsScreen: React.FC = () => <div className="p-10">Symptom Tips Logic</div>;
-const RemindersScreen: React.FC = () => <div className="p-10">Reminders Logic</div>;
-const MealPlanScreen: React.FC<{userProfile: UserProfile}> = () => <div className="p-10">Meal Plan Logic</div>;
-const FoodSafetyCheckerScreen: React.FC<{userProfile: UserProfile}> = () => <div className="p-10">Food Scanner Logic</div>;
 
 export default Dashboard;
