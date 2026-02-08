@@ -413,6 +413,135 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
     );
 };
 
+const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
+    const [loggedMeals, setLoggedMeals] = useState<LoggedMeal[]>([]);
+    const [journalData, setJournalData] = useState<JournalEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [meals, journals] = await Promise.all([db.getMealLogs(), db.getJournalEntries()]);
+            setLoggedMeals(meals);
+            setJournalData(journals);
+        } catch (error) {
+            console.error("Error fetching tracker data:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { fetchData(); }, [fetchData]);
+
+    if (loading) {
+        return (
+            <div className="p-10 text-center flex flex-col items-center justify-center min-h-[60vh]">
+                <ChartIcon className="w-16 h-16 text-emerald-300 mb-4 animate-pulse"/>
+                <p className="font-black text-emerald-900 dark:text-white uppercase tracking-widest text-xs">Syncing Biometrics...</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-6 pb-40 animate-fade-in">
+            <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Body Tracker</h2>
+            <div className="glass-panel p-8 rounded-[3.5rem] shadow-2xl border-b-8 border-brand-green mb-10 overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-green/5 blur-3xl rounded-full"></div>
+                <h3 className="text-[10px] font-black text-emerald-900/40 dark:text-white/30 uppercase tracking-[0.3em] mb-8 text-center">Wellness Trends</h3>
+                <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={journalData.length > 0 ? [...journalData].reverse() : [{name: 'M', energy: 5}, {name: 'T', energy: 7}, {name: 'W', energy: 6}]}>
+                            <defs>
+                                <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#10B981" stopOpacity={0.6}/>
+                                    <stop offset="100%" stopColor="#10B981" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <Area type="monotone" dataKey="energy" stroke="#10B981" strokeWidth={5} fill="url(#trendGradient)" dot={{ r: 6, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }} />
+                            <Tooltip contentStyle={{ borderRadius: '1.5rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', backgroundColor: 'rgba(255,255,255,0.9)' }} />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-5 mb-12">
+                <div className="card-button-wrapper">
+                    <button className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-brand-green text-white shadow-glow-primary active:scale-95 transition-all">
+                        <PlusIcon className="w-8 h-8" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Log Meal</span>
+                    </button>
+                </div>
+                <div className="card-button-wrapper">
+                    <button className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-white dark:bg-emerald-900/30 text-emerald-600 font-black border-2 border-emerald-500/10 active:scale-95 transition-all">
+                        <BookIcon className="w-8 h-8" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Check-In</span>
+                    </button>
+                </div>
+            </div>
+
+            <h3 className="text-[11px] font-black mb-6 text-emerald-900/60 dark:text-white/30 uppercase tracking-[0.2em] px-2">Recent Logs</h3>
+            <div className="space-y-4">
+                {loggedMeals.length > 0 ? loggedMeals.map(meal => (
+                    <div key={meal.id} className="glass-panel p-6 rounded-[2.5rem] flex items-center gap-5 border-l-4 border-emerald-500 transition-all hover:translate-x-1 shadow-md">
+                        <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl text-brand-green shadow-inner">
+                          <BowlIcon className="w-7 h-7" />
+                        </div>
+                        <div className="flex-grow">
+                          <p className="font-black text-emerald-950 dark:text-white text-lg leading-tight capitalize">{meal.name}</p>
+                          <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mt-1">{new Date(meal.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                        </div>
+                        <p className="text-brand-green font-black text-lg">{meal.nutrients.calories}<span className="text-[10px] ml-1">kcal</span></p>
+                    </div>
+                )) : (
+                    <div className="text-center py-10 opacity-30">
+                        <p className="font-black italic">No history recorded yet.</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const LibraryScreen: React.FC = () => {
+    const resources = [
+        { title: 'Nutritional Support Basics', category: 'Recovery', readTime: '5 min', icon: BowlIcon, color: 'text-emerald-500' },
+        { title: 'Hydrating During Treatment', category: 'Wellness', readTime: '4 min', icon: HomeIcon, color: 'text-sky-500' },
+        { title: 'Top Local Superfoods Guide', category: 'Diet', readTime: '7 min', icon: ProteinIcon, color: 'text-amber-500' },
+        { title: 'Mindful Eating Strategies', category: 'Mindset', readTime: '6 min', icon: UserIcon, color: 'text-violet-500' },
+    ];
+    return (
+        <div className="p-6 pb-40 animate-fade-in">
+            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">Resources</h2>
+            <p className="text-gray-500 mb-10 font-medium">Knowledge for empowerment.</p>
+            <div className="space-y-6">
+                {resources.map((res, i) => (
+                    <div key={i} className="card-button-wrapper">
+                      <button className="w-full p-6 flex justify-between items-center group text-left">
+                          <div className="flex gap-5 items-center">
+                            <div className={`p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-[1.5rem] ${res.color} group-hover:rotate-12 transition-transform shadow-inner`}>
+                              <res.icon className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <span className="text-[9px] font-black uppercase text-brand-green tracking-widest bg-brand-green/10 px-2 py-0.5 rounded-md mb-2 inline-block">#{res.category}</span>
+                                <p className="font-black text-emerald-950 dark:text-white text-lg leading-tight">{res.title}</p>
+                                <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">{res.readTime} reading time</p>
+                            </div>
+                          </div>
+                          <ChevronLeftIcon className="w-6 h-6 rotate-180 text-gray-300 group-hover:text-brand-green transition-all group-hover:translate-x-1" />
+                      </button>
+                    </div>
+                ))}
+            </div>
+            <div className="mt-12 p-8 glass-panel rounded-[3rem] bg-brand-green shadow-glow-large text-center relative overflow-hidden group">
+                <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                <p className="text-white font-black text-xl mb-2">Need Custom Advice?</p>
+                <p className="text-emerald-100/80 text-sm font-bold mb-6 px-4">Contact our specialists directly via the Live portal.</p>
+                <div className="inline-block px-8 py-3 bg-white text-brand-green rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">Contact Experts</div>
+            </div>
+        </div>
+    );
+};
+
 // --- Live Portal Sections with Gemini Live ---
 
 const LiveSessionUI: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
@@ -440,7 +569,7 @@ const LiveSessionUI: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
             frameIntervalRef.current = null;
         }
         for (const source of sourcesRef.current) {
-            source.stop();
+            try { source.stop(); } catch(e) {}
         }
         sourcesRef.current.clear();
         setIsConnected(false);
@@ -458,104 +587,110 @@ const LiveSessionUI: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
             inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
         }
 
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: modality === 'video' });
-        if (videoRef.current && modality === 'video') {
-            videoRef.current.srcObject = stream;
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: modality === 'video' });
+          if (videoRef.current && modality === 'video') {
+              videoRef.current.srcObject = stream;
+          }
+
+          const sessionPromise = ai.live.connect({
+              model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+              callbacks: {
+                  onopen: () => {
+                      setIsConnecting(false);
+                      setIsConnected(true);
+                      
+                      // Audio streaming
+                      const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
+                      const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
+                      scriptProcessor.onaudioprocess = (e) => {
+                          const inputData = e.inputBuffer.getChannelData(0);
+                          const l = inputData.length;
+                          const int16 = new Int16Array(l);
+                          for (let i = 0; i < l; i++) {
+                              int16[i] = inputData[i] * 32768;
+                          }
+                          const pcmBlob: Blob = {
+                              data: encodeBase64(new Uint8Array(int16.buffer)),
+                              mimeType: 'audio/pcm;rate=16000',
+                          };
+                          sessionPromise.then((session) => {
+                              session.sendRealtimeInput({ media: pcmBlob });
+                          });
+                      };
+                      source.connect(scriptProcessor);
+                      scriptProcessor.connect(inputAudioContextRef.current!.destination);
+
+                      // Video streaming if enabled
+                      if (modality === 'video' && canvasRef.current && videoRef.current) {
+                          const ctx = canvasRef.current.getContext('2d');
+                          frameIntervalRef.current = window.setInterval(() => {
+                              if (!videoRef.current || !ctx) return;
+                              canvasRef.current!.width = videoRef.current.videoWidth || 640;
+                              canvasRef.current!.height = videoRef.current.videoHeight || 480;
+                              ctx.drawImage(videoRef.current, 0, 0, canvasRef.current!.width, canvasRef.current!.height);
+                              canvasRef.current!.toBlob(async (blob) => {
+                                  if (blob) {
+                                      const reader = new FileReader();
+                                      reader.onloadend = () => {
+                                          const base64Data = (reader.result as string).split(',')[1];
+                                          sessionPromise.then(s => s.sendRealtimeInput({
+                                              media: { data: base64Data, mimeType: 'image/jpeg' }
+                                          }));
+                                      };
+                                      reader.readAsDataURL(blob);
+                                  }
+                              }, 'image/jpeg', 0.6);
+                          }, 1000);
+                      }
+                  },
+                  onmessage: async (message: LiveServerMessage) => {
+                      if (message.serverContent?.modelTurn?.parts[0]?.inlineData?.data) {
+                          setIsModelSpeaking(true);
+                          const audioData = decodeBase64(message.serverContent.modelTurn.parts[0].inlineData.data);
+                          nextStartTimeRef.current = Math.max(nextStartTimeRef.current, audioContextRef.current!.currentTime);
+                          const buffer = await decodeAudioData(audioData, audioContextRef.current!, 24000, 1);
+                          const source = audioContextRef.current!.createBufferSource();
+                          source.buffer = buffer;
+                          source.connect(audioContextRef.current!.destination);
+                          source.addEventListener('ended', () => {
+                              sourcesRef.current.delete(source);
+                              if (sourcesRef.current.size === 0) setIsModelSpeaking(false);
+                          });
+                          source.start(nextStartTimeRef.current);
+                          nextStartTimeRef.current += buffer.duration;
+                          sourcesRef.current.add(source);
+                      }
+                      if (message.serverContent?.interrupted) {
+                          for (const s of sourcesRef.current) {
+                              try { s.stop(); } catch(e) {}
+                          }
+                          sourcesRef.current.clear();
+                          nextStartTimeRef.current = 0;
+                          setIsModelSpeaking(false);
+                      }
+                  },
+                  onclose: () => stopSession(),
+                  onerror: () => stopSession(),
+              },
+              config: {
+                  responseModalities: [Modality.AUDIO],
+                  speechConfig: {
+                      voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
+                  },
+                  systemInstruction: `You are a warm and knowledgeable cancer nutrition specialist at NutriCan.
+                  User: ${userProfile.name}, Age: ${userProfile.age}, Condition: ${userProfile.cancerType}.
+                  Assist with real-time food advice, symptom management, and emotional support.
+                  Be encouraging and concise.`
+              }
+          });
+
+          sessionRef.current = await sessionPromise;
+        } catch (err) {
+            console.error("Failed to start session:", err);
+            setIsConnecting(false);
+            alert("Please check your microphone and camera permissions.");
         }
-
-        const sessionPromise = ai.live.connect({
-            model: 'gemini-2.5-flash-native-audio-preview-12-2025',
-            callbacks: {
-                onopen: () => {
-                    setIsConnecting(false);
-                    setIsConnected(true);
-                    
-                    // Audio streaming
-                    const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
-                    const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
-                    scriptProcessor.onaudioprocess = (e) => {
-                        const inputData = e.inputBuffer.getChannelData(0);
-                        const l = inputData.length;
-                        const int16 = new Int16Array(l);
-                        for (let i = 0; i < l; i++) {
-                            int16[i] = inputData[i] * 32768;
-                        }
-                        const pcmBlob: Blob = {
-                            data: encodeBase64(new Uint8Array(int16.buffer)),
-                            mimeType: 'audio/pcm;rate=16000',
-                        };
-                        sessionPromise.then((session) => {
-                            session.sendRealtimeInput({ media: pcmBlob });
-                        });
-                    };
-                    source.connect(scriptProcessor);
-                    scriptProcessor.connect(inputAudioContextRef.current!.destination);
-
-                    // Video streaming if enabled
-                    if (modality === 'video' && canvasRef.current && videoRef.current) {
-                        const ctx = canvasRef.current.getContext('2d');
-                        frameIntervalRef.current = window.setInterval(() => {
-                            if (!videoRef.current || !ctx) return;
-                            canvasRef.current!.width = videoRef.current.videoWidth || 640;
-                            canvasRef.current!.height = videoRef.current.videoHeight || 480;
-                            ctx.drawImage(videoRef.current, 0, 0, canvasRef.current!.width, canvasRef.current!.height);
-                            canvasRef.current!.toBlob(async (blob) => {
-                                if (blob) {
-                                    const reader = new FileReader();
-                                    reader.onloadend = () => {
-                                        const base64Data = (reader.result as string).split(',')[1];
-                                        sessionPromise.then(s => s.sendRealtimeInput({
-                                            media: { data: base64Data, mimeType: 'image/jpeg' }
-                                        }));
-                                    };
-                                    reader.readAsDataURL(blob);
-                                }
-                            }, 'image/jpeg', 0.6);
-                        }, 1000);
-                    }
-                },
-                onmessage: async (message: LiveServerMessage) => {
-                    if (message.serverContent?.modelTurn?.parts[0]?.inlineData?.data) {
-                        setIsModelSpeaking(true);
-                        const audioData = decodeBase64(message.serverContent.modelTurn.parts[0].inlineData.data);
-                        nextStartTimeRef.current = Math.max(nextStartTimeRef.current, audioContextRef.current!.currentTime);
-                        const buffer = await decodeAudioData(audioData, audioContextRef.current!, 24000, 1);
-                        const source = audioContextRef.current!.createBufferSource();
-                        source.buffer = buffer;
-                        source.connect(audioContextRef.current!.destination);
-                        source.addEventListener('ended', () => {
-                            sourcesRef.current.delete(source);
-                            if (sourcesRef.current.size === 0) setIsModelSpeaking(false);
-                        });
-                        source.start(nextStartTimeRef.current);
-                        nextStartTimeRef.current += buffer.duration;
-                        sourcesRef.current.add(source);
-                    }
-                    if (message.serverContent?.interrupted) {
-                        for (const s of sourcesRef.current) {
-                            s.stop();
-                        }
-                        sourcesRef.current.clear();
-                        nextStartTimeRef.current = 0;
-                        setIsModelSpeaking(false);
-                    }
-                },
-                onclose: () => stopSession(),
-                onerror: () => stopSession(),
-            },
-            config: {
-                responseModalities: [Modality.AUDIO],
-                speechConfig: {
-                    voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
-                },
-                systemInstruction: `You are a warm and knowledgeable cancer nutrition specialist at NutriCan.
-                User: ${userProfile.name}, Age: ${userProfile.age}, Condition: ${userProfile.cancerType}.
-                Assist with real-time food advice, symptom management, and emotional support.
-                Be encouraging and concise.`
-            }
-        });
-
-        sessionRef.current = await sessionPromise;
     };
 
     useEffect(() => {
@@ -768,9 +903,9 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
 
   const screens = useMemo(() => ({
     home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModalContent} />,
-    tracker: <div className="p-10 text-center flex flex-col items-center justify-center min-h-[60vh]"><ChartIcon className="w-16 h-16 text-emerald-300 mb-4"/><p className="font-black text-emerald-900 dark:text-white">Health data synchronization in progress...</p></div>, 
+    tracker: <TrackerScreen userProfile={localProfile} />, 
     live: <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
-    library: <div className="p-10 text-center flex flex-col items-center justify-center min-h-[60vh]"><BookIcon className="w-16 h-16 text-emerald-300 mb-4"/><p className="font-black text-emerald-900 dark:text-white">Knowledge base loading...</p></div>,
+    library: <LibraryScreen />,
     profile: <ProfileScreen userProfile={localProfile} onLogout={onLogout} />,
     'doctor-connect': <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
   }), [localProfile, onLogout]);
