@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal, DoctorProfile, ChatMessage } from '../types';
-import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon, MicIcon, BroadcastIcon, ChevronLeftIcon } from './Icons';
+import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips, getDoctorChatResponse } from '../services/geminiService';
 import { db, auth } from '../services/db';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
@@ -413,17 +413,21 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
     );
 };
 
+// --- Tracker Screen Implementation ---
+
 const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
     const [loggedMeals, setLoggedMeals] = useState<LoggedMeal[]>([]);
     const [journalData, setJournalData] = useState<JournalEntry[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showLogModal, setShowLogModal] = useState(false);
+    const [showCheckInModal, setShowCheckInModal] = useState(false);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const [meals, journals] = await Promise.all([db.getMealLogs(), db.getJournalEntries()]);
-            setLoggedMeals(meals);
-            setJournalData(journals);
+            setLoggedMeals(meals || []);
+            setJournalData(journals || []);
         } catch (error) {
             console.error("Error fetching tracker data:", error);
         } finally {
@@ -432,6 +436,9 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
     }, []);
 
     useEffect(() => { fetchData(); }, [fetchData]);
+
+    const handleMealLogged = () => { setShowLogModal(false); fetchData(); };
+    const handleCheckInDone = () => { setShowCheckInModal(false); fetchData(); };
 
     if (loading) {
         return (
@@ -445,6 +452,8 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
     return (
         <div className="p-6 pb-40 animate-fade-in">
             <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Body Tracker</h2>
+            
+            {/* Wellness Trends Chart */}
             <div className="glass-panel p-8 rounded-[3.5rem] shadow-2xl border-b-8 border-brand-green mb-10 overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-brand-green/5 blur-3xl rounded-full"></div>
                 <h3 className="text-[10px] font-black text-emerald-900/40 dark:text-white/30 uppercase tracking-[0.3em] mb-8 text-center">Wellness Trends</h3>
@@ -464,21 +473,23 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                 </div>
             </div>
             
+            {/* Quick Action Buttons */}
             <div className="grid grid-cols-2 gap-5 mb-12">
                 <div className="card-button-wrapper">
-                    <button className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-brand-green text-white shadow-glow-primary active:scale-95 transition-all">
+                    <button onClick={() => setShowLogModal(true)} className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-brand-green text-white shadow-glow-primary active:scale-95 transition-all">
                         <PlusIcon className="w-8 h-8" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Log Meal</span>
                     </button>
                 </div>
                 <div className="card-button-wrapper">
-                    <button className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-white dark:bg-emerald-900/30 text-emerald-600 font-black border-2 border-emerald-500/10 active:scale-95 transition-all">
+                    <button onClick={() => setShowCheckInModal(true)} className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-white dark:bg-emerald-900/30 text-emerald-600 font-black border-2 border-emerald-500/10 active:scale-95 transition-all">
                         <BookIcon className="w-8 h-8" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Check-In</span>
                     </button>
                 </div>
             </div>
 
+            {/* History List */}
             <h3 className="text-[11px] font-black mb-6 text-emerald-900/60 dark:text-white/30 uppercase tracking-[0.2em] px-2">Recent Logs</h3>
             <div className="space-y-4">
                 {loggedMeals.length > 0 ? loggedMeals.map(meal => (
@@ -498,6 +509,135 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                     </div>
                 )}
             </div>
+
+            {/* Modals */}
+            {showLogModal && (
+                <Modal closeModal={() => setShowLogModal(false)}>
+                    <LogMealForm onComplete={handleMealLogged} />
+                </Modal>
+            )}
+            {showCheckInModal && (
+                <Modal closeModal={() => setShowCheckInModal(false)}>
+                    <CheckInForm onComplete={handleCheckInDone} userProfile={userProfile} />
+                </Modal>
+            )}
+        </div>
+    );
+};
+
+const LogMealForm: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+    const [mealName, setMealName] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!mealName.trim()) return;
+        setIsLoading(true);
+        try {
+            const nutrients = await getNutrientInfo(mealName);
+            if (nutrients) {
+                await db.addMealLog({ name: mealName, nutrients });
+                onComplete();
+            } else {
+                alert("Could not calculate nutrition. Please try again.");
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="p-2">
+            <h3 className="text-2xl font-black text-emerald-950 dark:text-white mb-2">Log a Meal</h3>
+            <p className="text-gray-500 text-sm mb-8 font-bold">What did you eat? AI will calculate the nutrition.</p>
+            <form onSubmit={handleSubmit} className="space-y-8">
+                <div className="relative">
+                    <input 
+                        type="text" 
+                        value={mealName} 
+                        onChange={(e) => setMealName(e.target.value)}
+                        placeholder="e.g. Rice and Beans"
+                        className="w-full p-6 glass-panel rounded-3xl border-2 border-emerald-500/20 focus:border-brand-green outline-none font-black text-lg"
+                        autoFocus
+                    />
+                </div>
+                <div className="card-button-wrapper">
+                    <button type="submit" disabled={isLoading} className="btn-primary w-full shadow-glow-primary">
+                        {isLoading ? 'Estimating Calories...' : 'Save Meal Log'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+const CheckInForm: React.FC<{ onComplete: () => void, userProfile: UserProfile }> = ({ onComplete, userProfile }) => {
+    const [energy, setEnergy] = useState(7);
+    const [weight, setWeight] = useState(userProfile.weight.toString());
+    const [notes, setNotes] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            await db.addJournalEntry({
+                energy,
+                weight: parseFloat(weight),
+                notes
+            });
+            onComplete();
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="p-2">
+            <h3 className="text-2xl font-black text-emerald-950 dark:text-white mb-2">Daily Check-In</h3>
+            <p className="text-gray-500 text-sm mb-8 font-bold">Track your wellness trends over time.</p>
+            <form onSubmit={handleSubmit} className="space-y-10">
+                <div>
+                    <label className="text-[10px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest block mb-4">Energy Level ({energy}/10)</label>
+                    <div className="flex items-center gap-6">
+                        <FatigueIcon className={`w-8 h-8 ${energy < 4 ? 'text-rose-500' : 'text-emerald-500/20'}`} />
+                        <input 
+                            type="range" min="1" max="10" 
+                            value={energy} 
+                            onChange={(e) => setEnergy(parseInt(e.target.value))} 
+                            className="flex-grow accent-brand-green h-2 bg-emerald-100 rounded-full"
+                        />
+                        <LogoIcon className={`w-8 h-8 ${energy > 7 ? 'text-brand-green' : 'text-emerald-500/20'}`} />
+                    </div>
+                </div>
+                <div>
+                    <label className="text-[10px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest block mb-3">Current Weight (kg)</label>
+                    <input 
+                        type="number" 
+                        value={weight} 
+                        onChange={(e) => setWeight(e.target.value)}
+                        className="w-full p-5 glass-panel rounded-2xl border-2 border-emerald-500/20 focus:border-brand-green outline-none font-black text-xl text-center"
+                    />
+                </div>
+                <div>
+                    <label className="text-[10px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest block mb-3">Wellness Notes</label>
+                    <textarea 
+                        value={notes} 
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="How are you feeling today?"
+                        className="w-full p-5 glass-panel rounded-2xl border-2 border-emerald-500/20 focus:border-brand-green outline-none font-bold text-sm min-h-[100px]"
+                    />
+                </div>
+                <div className="card-button-wrapper">
+                    <button type="submit" disabled={isLoading} className="btn-primary w-full shadow-glow-primary">
+                        {isLoading ? 'Logging Health Data...' : 'Submit Check-In'}
+                    </button>
+                </div>
+            </form>
         </div>
     );
 };
