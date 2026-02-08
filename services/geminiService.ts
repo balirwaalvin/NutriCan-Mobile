@@ -111,6 +111,7 @@ const getMealPhotoUrl = (mealName: string): string => {
     return defaultImage;
 };
 
+// Fixed model name to 'gemini-3-flash-preview' for text tasks.
 export const checkFoodSafety = async (foodName: string, userProfile: UserProfile): Promise<FoodSafetyResult> => {
   const conditions = [userProfile.cancerType, ...userProfile.otherConditions].join(', ');
   const prompt = `
@@ -124,7 +125,7 @@ export const checkFoodSafety = async (foodName: string, userProfile: UserProfile
 
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -153,6 +154,7 @@ export const checkFoodSafety = async (foodName: string, userProfile: UserProfile
   }
 };
 
+// Fixed model name to 'gemini-3-flash-preview'.
 export const generateMealPlan = async (userProfile: UserProfile): Promise<WeeklyMealPlan | null> => {
     const conditions = [userProfile.cancerType, ...userProfile.otherConditions].join(', ');
     
@@ -197,7 +199,7 @@ export const generateMealPlan = async (userProfile: UserProfile): Promise<Weekly
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -222,6 +224,7 @@ export const generateMealPlan = async (userProfile: UserProfile): Promise<Weekly
     }
 };
 
+// Fixed model name to 'gemini-3-flash-preview'.
 export const swapMeal = async (userProfile: UserProfile, mealToSwap: Meal, day: string, mealType: string): Promise<Meal | null> => {
     const conditions = [userProfile.cancerType, ...userProfile.otherConditions].join(', ');
     
@@ -247,7 +250,7 @@ export const swapMeal = async (userProfile: UserProfile, mealToSwap: Meal, day: 
     `;
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -268,6 +271,7 @@ export const swapMeal = async (userProfile: UserProfile, mealToSwap: Meal, day: 
     }
 }
 
+// Fixed model name to 'gemini-3-flash-preview'.
 export const getNutrientInfo = async (mealName: string): Promise<NutrientInfo | null> => {
     const prompt = `
       Analyze the food "${mealName}" and provide its estimated nutritional values for a standard serving.
@@ -278,7 +282,7 @@ export const getNutrientInfo = async (mealName: string): Promise<NutrientInfo | 
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -304,6 +308,7 @@ export const getNutrientInfo = async (mealName: string): Promise<NutrientInfo | 
     }
 };
 
+// Fixed model name to 'gemini-3-flash-preview'.
 export const getSymptomTips = async (symptom: SymptomType): Promise<RecommendedFood[] | null> => {
     const prompt = `
         Generate a list of 4-5 highly specific and effective local Ugandan food recommendations for a patient with cervical cancer experiencing ${symptom}.
@@ -327,7 +332,7 @@ export const getSymptomTips = async (symptom: SymptomType): Promise<RecommendedF
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -353,6 +358,7 @@ export const getSymptomTips = async (symptom: SymptomType): Promise<RecommendedF
 
 // --- Doctor Connect AI Logic ---
 
+// Fixed model name to 'gemini-3-pro-preview' for complex medical character chat.
 export const getDoctorChatResponse = async (
     doctor: DoctorProfile,
     userProfile: UserProfile,
@@ -383,7 +389,6 @@ export const getDoctorChatResponse = async (
     `;
 
     // 2. Format History for Gemini API
-    // Gemini 2.5 API expects history in { role: 'user' | 'model', parts: [{ text: string }] } format
     const formattedHistory = history.map(msg => ({
         role: msg.role === 'model' ? 'model' : 'user',
         parts: [{ text: msg.text }]
@@ -391,11 +396,11 @@ export const getDoctorChatResponse = async (
 
     try {
         const chat: Chat = ai.chats.create({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-pro-preview',
             config: {
                 systemInstruction: systemInstruction,
             },
-            history: formattedHistory as any, // Cast to any to bypass strict type check on role strings if necessary
+            history: formattedHistory as any,
         });
 
         const response: GenerateContentResponse = await chat.sendMessage({ message: newMessage });
