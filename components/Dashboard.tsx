@@ -61,11 +61,15 @@ const EmergencyButton: React.FC<{ activePage: DashboardPage }> = ({ activePage }
             </div>
             <h2 className="text-2xl font-black mb-2 text-red-600 dark:text-red-400">Emergency</h2>
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">Immediate medical assistance required?</p>
-            <div className="space-y-3">
-              <button className="btn-primary w-full !bg-red-600">Call Hospital</button>
-              <button className="btn-secondary w-full">Call Caregiver</button>
+            <div className="space-y-4">
+              <div className="card-button-wrapper !bg-transparent border-none p-0">
+                <button className="btn-primary w-full !bg-red-600 shadow-red-500/30">Call Hospital</button>
+              </div>
+              <div className="card-button-wrapper !bg-transparent border-none p-0">
+                <button className="btn-secondary w-full">Call Caregiver</button>
+              </div>
             </div>
-            <button onClick={() => setShowModal(false)} className="mt-6 text-gray-400 font-bold hover:text-gray-600 dark:hover:text-white transition-colors">Dismiss</button>
+            <button onClick={() => setShowModal(false)} className="mt-8 text-gray-400 font-bold hover:text-gray-600 dark:hover:text-white transition-colors uppercase text-[10px] tracking-widest">Dismiss</button>
           </div>
         </div>
       )}
@@ -100,9 +104,11 @@ const PaymentModal: React.FC<{ onPaymentSuccess: () => void; closeModal: () => v
                     <p className="text-5xl font-black text-brand-green mb-1 tracking-tighter">$14.99<span className="text-sm text-emerald-900/40 dark:text-emerald-100/40 font-bold">/mo</span></p>
                     <p className="text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-400 tracking-widest">Priority Support Included</p>
                 </div>
-                <button onClick={handleUpgrade} disabled={processing} className="btn-primary w-full py-6 rounded-[2rem] text-xl font-black shadow-glow-primary mb-6 transform active:scale-95 transition-all disabled:opacity-50">
-                    {processing ? 'Upgrading...' : 'Get Pro Access'}
-                </button>
+                <div className="card-button-wrapper">
+                  <button onClick={handleUpgrade} disabled={processing} className="btn-primary w-full !py-6 text-xl shadow-glow-primary transform active:scale-95 transition-all">
+                      {processing ? 'Processing...' : 'Get Pro Access'}
+                  </button>
+                </div>
             </div>
         </div>
     );
@@ -135,8 +141,8 @@ const SymptomTipsScreen: React.FC = () => {
     };
     return (
         <div className="p-8 pb-16 min-h-[60vh]">
-            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2">Symptom Tips</h2>
-            <p className="text-gray-500 mb-8 font-medium">Targeted nutrition for comfort.</p>
+            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">Symptom Hub</h2>
+            <p className="text-gray-500 mb-8 font-medium">Dietary comfort for recovery.</p>
             {!selectedSymptom ? (
                 <div className="grid grid-cols-2 gap-5">
                     {Object.values(SymptomType).map((symptom) => (
@@ -152,11 +158,11 @@ const SymptomTipsScreen: React.FC = () => {
                 </div>
             ) : (
                 <div className="animate-fade-in">
-                    <button onClick={() => setSelectedSymptom(null)} className="flex items-center gap-2 text-brand-green font-black mb-6">
-                        <ChevronLeftIcon className="w-5 h-5" /> Back
+                    <button onClick={() => setSelectedSymptom(null)} className="flex items-center gap-2 text-brand-green font-black mb-8">
+                        <ChevronLeftIcon className="w-5 h-5" /> Back to list
                     </button>
                     {loading ? (
-                        <div className="text-center py-20"><LogoIcon className="animate-spin w-12 h-12 mx-auto text-brand-green" /></div>
+                        <div className="text-center py-20 animate-pulse"><LogoIcon className="animate-spin w-14 h-14 mx-auto text-brand-green" /></div>
                     ) : (
                         <div className="space-y-6">
                             {tips?.map((tip, idx) => (
@@ -184,8 +190,8 @@ const RemindersScreen: React.FC = () => {
     ];
     return (
         <div className="p-8 pb-16">
-            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tight">Daily Alerts</h2>
-            <p className="text-gray-500 mb-10 font-medium">Staying consistent with care.</p>
+            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">My Alerts</h2>
+            <p className="text-gray-500 mb-10 font-medium">Staying on schedule.</p>
             <div className="space-y-5">
                 {reminders.map((rem, i) => (
                     <div key={i} className="glass-panel p-6 rounded-[2.5rem] flex items-center gap-6 shadow-xl border-l-4 border-brand-green">
@@ -200,11 +206,13 @@ const RemindersScreen: React.FC = () => {
                 ))}
             </div>
             <div className="card-button-wrapper mt-10">
-              <button className="btn-primary w-full">Add Reminder</button>
+              <button className="btn-primary w-full shadow-glow-primary">Add Reminder</button>
             </div>
         </div>
     );
 };
+
+// --- Sub-Screens for Dashboard Sections ---
 
 const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: DashboardPage) => void, setModal: (content: React.ReactNode) => void }> = ({ userProfile, setActivePage, setModal }) => {
     const features = [
@@ -218,11 +226,11 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
     return (
         <div className="p-6 page-transition pb-24">
             <div className="flex justify-between items-center mb-10">
-                <div>
+                <div className="animate-fade-in-up">
                   <h1 className="text-3xl font-black text-emerald-900 dark:text-white tracking-tight">Hi, {userProfile.name}</h1>
-                  <p className="text-emerald-700/70 dark:text-emerald-400 font-bold">Your healing journey</p>
+                  <p className="text-emerald-700/70 dark:text-emerald-400 font-bold">Your wellness dashboard</p>
                 </div>
-                <div className="relative group">
+                <div className="relative group animate-fade-in-up">
                   <div className="absolute inset-0 bg-brand-green/20 rounded-full blur-xl group-hover:blur-2xl transition-all"></div>
                   <div className="w-14 h-14 glass-panel rounded-2xl flex items-center justify-center relative border border-white/40 shadow-glass">
                     <UserIcon className="w-7 h-7 text-brand-green" />
@@ -230,7 +238,7 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
                 </div>
             </div>
 
-            <div className="relative rounded-[2.5rem] mb-12 h-56 overflow-hidden shadow-2xl group border-4 border-white/20">
+            <div className="relative rounded-[2.5rem] mb-12 h-56 overflow-hidden shadow-2xl group border-4 border-white/20 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
                 <img src="https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FVegetable%20loop%2Fvegetable1.png?alt=media&token=ad8be5e6-c143-4ea9-9029-1421423b37d9" className="w-full h-full object-cover animate-pulse-soft" />
                 <div className="absolute inset-0 bg-gradient-to-t from-emerald-950 via-emerald-950/20 to-transparent"></div>
                 <div className="absolute bottom-6 left-8 right-8">
@@ -238,12 +246,12 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
                       <span className="w-2.5 h-2.5 bg-brand-green rounded-full animate-pulse shadow-glow-primary"></span>
                       <span className="text-[10px] font-black uppercase text-brand-green tracking-widest">Daily Motivation</span>
                     </div>
-                    <p className="text-white font-black text-2xl drop-shadow-xl leading-tight italic">"Every healthy meal is a step toward strength."</p>
+                    <p className="text-white font-black text-2xl drop-shadow-xl leading-tight italic">"Healing is a journey taken one bite at a time."</p>
                 </div>
             </div>
 
-            <h2 className="text-[11px] font-black mb-6 text-emerald-900/60 dark:text-white/30 uppercase tracking-[0.2em] text-center">Your Essential Toolbox</h2>
-            <div className="grid grid-cols-2 gap-6">
+            <h2 className="text-[11px] font-black mb-6 text-emerald-900/60 dark:text-white/30 uppercase tracking-[0.2em] text-center animate-fade-in-up" style={{ animationDelay: '0.3s' }}>Essentials</h2>
+            <div className="grid grid-cols-2 gap-6 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
                 {features.map((feature) => (
                     <div key={feature.name} className="card-button-wrapper">
                       <button onClick={feature.action} className="w-full p-6 flex flex-col items-center justify-center text-center gap-4 transition-all active:scale-95 group">
@@ -283,7 +291,7 @@ const MealPlanScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile })
     }
     setSwappingState(null);
   };
-  if (loading) return <div className="p-20 text-center flex flex-col items-center justify-center h-full"><LogoIcon className="animate-spin h-16 w-16 text-brand-green mb-4" /><p className="font-black text-emerald-900 dark:text-emerald-300">Curating your meals...</p></div>;
+  if (loading) return <div className="p-20 text-center flex flex-col items-center justify-center h-full"><LogoIcon className="animate-spin h-16 w-16 text-brand-green mb-4" /><p className="font-black text-emerald-900 dark:text-emerald-300">Building your menu...</p></div>;
   if (!mealPlan) return <div className="p-10 text-center">Failed to load plan.</div>;
   const dayShortNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   return (
@@ -323,7 +331,7 @@ const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () 
                     <p className="text-xs text-emerald-900 dark:text-emerald-100 italic font-medium leading-relaxed">“{meal.reason}”</p>
                 </div>
                 <div className="card-button-wrapper">
-                  <button onClick={onSwap} disabled={isSwapping} className="btn-primary w-full !text-base">Swap Option</button>
+                  <button onClick={onSwap} disabled={isSwapping} className="btn-primary w-full !text-base shadow-glow-primary">Swap for something else</button>
                 </div>
             </div>
         </div>
@@ -344,15 +352,15 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
     };
     return (
         <div className="p-8 pb-20 page-transition">
-            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2">Food Guard</h2>
-            <p className="text-gray-500 mb-10 font-medium">Verify safety instantly.</p>
+            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">Food Scanner</h2>
+            <p className="text-gray-500 mb-10 font-medium">Safe nutrition, better health.</p>
             <form onSubmit={handleSearch} className="relative mb-12">
-                <input type="text" value={food} onChange={(e) => setFood(e.target.value)} placeholder="Search food or ingredient..." className="w-full pl-8 pr-20 py-6 glass-panel rounded-[2.5rem] text-lg font-black outline-none focus:ring-4 focus:ring-brand-green/20 transition-all shadow-inner border-2 border-white/50" />
+                <input type="text" value={food} onChange={(e) => setFood(e.target.value)} placeholder="Type meal name..." className="w-full pl-8 pr-20 py-6 glass-panel rounded-[2.5rem] text-lg font-black outline-none focus:ring-4 focus:ring-brand-green/20 transition-all shadow-inner border-2 border-white/50" />
                 <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 bg-brand-green p-4 rounded-full text-white shadow-glow-primary active:scale-90 transition-all">
                     <SearchIcon className="w-6 h-6"/>
                 </button>
             </form>
-            {loading && <div className="text-center py-20"><LogoIcon className="animate-spin h-16 w-16 mx-auto text-brand-green" /></div>}
+            {loading && <div className="text-center py-20 animate-pulse"><LogoIcon className="animate-spin h-16 w-16 mx-auto text-brand-green" /></div>}
             {result && (
                 <div className={`p-8 rounded-[3rem] shadow-2xl animate-fade-in-up border-b-8 ${result.status === FoodSafetyStatus.SAFE ? 'bg-emerald-50 border-emerald-500 dark:bg-emerald-900/20' : 'bg-red-50 border-red-500 dark:bg-red-900/20'}`}>
                     <div className="flex flex-col items-center text-center">
@@ -385,9 +393,9 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
     useEffect(() => { fetchData(); }, [fetchData]);
     return (
         <div className="p-6 pb-32">
-            <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Wellness Tracker</h2>
+            <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Body Tracker</h2>
             <div className="glass-panel p-8 rounded-[3rem] shadow-xl border-b-8 border-brand-green mb-10">
-                <h3 className="text-[10px] font-black text-emerald-900/40 dark:text-white/30 uppercase tracking-[0.3em] mb-8 text-center">Energy & Health Trends</h3>
+                <h3 className="text-[10px] font-black text-emerald-900/40 dark:text-white/30 uppercase tracking-[0.3em] mb-8 text-center">Health Trends</h3>
                 <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={journalData.slice().reverse()}>
@@ -407,20 +415,20 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                 <div className="card-button-wrapper flex-1">
                   <button className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-brand-green text-white shadow-glow-primary active:scale-95 transition-all">
                       <PlusIcon className="w-8 h-8" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Log Meal</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Add Meal</span>
                   </button>
                 </div>
                 <div className="card-button-wrapper flex-1">
                   <button className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-white dark:bg-emerald-900/30 text-emerald-600 font-black border-2 border-emerald-500/10 active:scale-95 transition-all">
                       <BookIcon className="w-8 h-8" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Check-in</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Daily Check</span>
                   </button>
                 </div>
             </div>
-            <h3 className="text-[10px] font-black mb-6 text-emerald-900/60 dark:text-white/30 uppercase tracking-[0.2em]">Recent Activity</h3>
+            <h3 className="text-[10px] font-black mb-6 text-emerald-900/60 dark:text-white/30 uppercase tracking-[0.2em]">Log History</h3>
             <div className="space-y-4">
                 {loggedMeals.map(meal => (
-                    <div key={meal.id} className="glass-panel p-6 rounded-[2.5rem] flex items-center gap-5 border-l-4 border-emerald-500 transition-all hover:translate-x-1">
+                    <div key={meal.id} className="glass-panel p-6 rounded-[2.5rem] flex items-center gap-5 border-l-4 border-emerald-500 transition-all hover:translate-x-1 shadow-md">
                         <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl text-brand-green shadow-inner">
                           <BowlIcon className="w-7 h-7" />
                         </div>
@@ -438,21 +446,21 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
 
 const LibraryScreen: React.FC = () => {
     const resources = [
-        { title: 'Dietary Fiber Essentials', category: 'Nutrition', readTime: '5 min', icon: BowlIcon },
-        { title: 'Hydration & Treatment Recovery', category: 'Wellness', readTime: '3 min', icon: HomeIcon },
-        { title: 'Ugandan Superfoods List', category: 'Local Diet', readTime: '8 min', icon: ProteinIcon },
+        { title: 'Nutritional Support Basics', category: 'Recovery', readTime: '5 min', icon: BowlIcon },
+        { title: 'Staying Hydrated During Treatment', category: 'Wellness', readTime: '4 min', icon: HomeIcon },
+        { title: 'Top Local Superfoods Guide', category: 'Diet', readTime: '7 min', icon: ProteinIcon },
     ];
     return (
         <div className="p-8 pb-32">
-            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tight">Learning Hub</h2>
-            <p className="text-gray-500 mb-10 font-medium italic">Empower your recovery with knowledge.</p>
-            <div className="space-y-5">
+            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">Resources</h2>
+            <p className="text-gray-500 mb-10 font-medium">Knowledge for empowerment.</p>
+            <div className="space-y-6">
                 {resources.map((res, i) => (
                     <div key={i} className="card-button-wrapper">
                       <button className="w-full p-6 flex justify-between items-center group text-left">
                           <div className="flex gap-5 items-center">
-                            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl text-brand-green group-hover:rotate-12 transition-transform">
-                              <res.icon className="w-7 h-7" />
+                            <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-[1.5rem] text-brand-green group-hover:rotate-12 transition-transform">
+                              <res.icon className="w-8 h-8" />
                             </div>
                             <div>
                                 <span className="text-[9px] font-black uppercase text-brand-green tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded-md mb-2 inline-block">#{res.category}</span>
@@ -469,21 +477,74 @@ const LibraryScreen: React.FC = () => {
     );
 };
 
+// --- Live Portal Implementation for Premium Members ---
+
+const LiveSessionUI: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
+    return (
+        <div className="p-8 pb-32 animate-fade-in-up flex flex-col items-center justify-center min-h-[80vh]">
+            <div className="glass-panel p-10 rounded-[4rem] border-b-8 border-brand-green shadow-2xl text-center w-full max-w-sm relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-brand-green/10 to-transparent"></div>
+                <div className="relative inline-block mb-8">
+                    <div className="absolute inset-0 bg-brand-green/30 blur-2xl rounded-full animate-pulse-soft"></div>
+                    <div className="w-28 h-28 bg-brand-green/10 rounded-[3rem] flex items-center justify-center border-2 border-brand-green/30 relative z-10 shadow-inner">
+                        <VideoCallIcon className="w-14 h-14 text-brand-green" />
+                    </div>
+                </div>
+                <h2 className="text-4xl font-black text-emerald-950 dark:text-white mb-3 tracking-tighter">Specialist Live</h2>
+                <div className="flex items-center justify-center gap-2 mb-10">
+                    <span className="w-3 h-3 bg-brand-green rounded-full animate-pulse shadow-glow-primary"></span>
+                    <p className="text-[11px] font-black uppercase text-brand-green tracking-[0.2em]">Consultant Online</p>
+                </div>
+                <p className="text-gray-600 dark:text-emerald-100/70 mb-12 font-bold leading-relaxed px-4 text-sm italic">
+                    "Hi {userProfile.name}, I'm ready to discuss your nutrition strategy for {userProfile.cancerType} recovery."
+                </p>
+                <div className="card-button-wrapper">
+                    <button className="btn-primary w-full !py-6 text-xl shadow-glow-large transform active:scale-95 transition-all">Start Voice Consult</button>
+                </div>
+            </div>
+            
+            <div className="mt-10 grid grid-cols-2 gap-5 w-full max-w-sm">
+                <div className="card-button-wrapper flex-1">
+                  <button className="w-full p-6 flex flex-col items-center gap-3 glass-panel rounded-[2.5rem] !bg-transparent !border-none shadow-none active:scale-95 transition-all">
+                      <ChatBubbleIcon className="w-7 h-7 text-brand-green mb-1" />
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">History</p>
+                      <p className="font-black text-emerald-950 dark:text-white">Past Logs</p>
+                  </button>
+                </div>
+                <div className="card-button-wrapper flex-1">
+                  <button className="w-full p-6 flex flex-col items-center gap-3 glass-panel rounded-[2.5rem] !bg-transparent !border-none shadow-none active:scale-95 transition-all">
+                      <ShareIcon className="w-7 h-7 text-brand-green mb-1" />
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Metrics</p>
+                      <p className="font-black text-emerald-950 dark:text-white">Body Stats</p>
+                  </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const LiveScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => void }> = ({ userProfile, onUpgradeRequest }) => {
+    // FIX: Correctly check for Premium plan before showing upgrade screen
+    const isPremium = userProfile.plan === 'Premium';
+
+    if (isPremium) {
+        return <LiveSessionUI userProfile={userProfile} />;
+    }
+
     return (
         <div className="p-10 page-transition flex flex-col items-center justify-center h-screen pb-40 text-center relative overflow-hidden">
              <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-brand-green/30 blur-[120px] animate-pulse"></div>
              <div className="w-28 h-28 glass-panel rounded-[3rem] flex items-center justify-center mb-10 animate-float shadow-glow-primary border-2 border-emerald-500/50">
                 <BroadcastIcon className="w-14 h-14 text-brand-green" />
              </div>
-             <h1 className="text-4xl font-black text-emerald-950 dark:text-white mb-6 tracking-tighter">NutriCan Live</h1>
-             <p className="text-gray-600 dark:text-emerald-100/70 mb-12 max-w-xs font-bold text-lg leading-relaxed">High-fidelity voice & video consultations with top specialists.</p>
+             <h1 className="text-4xl font-black text-emerald-950 dark:text-white mb-6 tracking-tighter">NutriCan Pro</h1>
+             <p className="text-gray-600 dark:text-emerald-100/70 mb-12 max-w-xs font-bold text-lg leading-relaxed">Unlock real-time voice consultations and expert guidance.</p>
              <div className="card-button-wrapper w-full max-w-xs">
-                <button onClick={onUpgradeRequest} className="btn-primary w-full py-6 text-xl shadow-glow-large uppercase tracking-widest">Unlock Pro</button>
+                <button onClick={onUpgradeRequest} className="btn-primary w-full py-6 text-xl shadow-glow-large uppercase tracking-widest">Unlock Pro Portal</button>
              </div>
-             <div className="mt-14 flex flex-wrap justify-center gap-3">
-                <div className="glass-panel px-5 py-3 rounded-2xl border border-emerald-500/20"><p className="text-[10px] font-black uppercase text-brand-green tracking-widest">Real-time Analysis</p></div>
-                <div className="glass-panel px-5 py-3 rounded-2xl border border-emerald-500/20"><p className="text-[10px] font-black uppercase text-brand-green tracking-widest">End-to-End Secure</p></div>
+             <div className="mt-14 flex flex-wrap justify-center gap-3 animate-fade-in" style={{ animationDelay: '0.5s' }}>
+                <div className="glass-panel px-5 py-3 rounded-2xl border border-emerald-500/20"><p className="text-[10px] font-black uppercase text-brand-green tracking-widest">Expert Access</p></div>
+                <div className="glass-panel px-5 py-3 rounded-2xl border border-emerald-500/20"><p className="text-[10px] font-black uppercase text-brand-green tracking-widest">Secure Video</p></div>
              </div>
         </div>
     );
@@ -515,7 +576,7 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void }
                 </div>
               ))}
             </div>
-            <div className="space-y-5">
+            <div className="space-y-6">
                 <div className="card-button-wrapper">
                   <button className="w-full p-6 flex justify-between items-center font-black text-emerald-900 dark:text-white hover:bg-emerald-500/5 transition-all">
                     <span>Account Settings</span>
@@ -524,21 +585,24 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void }
                 </div>
                 <div className="card-button-wrapper">
                   <button onClick={toggleTheme} className="w-full p-6 flex justify-between items-center font-black text-emerald-900 dark:text-white hover:bg-emerald-500/5 transition-all">
-                    <span>Dark Mode</span>
+                    <span>Dark Appearance</span>
                     <div className={`w-14 h-7 rounded-full transition-colors relative ${theme === 'dark' ? 'bg-brand-green' : 'bg-gray-200'}`}>
                       <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${theme === 'dark' ? 'left-8' : 'left-1'}`}></div>
                     </div>
                   </button>
                 </div>
                 <div className="pt-6">
-                  <button onClick={onLogout} className="btn-secondary w-full !bg-slate-900 !text-white !border-none !py-6 shadow-2xl active:scale-95">Sign Out</button>
+                  {/* FIX: Wrapped logout in card button for UI consistency */}
+                  <div className="card-button-wrapper !bg-transparent border-none p-0">
+                    <button onClick={onLogout} className="btn-secondary w-full !bg-slate-900 !text-white !border-none !py-6 shadow-2xl active:scale-95 uppercase tracking-widest text-xs">Sign Out Account</button>
+                  </div>
                 </div>
             </div>
         </div>
     );
 };
 
-// --- Main Component ---
+// --- Main Dashboard Component ---
 
 const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
   const [activePage, setActivePage] = useState<DashboardPage>('home');
