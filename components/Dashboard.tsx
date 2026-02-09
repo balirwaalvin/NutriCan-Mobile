@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
-import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal, DoctorProfile, ChatMessage, CancerType, CancerStage, TreatmentStage } from '../types';
+import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal, DoctorProfile, ChatMessage, CancerType, CancerStage, TreatmentStage, OtherCondition } from '../types';
 import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips, getDoctorChatResponse } from '../services/geminiService';
 import { db, auth } from '../services/db';
@@ -13,6 +13,13 @@ interface DashboardProps {
   userProfile: UserProfile;
   onLogout: () => void;
 }
+
+// --- Constants ---
+const CONDITION_LEVELS: Record<string, string[]> = {
+  [OtherCondition.DIABETES]: ['Type 1', 'Type 2', 'Prediabetes', 'Gestational'],
+  [OtherCondition.HYPERTENSION]: ['Elevated', 'Stage 1', 'Stage 2', 'Hypertensive Crisis'],
+  [OtherCondition.HYPOTENSION]: ['Mild', 'Chronic', 'Orthostatic', 'Severe'],
+};
 
 // --- Audio Encoding/Decoding Utilities ---
 function decodeBase64(base64: string) {
@@ -220,6 +227,39 @@ const PaymentModal: React.FC<{ onPaymentSuccess: () => void; closeModal: () => v
 const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfile) => void; onCancel: () => void }> = ({ user, onSave, onCancel }) => {
     const [formData, setFormData] = useState<UserProfile>(user);
     const [isLoading, setIsLoading] = useState(false);
+    
+    // State for local condition handling (parsed from user profile)
+    const [conditionsState, setConditionsState] = useState<{selected: string[], details: Record<string, string>}>({ selected: [], details: {} });
+
+    // Initialize conditions state from the user profile string[]
+    useEffect(() => {
+        const selected: string[] = [];
+        const details: Record<string, string> = {};
+        
+        user.otherConditions.forEach(c => {
+            // Check if string contains detail like "Diabetes (Type 1)"
+            const match = c.match(/^(.+) \((.+)\)$/);
+            if (match) {
+                const condition = match[1];
+                const detail = match[2];
+                selected.push(condition);
+                details[condition] = detail;
+            } else {
+                selected.push(c);
+                // Set default detail if applicable and not present
+                if (CONDITION_LEVELS[c]) details[c] = CONDITION_LEVELS[c][0];
+            }
+        });
+        setConditionsState({ selected, details });
+    }, [user]);
+
+    // Update formData whenever conditionsState changes
+    useEffect(() => {
+        const formattedConditions = conditionsState.selected.map(c => 
+            conditionsState.details[c] ? `${c} (${conditionsState.details[c]})` : c
+        );
+        setFormData(prev => ({ ...prev, otherConditions: formattedConditions }));
+    }, [conditionsState]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -236,6 +276,29 @@ const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfi
                 : [...prev.treatmentStages, stage];
             return { ...prev, treatmentStages: stages };
         });
+    };
+    
+    const handleConditionChange = (condition: string) => {
+        setConditionsState(prev => {
+            const isSelected = prev.selected.includes(condition);
+            let newSelected = isSelected ? prev.selected.filter(c => c !== condition) : [...prev.selected, condition];
+            let newDetails = { ...prev.details };
+            
+            if (!isSelected && CONDITION_LEVELS[condition]) {
+                newDetails[condition] = CONDITION_LEVELS[condition][0];
+            } else if (isSelected) {
+                delete newDetails[condition];
+            }
+            
+            return { selected: newSelected, details: newDetails };
+        });
+    };
+
+    const handleDetailChange = (condition: string, detail: string) => {
+        setConditionsState(prev => ({
+            ...prev,
+            details: { ...prev.details, [condition]: detail }
+        }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -306,6 +369,39 @@ const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfi
                     <select name="cancerStage" value={formData.cancerStage} onChange={handleChange} className={inputClass}>
                         {Object.values(CancerStage).map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
+                </div>
+
+                <div>
+                    <label className={labelClass}>Other Conditions</label>
+                    <div className="space-y-3">
+                        {Object.values(OtherCondition).map(condition => {
+                             const isChecked = conditionsState.selected.includes(condition);
+                             return (
+                                <div key={condition} className={`p-4 rounded-2xl border-2 transition-all ${isChecked ? 'border-brand-green bg-brand-green/10' : 'border-emerald-500/10 bg-white/50 dark:bg-emerald-900/20'}`}>
+                                    <div className="flex items-center justify-between cursor-pointer" onClick={() => handleConditionChange(condition)}>
+                                        <span className="font-bold text-sm text-emerald-950 dark:text-white">{condition}</span>
+                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isChecked ? 'border-brand-green bg-brand-green' : 'border-gray-300'}`}>
+                                            {isChecked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                                        </div>
+                                    </div>
+                                    {isChecked && CONDITION_LEVELS[condition] && (
+                                        <div className="mt-3 pl-4 animate-fade-in">
+                                            <select 
+                                                value={conditionsState.details[condition] || CONDITION_LEVELS[condition][0]} 
+                                                onChange={(e) => handleDetailChange(condition, e.target.value)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="w-full p-2 bg-white/50 dark:bg-black/20 rounded-xl text-xs font-bold outline-none text-emerald-900 dark:text-white border border-emerald-500/20"
+                                            >
+                                                {CONDITION_LEVELS[condition].map(level => (
+                                                    <option key={level} value={level}>{level}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+                             );
+                        })}
+                    </div>
                 </div>
 
                 <div>
