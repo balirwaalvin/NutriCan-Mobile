@@ -55,13 +55,13 @@ async function decodeAudioData(
 
 // --- Reusable UI Components ---
 
-const Modal: React.FC<{ children: React.ReactNode; closeModal: () => void }> = ({ children, closeModal }) => (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-6 animate-fade-in" onClick={closeModal}>
-    <div className="bg-white dark:bg-emerald-950 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[3.5rem] relative shadow-2xl animate-fade-in-up border-4 border-emerald-500/20" onClick={e => e.stopPropagation()}>
-      <button onClick={closeModal} className="absolute top-8 right-8 p-3 glass-panel rounded-full text-emerald-900 dark:text-white hover:scale-110 transition-transform z-50">
+const Modal: React.FC<{ children: React.ReactNode; closeModal: () => void; fullScreen?: boolean }> = ({ children, closeModal, fullScreen }) => (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-4 sm:p-6 animate-fade-in" onClick={closeModal}>
+    <div className={`bg-white dark:bg-emerald-950 w-full rounded-[3rem] relative shadow-2xl animate-fade-in-up border-4 border-emerald-500/20 overflow-hidden flex flex-col ${fullScreen ? 'h-[95vh] max-w-4xl' : 'max-h-[90vh] max-w-lg'}`} onClick={e => e.stopPropagation()}>
+      <button onClick={closeModal} className="absolute top-6 right-6 p-3 glass-panel rounded-full text-emerald-900 dark:text-white hover:scale-110 transition-transform z-50 shadow-lg">
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
       </button>
-      <div className="p-8 pt-10">
+      <div className={`flex-grow overflow-y-auto ${fullScreen ? 'p-0' : 'p-8 pt-10'}`}>
         {children}
       </div>
     </div>
@@ -415,12 +415,10 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
 
 // --- Tracker Screen Implementation ---
 
-const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
+const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: React.ReactNode) => void }> = ({ userProfile, setModal }) => {
     const [loggedMeals, setLoggedMeals] = useState<LoggedMeal[]>([]);
     const [journalData, setJournalData] = useState<JournalEntry[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showLogModal, setShowLogModal] = useState(false);
-    const [showCheckInModal, setShowCheckInModal] = useState(false);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -437,8 +435,13 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    const handleMealLogged = () => { setShowLogModal(false); fetchData(); };
-    const handleCheckInDone = () => { setShowCheckInModal(false); fetchData(); };
+    const openLogMeal = () => {
+        setModal(<LogMealForm onComplete={() => { setModal(null); fetchData(); }} />);
+    };
+
+    const openCheckIn = () => {
+        setModal(<CheckInForm onComplete={() => { setModal(null); fetchData(); }} userProfile={userProfile} />);
+    };
 
     if (loading) {
         return (
@@ -453,7 +456,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
         <div className="p-6 pb-40 animate-fade-in">
             <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Body Tracker</h2>
             
-            {/* Wellness Trends Chart */}
             <div className="glass-panel p-8 rounded-[3.5rem] shadow-2xl border-b-8 border-brand-green mb-10 overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-brand-green/5 blur-3xl rounded-full"></div>
                 <h3 className="text-[10px] font-black text-emerald-900/40 dark:text-white/30 uppercase tracking-[0.3em] mb-8 text-center">Wellness Trends</h3>
@@ -473,23 +475,21 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                 </div>
             </div>
             
-            {/* Quick Action Buttons */}
             <div className="grid grid-cols-2 gap-5 mb-12">
                 <div className="card-button-wrapper">
-                    <button onClick={() => setShowLogModal(true)} className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-brand-green text-white shadow-glow-primary active:scale-95 transition-all">
+                    <button onClick={openLogMeal} className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-brand-green text-white shadow-glow-primary active:scale-95 transition-all">
                         <PlusIcon className="w-8 h-8" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Log Meal</span>
                     </button>
                 </div>
                 <div className="card-button-wrapper">
-                    <button onClick={() => setShowCheckInModal(true)} className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-white dark:bg-emerald-900/30 text-emerald-600 font-black border-2 border-emerald-500/10 active:scale-95 transition-all">
+                    <button onClick={openCheckIn} className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-white dark:bg-emerald-900/30 text-emerald-600 font-black border-2 border-emerald-500/10 active:scale-95 transition-all">
                         <BookIcon className="w-8 h-8" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Check-In</span>
                     </button>
                 </div>
             </div>
 
-            {/* History List */}
             <h3 className="text-[11px] font-black mb-6 text-emerald-900/60 dark:text-white/30 uppercase tracking-[0.2em] px-2">Recent Logs</h3>
             <div className="space-y-4">
                 {loggedMeals.length > 0 ? loggedMeals.map(meal => (
@@ -509,18 +509,6 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                     </div>
                 )}
             </div>
-
-            {/* Modals */}
-            {showLogModal && (
-                <Modal closeModal={() => setShowLogModal(false)}>
-                    <LogMealForm onComplete={handleMealLogged} />
-                </Modal>
-            )}
-            {showCheckInModal && (
-                <Modal closeModal={() => setShowCheckInModal(false)}>
-                    <CheckInForm onComplete={handleCheckInDone} userProfile={userProfile} />
-                </Modal>
-            )}
         </div>
     );
 };
@@ -928,7 +916,7 @@ const LiveScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => v
 
 // --- Standard Screens ---
 
-const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: DashboardPage) => void, setModal: (content: React.ReactNode) => void }> = ({ userProfile, setActivePage, setModal }) => {
+const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: DashboardPage) => void, setModal: (content: React.ReactNode, options?: { fullScreen?: boolean }) => void }> = ({ userProfile, setActivePage, setModal }) => {
     const features = [
         { name: 'Meal Plan', icon: BowlIcon, color: 'bg-emerald-500', action: () => setModal(<MealPlanScreen userProfile={userProfile} />) },
         { name: 'Food Guard', icon: SearchIcon, color: 'bg-teal-500', action: () => setModal(<FoodSafetyCheckerScreen userProfile={userProfile} />) },
@@ -1037,25 +1025,33 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void }
 
 const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
   const [activePage, setActivePage] = useState<DashboardPage>('home');
-  const [modalContent, setModalContent] = useState<React.ReactNode | null>(null);
+  const [modalState, setModalState] = useState<{ content: React.ReactNode | null; fullScreen: boolean }>({ content: null, fullScreen: false });
   const [showPayment, setShowPayment] = useState(false);
   const [localProfile, setLocalProfile] = useState(userProfile);
 
+  const setModal = useCallback((content: React.ReactNode, options?: { fullScreen?: boolean }) => {
+    setModalState({ content, fullScreen: options?.fullScreen || false });
+  }, []);
+
   const screens = useMemo(() => ({
-    home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModalContent} />,
-    tracker: <TrackerScreen userProfile={localProfile} />, 
+    home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} />,
+    tracker: <TrackerScreen userProfile={localProfile} setModal={setModal} />, 
     live: <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
     library: <LibraryScreen />,
     profile: <ProfileScreen userProfile={localProfile} onLogout={onLogout} />,
     'doctor-connect': <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
-  }), [localProfile, onLogout]);
+  }), [localProfile, onLogout, setActivePage, setModal]);
 
   return (
     <div className="min-h-screen bg-transparent relative">
       <div className="animate-fade-in-up">{screens[activePage] || screens.home}</div>
       <EmergencyButton activePage={activePage} />
       <BottomNavBar activePage={activePage} onNavigate={setActivePage} />
-      {modalContent && <Modal closeModal={() => setModalContent(null)}>{modalContent}</Modal>}
+      {modalState.content && (
+        <Modal closeModal={() => setModal(null)} fullScreen={modalState.fullScreen}>
+            {modalState.content}
+        </Modal>
+      )}
       {showPayment && (
         <PaymentModal 
           onPaymentSuccess={() => { setLocalProfile(p => ({...p, plan: 'Premium'})); setShowPayment(false); }} 
