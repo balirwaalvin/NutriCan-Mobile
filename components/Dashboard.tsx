@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
-import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal, DoctorProfile, ChatMessage } from '../types';
+import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal, DoctorProfile, ChatMessage, CancerType, CancerStage, TreatmentStage } from '../types';
 import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips, getDoctorChatResponse } from '../services/geminiService';
 import { db, auth } from '../services/db';
@@ -217,6 +217,122 @@ const PaymentModal: React.FC<{ onPaymentSuccess: () => void; closeModal: () => v
 
 // --- Sub-Screens ---
 
+const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfile) => void; onCancel: () => void }> = ({ user, onSave, onCancel }) => {
+    const [formData, setFormData] = useState<UserProfile>(user);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: (name === 'age' || name === 'height' || name === 'weight') ? Number(value) : value
+        }));
+    };
+
+    const handleTreatmentChange = (stage: TreatmentStage) => {
+        setFormData(prev => {
+            const stages = prev.treatmentStages.includes(stage)
+                ? prev.treatmentStages.filter(s => s !== stage)
+                : [...prev.treatmentStages, stage];
+            return { ...prev, treatmentStages: stages };
+        });
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            // Update Firestore
+            await db.updateProfile(formData);
+            // Update local state in Dashboard
+            onSave(formData);
+        } catch (error) {
+            console.error("Failed to update profile", error);
+            alert("Failed to update profile. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const inputClass = "w-full p-4 glass-panel rounded-2xl border-2 border-emerald-500/10 focus:border-brand-green outline-none font-bold text-emerald-950 dark:text-white bg-white/50 dark:bg-emerald-900/20";
+    const labelClass = "text-[10px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest block mb-2";
+
+    return (
+        <div className="pb-4">
+             <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter text-center">Account Settings</h2>
+             <p className="text-gray-500 mb-8 font-medium text-center text-sm">Update your biometrics for better AI plans.</p>
+             
+             <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                    <label className={labelClass}>Full Name</label>
+                    <input name="name" type="text" value={formData.name} onChange={handleChange} className={inputClass} />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className={labelClass}>Age</label>
+                        <input name="age" type="number" value={formData.age} onChange={handleChange} className={inputClass} />
+                    </div>
+                    <div>
+                        <label className={labelClass}>Gender</label>
+                        <select name="gender" value={formData.gender} onChange={handleChange} className={inputClass}>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className={labelClass}>Height (cm)</label>
+                        <input name="height" type="number" value={formData.height} onChange={handleChange} className={inputClass} />
+                    </div>
+                    <div>
+                        <label className={labelClass}>Weight (kg)</label>
+                        <input name="weight" type="number" value={formData.weight} onChange={handleChange} className={inputClass} />
+                    </div>
+                </div>
+
+                <div>
+                    <label className={labelClass}>Diagnosis</label>
+                    <select name="cancerType" value={formData.cancerType} onChange={handleChange} className={inputClass}>
+                        {Object.values(CancerType).map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                </div>
+
+                <div>
+                    <label className={labelClass}>Current Stage</label>
+                    <select name="cancerStage" value={formData.cancerStage} onChange={handleChange} className={inputClass}>
+                        {Object.values(CancerStage).map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                </div>
+
+                <div>
+                    <label className={labelClass}>Treatment Phase</label>
+                    <div className="space-y-3">
+                        {Object.values(TreatmentStage).map(stage => (
+                            <div key={stage} onClick={() => handleTreatmentChange(stage)} className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${formData.treatmentStages.includes(stage) ? 'border-brand-green bg-brand-green/10' : 'border-emerald-500/10 bg-white/50 dark:bg-emerald-900/20'}`}>
+                                <span className="font-bold text-sm text-emerald-950 dark:text-white">{stage}</span>
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.treatmentStages.includes(stage) ? 'border-brand-green bg-brand-green' : 'border-gray-300'}`}>
+                                    {formData.treatmentStages.includes(stage) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="pt-4 flex gap-4">
+                    <button type="button" onClick={onCancel} className="flex-1 py-4 font-black uppercase text-xs tracking-widest text-gray-500 bg-gray-100 dark:bg-white/5 rounded-2xl">Cancel</button>
+                    <button type="submit" disabled={isLoading} className="flex-[2] btn-primary shadow-glow-primary">
+                        {isLoading ? 'Saving Changes...' : 'Update Profile'}
+                    </button>
+                </div>
+             </form>
+        </div>
+    );
+};
+
 const SymptomTipsScreen: React.FC = () => {
     const [selectedSymptom, setSelectedSymptom] = useState<SymptomType | null>(null);
     const [tips, setTips] = useState<RecommendedFood[] | null>(null);
@@ -306,13 +422,17 @@ const MealPlanScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile })
   const [loading, setLoading] = useState(true);
   const [selectedDayIndex, setSelectedDayIndex] = useState((new Date().getDay() + 6) % 7);
   const [swappingState, setSwappingState] = useState<{dayIndex: number, mealType: string} | null>(null);
+  
+  // Re-fetch when userProfile changes to ensure gradual change based on new suffering/condition
   const fetchMealPlan = useCallback(async () => {
     setLoading(true);
     const plan = await generateMealPlan(userProfile);
     setMealPlan(plan);
     setLoading(false);
-  }, [userProfile]);
+  }, [userProfile]); // Dependent on userProfile
+
   useEffect(() => { fetchMealPlan(); }, [fetchMealPlan]);
+  
   const handleSwapMeal = async (dayIndex: number, mealType: 'breakfast' | 'lunch' | 'dinner') => {
     if (!mealPlan) return;
     setSwappingState({ dayIndex, mealType });
@@ -932,12 +1052,12 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
                   <h1 className="text-3xl font-black text-emerald-900 dark:text-white tracking-tight">Hi, {userProfile.name}</h1>
                   <p className="text-emerald-700/70 dark:text-emerald-400 font-bold">Your healing dashboard</p>
                 </div>
-                <div className="relative">
-                  <div className="absolute inset-0 bg-brand-green/20 rounded-full blur-xl transition-all"></div>
-                  <div className="w-14 h-14 glass-panel rounded-2xl flex items-center justify-center relative border border-white/40 shadow-glass">
+                <button onClick={() => setActivePage('profile')} className="relative group">
+                  <div className="absolute inset-0 bg-brand-green/20 rounded-full blur-xl transition-all group-hover:bg-brand-green/40"></div>
+                  <div className="w-14 h-14 glass-panel rounded-2xl flex items-center justify-center relative border border-white/40 shadow-glass group-active:scale-95 transition-transform">
                     <UserIcon className="w-7 h-7 text-brand-green" />
                   </div>
-                </div>
+                </button>
             </div>
 
             <div className="relative rounded-[2.5rem] mb-12 h-60 overflow-hidden shadow-2xl group border-4 border-white/20 animate-fade-in-up">
@@ -968,8 +1088,22 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
     );
 };
 
-const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void }> = ({ userProfile, onLogout }) => {
+const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, setModal: (content: React.ReactNode) => void, onProfileUpdate: (profile: UserProfile) => void }> = ({ userProfile, onLogout, setModal, onProfileUpdate }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
+
+    const openEditProfile = () => {
+        setModal(
+            <EditProfileForm 
+                user={userProfile} 
+                onSave={(updatedProfile) => {
+                    onProfileUpdate(updatedProfile);
+                    setModal(null);
+                }}
+                onCancel={() => setModal(null)}
+            />
+        );
+    };
+
     return (
         <div className="p-8 pb-40">
             <div className="flex flex-col items-center mb-14 animate-fade-in-up">
@@ -998,7 +1132,7 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void }
 
             <div className="space-y-6">
                 <div className="card-button-wrapper">
-                  <button className="w-full p-6 flex justify-between items-center font-black text-emerald-900 dark:text-white group">
+                  <button onClick={openEditProfile} className="w-full p-6 flex justify-between items-center font-black text-emerald-900 dark:text-white group">
                     <span>Account Settings</span>
                     <ChevronLeftIcon className="w-6 h-6 rotate-180 opacity-40 group-hover:opacity-100 transition-opacity" />
                   </button>
@@ -1033,12 +1167,17 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     setModalState({ content, fullScreen: options?.fullScreen || false });
   }, []);
 
+  const handleProfileUpdate = (updatedProfile: UserProfile) => {
+    setLocalProfile(updatedProfile);
+    // Force meal plan regeneration by updating the state that is passed to MealPlanScreen
+  };
+
   const screens = useMemo(() => ({
     home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} />,
     tracker: <TrackerScreen userProfile={localProfile} setModal={setModal} />, 
     live: <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
     library: <LibraryScreen />,
-    profile: <ProfileScreen userProfile={localProfile} onLogout={onLogout} />,
+    profile: <ProfileScreen userProfile={localProfile} onLogout={onLogout} setModal={setModal} onProfileUpdate={handleProfileUpdate} />,
     'doctor-connect': <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
   }), [localProfile, onLogout, setActivePage, setModal]);
 
