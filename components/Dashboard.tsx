@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal, DoctorProfile, ChatMessage, CancerType, CancerStage, TreatmentStage, OtherCondition } from '../types';
 import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon, DownloadIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips, getDoctorChatResponse } from '../services/geminiService';
 import { db, auth } from '../services/db';
-import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, CartesianGrid } from 'recharts';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { GoogleGenAI, Modality, LiveServerMessage, Blob } from "@google/genai";
 
@@ -718,6 +717,49 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
+    const chartData = useMemo(() => {
+        const dailyStats: Record<string, { calories: number, energy: number | null }> = {};
+
+        // Aggregate Calories from Meals
+        loggedMeals.forEach(meal => {
+            const date = new Date(meal.timestamp).toLocaleDateString();
+            if (!dailyStats[date]) dailyStats[date] = { calories: 0, energy: null };
+            dailyStats[date].calories += meal.nutrients.calories;
+        });
+
+        // Aggregate Energy from Journal
+        journalData.forEach(entry => {
+            const date = new Date(entry.timestamp).toLocaleDateString();
+            if (!dailyStats[date]) dailyStats[date] = { calories: 0, energy: 0 };
+            dailyStats[date].energy = entry.energy; 
+        });
+
+        // Fill in last 7 days even if empty to make chart look good
+        const today = new Date();
+        for(let i = 6; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toLocaleDateString();
+            if (!dailyStats[dateStr]) dailyStats[dateStr] = { calories: 0, energy: 0 };
+        }
+
+        return Object.entries(dailyStats)
+            .map(([date, stats]) => ({
+                name: new Date(date).toLocaleDateString(undefined, { weekday: 'short' }),
+                fullDate: new Date(date),
+                calories: stats.calories,
+                energy: stats.energy || 0
+            }))
+            .sort((a, b) => a.fullDate.getTime() - b.fullDate.getTime())
+            .slice(-7); 
+    }, [loggedMeals, journalData]);
+
+    const todaysCalories = useMemo(() => {
+        const todayStr = new Date().toLocaleDateString();
+        const todaysLog = loggedMeals.filter(m => new Date(m.timestamp).toLocaleDateString() === todayStr);
+        return todaysLog.reduce((acc, curr) => acc + curr.nutrients.calories, 0);
+    }, [loggedMeals]);
+
     const openLogMeal = () => {
         setModal(<LogMealForm onComplete={() => { setModal(null); fetchData(); }} />);
     };
@@ -737,24 +779,53 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
 
     return (
         <div className="p-6 pb-40 animate-fade-in">
-            <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Body Tracker</h2>
+            <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Nutrient Tracker</h2>
             
-            <div className="glass-panel p-8 rounded-[3.5rem] shadow-2xl border-b-8 border-brand-green mb-10 overflow-hidden relative">
+            {/* Today's Summary Card */}
+            <div className="glass-panel p-6 rounded-[2.5rem] mb-10 flex items-center justify-between border-l-8 border-brand-green shadow-xl">
+                <div>
+                    <p className="text-xs font-black uppercase text-gray-400 tracking-widest mb-1">Today's Intake</p>
+                    <p className="text-4xl font-black text-emerald-950 dark:text-white">{todaysCalories} <span className="text-lg font-bold text-brand-green">kcal</span></p>
+                </div>
+                <div className="p-4 bg-brand-green/10 rounded-full">
+                    <ChartIcon className="w-8 h-8 text-brand-green" />
+                </div>
+            </div>
+
+            {/* Combined Chart */}
+            <div className="glass-panel p-6 rounded-[3.5rem] shadow-2xl border-b-8 border-brand-green mb-10 overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-brand-green/5 blur-3xl rounded-full"></div>
-                <h3 className="text-[10px] font-black text-emerald-900/40 dark:text-white/30 uppercase tracking-[0.3em] mb-8 text-center">Wellness Trends</h3>
-                <div className="h-64">
+                <h3 className="text-[10px] font-black text-emerald-900/40 dark:text-white/30 uppercase tracking-[0.3em] mb-8 text-center">Calories vs Energy</h3>
+                <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={journalData.length > 0 ? [...journalData].reverse() : [{name: 'M', energy: 5}, {name: 'T', energy: 7}, {name: 'W', energy: 6}]}>
+                        <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <defs>
-                                <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#10B981" stopOpacity={0.6}/>
-                                    <stop offset="100%" stopColor="#10B981" stopOpacity={0}/>
+                                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#10B981" stopOpacity={0.8}/>
+                                    <stop offset="100%" stopColor="#10B981" stopOpacity={0.3}/>
                                 </linearGradient>
                             </defs>
-                            <Area type="monotone" dataKey="energy" stroke="#10B981" strokeWidth={5} fill="url(#trendGradient)" dot={{ r: 6, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }} />
-                            <Tooltip contentStyle={{ borderRadius: '1.5rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', backgroundColor: 'rgba(255,255,255,0.9)' }} />
-                        </AreaChart>
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF', fontWeight: 800 }} dy={10} />
+                            <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} />
+                            <YAxis yAxisId="right" orientation="right" domain={[0, 10]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#F59E0B' }} hide />
+                            <Tooltip 
+                                contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', backgroundColor: 'rgba(255,255,255,0.95)' }}
+                                labelStyle={{ fontWeight: 800, color: '#064E3B', marginBottom: '0.5rem' }}
+                            />
+                            <Bar yAxisId="left" dataKey="calories" fill="url(#barGradient)" radius={[10, 10, 10, 10]} barSize={20} />
+                            <Line yAxisId="right" type="monotone" dataKey="energy" stroke="#F59E0B" strokeWidth={3} dot={{ r: 4, fill: '#F59E0B', strokeWidth: 2, stroke: '#fff' }} />
+                        </ComposedChart>
                     </ResponsiveContainer>
+                </div>
+                <div className="flex justify-center gap-6 mt-4">
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-brand-green"></div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase">Calories</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase">Energy Level</span>
+                    </div>
                 </div>
             </div>
             
@@ -963,7 +1034,7 @@ const LibraryScreen: React.FC = () => {
 
 // --- Live Portal Sections with Gemini Live ---
 
-const LiveSessionUI: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
+const LiveScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => void }> = ({ userProfile, onUpgradeRequest }) => {
     const [modality, setModality] = useState<'audio' | 'video'>('audio');
     const [isConnected, setIsConnected] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
@@ -996,6 +1067,11 @@ const LiveSessionUI: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
     }, []);
 
     const startSession = async () => {
+        if (userProfile.plan === 'Free') {
+            onUpgradeRequest();
+            return;
+        }
+
         setIsConnecting(true);
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
@@ -1167,7 +1243,7 @@ const LiveSessionUI: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                     <p className="text-gray-500 font-bold text-sm mb-12 max-w-[200px] mx-auto leading-relaxed">Instantly speak with a specialized cancer nutritionist via {modality}.</p>
                     <div className="card-button-wrapper w-full max-w-[240px]">
                         <button onClick={startSession} disabled={isConnecting} className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-5">
-                            {isConnecting ? 'Establishing Link...' : 'Join Live Room'}
+                            {isConnecting ? 'Establishing Link...' : (userProfile.plan === 'Free' ? 'Upgrade to Connect' : 'Join Live Room')}
                         </button>
                     </div>
                   </div>
@@ -1178,29 +1254,6 @@ const LiveSessionUI: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) 
                 <button onClick={() => setModality('audio')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${modality === 'audio' ? 'bg-brand-green text-white shadow-glow-primary' : 'glass-panel text-gray-400'}`}>Audio Mode</button>
                 <button onClick={() => setModality('video')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${modality === 'video' ? 'bg-brand-green text-white shadow-glow-primary' : 'glass-panel text-gray-400'}`}>Video Mode</button>
             </div>
-        </div>
-    );
-};
-
-const LiveScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => void }> = ({ userProfile, onUpgradeRequest }) => {
-    const isPremium = userProfile.plan === 'Premium';
-    if (isPremium) return <LiveSessionUI userProfile={userProfile} />;
-
-    return (
-        <div className="p-10 page-transition flex flex-col items-center justify-center h-screen pb-40 text-center relative overflow-hidden">
-             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-brand-green/30 blur-[120px] animate-pulse"></div>
-             <div className="w-28 h-28 glass-panel rounded-[3rem] flex items-center justify-center mb-10 animate-float shadow-glow-primary border-2 border-emerald-500/50">
-                <BroadcastIcon className="w-14 h-14 text-brand-green" />
-             </div>
-             <h1 className="text-4xl font-black text-emerald-950 dark:text-white mb-6 tracking-tighter">NutriCan Pro</h1>
-             <p className="text-gray-600 dark:text-emerald-100/70 mb-12 max-w-xs font-bold text-lg leading-relaxed">Access real-time voice and video nutrition strategy sessions.</p>
-             <div className="card-button-wrapper w-full max-w-xs">
-                <button onClick={onUpgradeRequest} className="btn-primary w-full py-6 text-xl shadow-glow-large uppercase tracking-[0.2em] text-xs">Unlock Pro (15,000 UGX)</button>
-             </div>
-             <div className="mt-14 flex flex-wrap justify-center gap-4 animate-fade-in" style={{ animationDelay: '0.6s' }}>
-                <div className="glass-panel px-5 py-3 rounded-2xl border border-emerald-500/20 text-[10px] font-black uppercase text-brand-green tracking-widest">Uganda Specialized</div>
-                <div className="glass-panel px-5 py-3 rounded-2xl border border-emerald-500/20 text-[10px] font-black uppercase text-brand-green tracking-widest">Pro AI Guided</div>
-             </div>
         </div>
     );
 };
