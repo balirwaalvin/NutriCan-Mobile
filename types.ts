@@ -37,6 +37,8 @@ export interface UserProfile {
   otherConditions: string[]; // Changed to string[] to allow formatted conditions like "Diabetes (Type 1)"
   treatmentStages: TreatmentStage[];
   plan: 'Free' | 'Premium';
+  isVerified?: boolean;
+  documentsSubmitted?: boolean;
 }
 
 export type MealCategory = 'Protein' | 'Carbs' | 'Balanced' | 'Veggies';

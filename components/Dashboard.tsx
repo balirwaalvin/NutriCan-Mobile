@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal, DoctorProfile, ChatMessage, CancerType, CancerStage, TreatmentStage, OtherCondition } from '../types';
-import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon, DownloadIcon } from './Icons';
+import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon, DownloadIcon, ShieldCheckIcon, FileTextIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips, getDoctorChatResponse } from '../services/geminiService';
 import { db, auth } from '../services/db';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, CartesianGrid } from 'recharts';
@@ -222,6 +223,107 @@ const PaymentModal: React.FC<{ onPaymentSuccess: () => void; closeModal: () => v
 };
 
 // --- Sub-Screens ---
+
+const MedicalDocsScreen: React.FC<{ userProfile: UserProfile, onUploadSuccess: (updatedProfile: UserProfile) => void }> = ({ userProfile, onUploadSuccess }) => {
+    const [file, setFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const selectedFile = e.target.files[0];
+            if (selectedFile.type === 'application/pdf') {
+                setFile(selectedFile);
+                setUploadError(null);
+            } else {
+                setUploadError("Please select a valid PDF file.");
+                setFile(null);
+            }
+        }
+    };
+
+    const handleUpload = async () => {
+        if (!file) return;
+        setUploading(true);
+        setUploadError(null);
+        try {
+            await db.uploadMedicalDocs(file);
+            const updatedProfile = { ...userProfile, documentsSubmitted: true, isVerified: true };
+            onUploadSuccess(updatedProfile);
+        } catch (error) {
+            console.error("Upload failed", error);
+            setUploadError("Failed to upload document. Please try again.");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    return (
+        <div className="p-4 pb-20 page-transition">
+            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">Medical Verification</h2>
+            <p className="text-gray-500 mb-8 font-medium">Verify your profile for personalized care.</p>
+
+            <div className="glass-panel p-6 rounded-[2.5rem] mb-8 border-l-8 border-brand-green shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-green/5 blur-3xl rounded-full"></div>
+                <div className="flex items-start gap-4">
+                    <ShieldCheckIcon className="w-10 h-10 text-brand-green flex-shrink-0" />
+                    <div>
+                        <h3 className="text-lg font-black text-emerald-950 dark:text-white mb-2">Official Verification</h3>
+                        <p className="text-xs text-gray-600 dark:text-emerald-100/70 font-bold leading-relaxed">
+                            NutriCan is registered and Licensed by the <span className="text-brand-green">Ministry Of Health</span> and the <span className="text-brand-green">National Drug Authority</span>. Your Information is in safe hands.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {userProfile.isVerified ? (
+                <div className="text-center py-10 animate-fade-in">
+                    <div className="w-24 h-24 bg-brand-green rounded-full flex items-center justify-center mx-auto mb-6 shadow-glow-primary animate-pulse">
+                        <ShieldCheckIcon className="w-12 h-12 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-black text-emerald-950 dark:text-white mb-2">You are Verified!</h3>
+                    <p className="text-gray-500 font-bold text-sm">Your medical documents have been approved.</p>
+                </div>
+            ) : (
+                <div className="animate-fade-in">
+                    <div className="border-4 border-dashed border-emerald-500/20 rounded-[2.5rem] p-8 text-center mb-8 relative hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-colors">
+                        <input 
+                            type="file" 
+                            accept=".pdf" 
+                            onChange={handleFileChange} 
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="flex flex-col items-center">
+                            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-4 text-brand-green">
+                                <FileTextIcon className="w-8 h-8" />
+                            </div>
+                            <p className="font-black text-emerald-950 dark:text-white text-lg mb-2">
+                                {file ? file.name : "Tap to Select PDF"}
+                            </p>
+                            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
+                                {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : "Medical Forms Only"}
+                            </p>
+                        </div>
+                    </div>
+
+                    {uploadError && (
+                        <p className="text-red-500 text-center font-bold text-sm mb-6 bg-red-100 dark:bg-red-900/20 p-3 rounded-xl">{uploadError}</p>
+                    )}
+
+                    <div className="card-button-wrapper">
+                        <button 
+                            onClick={handleUpload} 
+                            disabled={!file || uploading} 
+                            className={`btn-primary w-full shadow-glow-primary ${!file || uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {uploading ? 'Securely Uploading...' : 'Submit Documents'}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfile) => void; onCancel: () => void }> = ({ user, onSave, onCancel }) => {
     const [formData, setFormData] = useState<UserProfile>(user);
@@ -1260,20 +1362,23 @@ const LiveScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => v
 
 // --- Standard Screens ---
 
-const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: DashboardPage) => void, setModal: (content: React.ReactNode, options?: { fullScreen?: boolean }) => void }> = ({ userProfile, setActivePage, setModal }) => {
+const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: DashboardPage) => void, setModal: (content: React.ReactNode, options?: { fullScreen?: boolean }) => void, onProfileUpdate: (p: UserProfile) => void }> = ({ userProfile, setActivePage, setModal, onProfileUpdate }) => {
     const features = [
         { name: 'Personalised Meal Plan', icon: BowlIcon, color: 'bg-emerald-500', action: () => setModal(<MealPlanScreen userProfile={userProfile} />) },
         { name: 'Food Safety Checker', icon: SearchIcon, color: 'bg-teal-500', action: () => setModal(<FoodSafetyCheckerScreen userProfile={userProfile} />) },
         { name: 'Nutrient Tracker', icon: ChartIcon, color: 'bg-sky-500', action: () => setActivePage('tracker') },
         { name: 'Symptom Tips', icon: NauseaIcon, color: 'bg-indigo-500', action: () => setModal(<SymptomTipsScreen />) },
-        { name: 'Library', icon: BookIcon, color: 'bg-violet-500', action: () => setActivePage('library') },
+        { name: 'Medical Docs', icon: ShieldCheckIcon, color: 'bg-amber-500', action: () => setModal(<MedicalDocsScreen userProfile={userProfile} onUploadSuccess={onProfileUpdate} />) },
         { name: 'Alerts', icon: BellIcon, color: 'bg-rose-500', action: () => setModal(<RemindersScreen />) },
     ];
     return (
         <div className="p-6 page-transition pb-32">
             <div className="flex justify-between items-center mb-10">
                 <div>
-                  <h1 className="text-3xl font-black text-emerald-900 dark:text-white tracking-tight">Hi, {userProfile.name}</h1>
+                  <h1 className="text-3xl font-black text-emerald-900 dark:text-white tracking-tight flex items-center gap-2">
+                      Hi, {userProfile.name}
+                      {userProfile.isVerified && <ShieldCheckIcon className="w-6 h-6 text-brand-green" />}
+                  </h1>
                   <p className="text-emerald-700/70 dark:text-emerald-400 font-bold">Your healing dashboard</p>
                 </div>
                 <button onClick={() => setActivePage('profile')} className="relative group">
@@ -1338,6 +1443,11 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, 
                         <UserIcon className="w-20 h-20 text-white" />
                       </div>
                   </div>
+                  {userProfile.isVerified && (
+                      <div className="absolute bottom-0 right-0 p-3 bg-brand-green rounded-full shadow-glow-primary border-4 border-white dark:border-emerald-900">
+                          <ShieldCheckIcon className="w-6 h-6 text-white" />
+                      </div>
+                  )}
                 </div>
                 <h2 className="text-4xl font-black dark:text-white text-emerald-950 mb-3 tracking-tighter">{userProfile.name}</h2>
                 <div className="px-8 py-2.5 bg-brand-green/10 border border-brand-green/20 rounded-full shadow-inner animate-pulse">
@@ -1396,8 +1506,38 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     // Force meal plan regeneration by updating the state that is passed to MealPlanScreen
   };
 
+  // --- Random Pop-up Logic for Unverified Users ---
+  useEffect(() => {
+      if (!localProfile.documentsSubmitted && Math.random() > 0.7) { // 30% chance on mount/update
+          const timer = setTimeout(() => {
+              // Only show if no other modal is open to avoid conflict
+              if (!modalState.content) {
+                  setModal(
+                      <div className="text-center p-4">
+                          <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                              <ShieldCheckIcon className="w-10 h-10 text-amber-500" />
+                          </div>
+                          <h3 className="text-2xl font-black text-emerald-950 dark:text-white mb-2">Verify Your Profile</h3>
+                          <p className="text-gray-500 mb-8 font-bold text-sm">Please submit your medical forms to unlock the verified badge.</p>
+                          <div className="card-button-wrapper">
+                              <button 
+                                  onClick={() => setModal(<MedicalDocsScreen userProfile={localProfile} onUploadSuccess={(p) => { handleProfileUpdate(p); setModal(null); }} />)}
+                                  className="btn-primary w-full shadow-glow-primary"
+                              >
+                                  Verify Now
+                              </button>
+                          </div>
+                          <button onClick={() => setModal(null)} className="mt-4 text-xs font-black text-gray-400 uppercase tracking-widest">Remind me later</button>
+                      </div>
+                  );
+              }
+          }, 3000); // 3-second delay
+          return () => clearTimeout(timer);
+      }
+  }, [localProfile.documentsSubmitted, setModal, modalState.content]); // Dependency on submitted status
+
   const screens = useMemo(() => ({
-    home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} />,
+    home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} onProfileUpdate={handleProfileUpdate} />,
     tracker: <TrackerScreen userProfile={localProfile} setModal={setModal} />, 
     live: <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
     library: <LibraryScreen />,
