@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, NutrientInfo, SymptomType, RecommendedFood, JournalEntry, LoggedMeal, DoctorProfile, ChatMessage, CancerType, CancerStage, TreatmentStage, OtherCondition } from '../types';
-import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon } from './Icons';
+import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, CarbsIcon, BalancedIcon, BowlIcon, PlusIcon, NauseaIcon, MouthSoreIcon, BellIcon, ChatBubbleIcon, VideoCallIcon, ShareIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon, DownloadIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips, getDoctorChatResponse } from '../services/geminiService';
 import { db, auth } from '../services/db';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
@@ -484,30 +484,78 @@ const SymptomTipsScreen: React.FC = () => {
 };
 
 const RemindersScreen: React.FC = () => {
-    const reminders = [
-        { title: 'Hydration', time: 'Every 2 hours', icon: BowlIcon, color: 'text-sky-500' },
-        { title: 'Vitamin Check', time: '9:00 AM', icon: BellIcon, color: 'text-rose-500' },
-        { title: 'Evening Walk', time: '5:30 PM', icon: HomeIcon, color: 'text-emerald-500' },
+    // State to manage reminders
+    const [activeReminders, setActiveReminders] = useState([
+        { id: 1, title: 'Hydration', time: 'Every 2 hours', icon: BowlIcon, color: 'text-sky-500', type: 'water' },
+        { id: 2, title: 'Vitamin Check', time: '9:00 AM', icon: BellIcon, color: 'text-rose-500', type: 'meds' },
+        { id: 3, title: 'Evening Walk', time: '5:30 PM', icon: HomeIcon, color: 'text-emerald-500', type: 'walk' },
+    ]);
+
+    const suggestions = [
+        { title: 'Drink Water', time: 'Hourly', icon: BowlIcon, color: 'text-sky-500', type: 'water' },
+        { title: 'Take Meds', time: '8:00 AM', icon: BellIcon, color: 'text-rose-500', type: 'meds' },
+        { title: 'Short Walk', time: '6:00 PM', icon: HomeIcon, color: 'text-emerald-500', type: 'walk' },
+        { title: 'Lunch Time', time: '1:00 PM', icon: BowlIcon, color: 'text-amber-500', type: 'food' },
     ];
+
+    const addReminder = (suggestion: any) => {
+        // Logic to add to activeReminders with a unique ID
+        setActiveReminders([...activeReminders, { ...suggestion, id: Date.now() }]);
+    };
+
+    const removeReminder = (id: number) => {
+        setActiveReminders(activeReminders.filter(r => r.id !== id));
+    };
+
     return (
         <div className="p-4 pb-16">
             <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">My Alerts</h2>
-            <p className="text-gray-500 mb-10 font-medium">Staying on schedule.</p>
-            <div className="space-y-5">
-                {reminders.map((rem, i) => (
-                    <div key={i} className="glass-panel p-6 rounded-[2.5rem] flex items-center gap-6 shadow-xl border-l-4 border-brand-green">
-                        <div className={`p-4 bg-white dark:bg-emerald-900/30 rounded-2xl shadow-inner ${rem.color}`}>
-                            <rem.icon className="w-7 h-7" />
+            <p className="text-gray-500 mb-8 font-medium">Staying on schedule.</p>
+            
+            {/* Active Reminders List */}
+            <div className="space-y-4 mb-10">
+                {activeReminders.map((rem) => (
+                    <div key={rem.id} className="glass-panel p-5 rounded-[2rem] flex items-center justify-between gap-4 shadow-lg border-l-4 border-brand-green animate-fade-in">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 bg-white dark:bg-emerald-900/30 rounded-2xl shadow-inner ${rem.color}`}>
+                                <rem.icon className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <p className="font-black text-base text-emerald-950 dark:text-white">{rem.title}</p>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{rem.time}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="font-black text-lg text-emerald-950 dark:text-white">{rem.title}</p>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{rem.time}</p>
-                        </div>
+                        <button onClick={() => removeReminder(rem.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                ))}
+                {activeReminders.length === 0 && (
+                    <div className="text-center py-8 opacity-40">
+                        <p className="font-black italic">No active alerts.</p>
+                    </div>
+                )}
+            </div>
+
+            <h3 className="text-xs font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest mb-4 px-2">Quick Add Reminders</h3>
+            <div className="grid grid-cols-2 gap-4">
+                {suggestions.map((sug, i) => (
+                    <div key={i} className="card-button-wrapper">
+                        <button onClick={() => addReminder(sug)} className="w-full p-4 flex flex-col items-center gap-2 active:scale-95 transition-all">
+                            <div className={`p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl ${sug.color}`}>
+                                <sug.icon className="w-6 h-6" />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-tighter text-emerald-900 dark:text-white">{sug.title}</span>
+                            <div className="bg-brand-green text-white rounded-full p-1 shadow-lg mt-1">
+                                <PlusIcon className="w-4 h-4" />
+                            </div>
+                        </button>
                     </div>
                 ))}
             </div>
-            <div className="card-button-wrapper mt-10">
-              <button className="btn-primary w-full shadow-glow-primary">Add Reminder</button>
+            
+            <div className="card-button-wrapper mt-8">
+              <button className="btn-primary w-full shadow-glow-primary">Create Custom Alert</button>
             </div>
         </div>
     );
@@ -853,6 +901,12 @@ const LibraryScreen: React.FC = () => {
         { title: 'Top Local Superfoods Guide', category: 'Diet', readTime: '7 min', icon: ProteinIcon, color: 'text-amber-500' },
         { title: 'Mindful Eating Strategies', category: 'Mindset', readTime: '6 min', icon: UserIcon, color: 'text-violet-500' },
     ];
+
+    const handleDownload = (title: string) => {
+        // Simulated download functionality
+        alert(`Downloading resource: ${title}`);
+    };
+
     return (
         <div className="p-6 pb-40 animate-fade-in">
             <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">Resources</h2>
@@ -860,8 +914,8 @@ const LibraryScreen: React.FC = () => {
             <div className="space-y-6">
                 {resources.map((res, i) => (
                     <div key={i} className="card-button-wrapper">
-                      <button className="w-full p-6 flex justify-between items-center group text-left">
-                          <div className="flex gap-5 items-center">
+                      <div className="w-full p-6 flex justify-between items-center group text-left">
+                          <div className="flex gap-5 items-center flex-grow">
                             <div className={`p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-[1.5rem] ${res.color} group-hover:rotate-12 transition-transform shadow-inner`}>
                               <res.icon className="w-8 h-8" />
                             </div>
@@ -871,8 +925,10 @@ const LibraryScreen: React.FC = () => {
                                 <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">{res.readTime} reading time</p>
                             </div>
                           </div>
-                          <ChevronLeftIcon className="w-6 h-6 rotate-180 text-gray-300 group-hover:text-brand-green transition-all group-hover:translate-x-1" />
-                      </button>
+                          <button onClick={() => handleDownload(res.title)} className="p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-full text-brand-green hover:bg-brand-green hover:text-white transition-all shadow-md active:scale-90 ml-2">
+                            <DownloadIcon className="w-5 h-5" />
+                          </button>
+                      </div>
                     </div>
                 ))}
             </div>
@@ -1134,9 +1190,9 @@ const LiveScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => v
 
 const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: DashboardPage) => void, setModal: (content: React.ReactNode, options?: { fullScreen?: boolean }) => void }> = ({ userProfile, setActivePage, setModal }) => {
     const features = [
-        { name: 'Meal Plan', icon: BowlIcon, color: 'bg-emerald-500', action: () => setModal(<MealPlanScreen userProfile={userProfile} />) },
-        { name: 'Food Guard', icon: SearchIcon, color: 'bg-teal-500', action: () => setModal(<FoodSafetyCheckerScreen userProfile={userProfile} />) },
-        { name: 'Tracker', icon: ChartIcon, color: 'bg-sky-500', action: () => setActivePage('tracker') },
+        { name: 'Personalised Meal Plan', icon: BowlIcon, color: 'bg-emerald-500', action: () => setModal(<MealPlanScreen userProfile={userProfile} />) },
+        { name: 'Food Safety Checker', icon: SearchIcon, color: 'bg-teal-500', action: () => setModal(<FoodSafetyCheckerScreen userProfile={userProfile} />) },
+        { name: 'Nutrient Tracker', icon: ChartIcon, color: 'bg-sky-500', action: () => setActivePage('tracker') },
         { name: 'Symptom Tips', icon: NauseaIcon, color: 'bg-indigo-500', action: () => setModal(<SymptomTipsScreen />) },
         { name: 'Library', icon: BookIcon, color: 'bg-violet-500', action: () => setActivePage('library') },
         { name: 'Alerts', icon: BellIcon, color: 'bg-rose-500', action: () => setModal(<RemindersScreen />) },
