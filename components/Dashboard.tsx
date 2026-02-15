@@ -640,6 +640,8 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
     const [food, setFood] = useState('');
     const [result, setResult] = useState<FoodSafetyResult | null>(null);
     const [loading, setLoading] = useState(false);
+    const [showIntro, setShowIntro] = useState(true);
+
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!food.trim()) return;
@@ -649,7 +651,24 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
         setLoading(false);
     };
     return (
-        <div className="p-4 pb-20 page-transition">
+        <div className="p-4 pb-20 page-transition relative min-h-[500px]">
+            {showIntro && (
+                <div className="absolute inset-0 z-20 bg-white/95 dark:bg-emerald-950/95 backdrop-blur-md rounded-[2.5rem] flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+                    <div className="w-24 h-24 bg-brand-green/10 rounded-full flex items-center justify-center mb-6 shadow-glow-primary">
+                        <SearchIcon className="w-12 h-12 text-brand-green" />
+                    </div>
+                    <h3 className="text-2xl font-black text-emerald-950 dark:text-white mb-3">Food Safety Checker</h3>
+                    <p className="text-gray-500 dark:text-emerald-100/70 font-bold text-sm mb-8 leading-relaxed">
+                        Unsure about a meal? Type in any food name to instantly see if it's safe for your 
+                        <span className="text-brand-green"> {userProfile.cancerType}</span> recovery journey.
+                    </p>
+                    <div className="card-button-wrapper w-full">
+                        <button onClick={() => setShowIntro(false)} className="btn-primary w-full shadow-glow-primary">
+                            Got it, let's check!
+                        </button>
+                    </div>
+                </div>
+            )}
             <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">Food Scanner</h2>
             <p className="text-gray-500 mb-10 font-medium">Safe nutrition, better health.</p>
             <form onSubmit={handleSearch} className="relative mb-12">
