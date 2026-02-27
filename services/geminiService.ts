@@ -132,7 +132,7 @@ export const checkFoodSafety = async (foodName: string, userProfile: UserProfile
         }
     });
 
-    const jsonString = response.text.trim();
+    const jsonString = response.text?.trim() || "{}";
     const result = JSON.parse(jsonString);
     
     if (Object.values(FoodSafetyStatus).includes(result.status) && result.reason) {
@@ -257,7 +257,7 @@ export const swapMeal = async (userProfile: UserProfile, mealToSwap: Meal, day: 
                 responseMimeType: 'application/json',
             }
         });
-        const jsonString = response.text.trim();
+        const jsonString = response.text?.trim() || "{}";
         const newMealData = JSON.parse(jsonString);
         if (newMealData.name && newMealData.description && newMealData.category) {
             return {

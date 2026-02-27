@@ -721,6 +721,14 @@ const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () 
                 <div className="mb-8 p-5 bg-emerald-50 dark:bg-emerald-900/30 rounded-[2rem] border-l-4 border-brand-green shadow-inner">
                     <p className="text-xs text-emerald-900 dark:text-emerald-100 italic font-medium leading-relaxed">“{meal.reason}”</p>
                 </div>
+                {meal.recipe && (
+                    <div className="mb-8 p-5 bg-white dark:bg-emerald-900/20 rounded-[2rem] border border-emerald-500/20 shadow-sm">
+                        <h4 className="text-sm font-black text-emerald-950 dark:text-white mb-3 flex items-center gap-2">
+                            <BookIcon className="w-4 h-4 text-brand-green" /> Recipe
+                        </h4>
+                        <p className="text-xs text-gray-600 dark:text-emerald-100/70 leading-relaxed whitespace-pre-line">{meal.recipe}</p>
+                    </div>
+                )}
                 <div className="card-button-wrapper">
                   <button onClick={onSwap} disabled={isSwapping} className="btn-primary w-full !text-base shadow-glow-primary">Swap for something else</button>
                 </div>
@@ -734,6 +742,21 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
     const [result, setResult] = useState<FoodSafetyResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [showIntro, setShowIntro] = useState(true);
+
+    const slideshowImages = [
+        "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&q=80",
+        "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&q=80",
+        "https://images.unsplash.com/photo-1547592180-85f173990554?w=800&q=80"
+    ];
+    
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentImageIndex((prev) => (prev + 1) % slideshowImages.length);
+        }, 5000); // Change image every 5 seconds
+        return () => clearInterval(interval);
+    }, []);
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -762,8 +785,21 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
                     </div>
                 </div>
             )}
-            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">Food Scanner</h2>
-            <p className="text-gray-500 mb-10 font-medium">Safe nutrition, better health.</p>
+            <div className="relative rounded-[2.5rem] mb-10 h-48 overflow-hidden shadow-2xl group border-4 border-white/20 animate-fade-in-up">
+                {slideshowImages.map((src, index) => (
+                    <img 
+                        key={src}
+                        src={src} 
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'}`} 
+                        alt="Healthy food"
+                    />
+                ))}
+                <div className="absolute inset-0 bg-gradient-to-t from-emerald-950 via-emerald-950/20 to-transparent"></div>
+                <div className="absolute bottom-6 left-6 right-6">
+                    <h2 className="text-2xl font-black text-white drop-shadow-2xl tracking-tighter">Food Scanner</h2>
+                    <p className="text-emerald-100/80 font-medium text-sm">Safe nutrition, better health.</p>
+                </div>
+            </div>
             <form onSubmit={handleSearch} className="relative mb-12">
                 <input type="text" value={food} onChange={(e) => setFood(e.target.value)} placeholder="Type meal name..." className="w-full pl-8 pr-20 py-6 glass-panel rounded-[2.5rem] text-lg font-black outline-none focus:ring-4 focus:ring-brand-green/20 transition-all shadow-inner border-2 border-white/50" />
                 <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 bg-brand-green p-4 rounded-full text-white shadow-glow-primary active:scale-90 transition-all">
