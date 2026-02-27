@@ -91,7 +91,6 @@ const App: React.FC = () => {
                 name: 'Guest',
                 age: 30,
                 email: '',
-                gender: 'Prefer not to say',
                 height: 165,
                 weight: 60,
                 cancerType: CancerType.CERVICAL,

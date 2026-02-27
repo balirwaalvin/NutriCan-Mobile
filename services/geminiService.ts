@@ -192,6 +192,7 @@ export const generateMealPlan = async (userProfile: UserProfile): Promise<Weekly
       2. "description"
       3. "reason" (Explain precisely why this meal is recommended based on their BMI of ${bmiValue} and condition. Max 2 sentences.)
       4. "category" (Must be "Protein", "Carbs", "Balanced", or "Veggies").
+      5. "recipe" (A short, step-by-step healthy recipe for preparing this meal).
       
       Respond in a single JSON object with a single key "weekPlan". The value should be an array of 7 day-objects.
       Each day-object should have a "day" (e.g., "Monday") and keys for "breakfast", "lunch", and "dinner".
@@ -244,9 +245,9 @@ export const swapMeal = async (userProfile: UserProfile, mealToSwap: Meal, day: 
         Matoke, Rice, Posho, Sweet Potatoes, Cassava, Yams, Kalo, Pumpkin, Beans, Peas, G-nut sauce, Fish, Chicken, Beef, Goat, Eggs, Greens, Cabbage, Avocado.
         
         The new meal MUST NOT be sugary, a pastry, or deep-fried. It should be low-fat.
-        Provide a "name", "description", "reason" (Why is this specific swap good for their BMI and conditions?), and "category" ("Protein", "Carbs", "Balanced", or "Veggies").
+        Provide a "name", "description", "reason" (Why is this specific swap good for their BMI and conditions?), "category" ("Protein", "Carbs", "Balanced", or "Veggies"), and "recipe" (A short, step-by-step healthy recipe).
         Respond in a single JSON object.
-        Example: {"name": "Boiled Chicken and Yams", "description": "Simple, clean protein and complex carbs.", "reason": "High protein aids tissue repair while yams offer digestible energy suitable for their weight goals.", "category": "Protein"}
+        Example: {"name": "Boiled Chicken and Yams", "description": "Simple, clean protein and complex carbs.", "reason": "High protein aids tissue repair while yams offer digestible energy suitable for their weight goals.", "category": "Protein", "recipe": "1. Boil chicken with herbs. 2. Boil yams until soft. 3. Serve together."}
     `;
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({

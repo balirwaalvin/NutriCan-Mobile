@@ -432,18 +432,10 @@ const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfi
                     <input name="name" type="text" value={formData.name} onChange={handleChange} className={inputClass} />
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                     <div>
                         <label className={labelClass}>Age</label>
                         <input name="age" type="number" value={formData.age} onChange={handleChange} className={inputClass} />
-                    </div>
-                    <div>
-                        <label className={labelClass}>Gender</label>
-                        <select name="gender" value={formData.gender} onChange={handleChange} className={inputClass}>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Other">Other</option>
-                        </select>
                     </div>
                 </div>
 
@@ -1371,6 +1363,23 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
         { name: 'Medical Docs', icon: ShieldCheckIcon, color: 'bg-amber-500', action: () => setModal(<MedicalDocsScreen userProfile={userProfile} onUploadSuccess={onProfileUpdate} />) },
         { name: 'Alerts', icon: BellIcon, color: 'bg-rose-500', action: () => setModal(<RemindersScreen />) },
     ];
+
+    const slideshowImages = [
+        "https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FVegetable%20loop%2Fvegetable1.png?alt=media&token=ad8be5e6-c143-4ea9-9029-1421423b37d9",
+        "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&q=80",
+        "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&q=80",
+        "https://images.unsplash.com/photo-1547592180-85f173990554?w=800&q=80"
+    ];
+    
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentImageIndex((prev) => (prev + 1) % slideshowImages.length);
+        }, 5000); // Change image every 5 seconds
+        return () => clearInterval(interval);
+    }, []);
+
     return (
         <div className="p-6 page-transition pb-32">
             <div className="flex justify-between items-center mb-10">
@@ -1390,7 +1399,14 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
             </div>
 
             <div className="relative rounded-[2.5rem] mb-12 h-60 overflow-hidden shadow-2xl group border-4 border-white/20 animate-fade-in-up">
-                <img src="https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FVegetable%20loop%2Fvegetable1.png?alt=media&token=ad8be5e6-c143-4ea9-9029-1421423b37d9" className="w-full h-full object-cover animate-pulse-soft" />
+                {slideshowImages.map((src, index) => (
+                    <img 
+                        key={src}
+                        src={src} 
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'}`} 
+                        alt="Healthy food"
+                    />
+                ))}
                 <div className="absolute inset-0 bg-gradient-to-t from-emerald-950 via-emerald-950/20 to-transparent"></div>
                 <div className="absolute bottom-8 left-8 right-8">
                     <div className="flex items-center gap-2 mb-3">

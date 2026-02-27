@@ -33,7 +33,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onGetStarted }) => {
         </p>
         
         <p className="text-gray-500 dark:text-white/40 mt-6 sm:mt-8 max-w-xs animate-fade-in-up text-sm font-bold leading-relaxed" style={{ animationDelay: '0.8s' }}>
-          Personalized recovery nutrition guided by advanced AI intelligence.
+          Personalised Recovery Nutrition Guided By Advanced AI
         </p>
       </div>
 

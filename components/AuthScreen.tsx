@@ -27,7 +27,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
 
   const [formData, setFormData] = useState({
     name: '', age: '', height: '', weight: '', email: '', password: '',
-    gender: 'Female' as 'Male' | 'Female' | 'Other' | 'Prefer not to say', 
     cancerType: CancerType.CERVICAL,
     otherConditions: [] as string[], conditionDetails: {} as Record<string, string>,
     cancerStage: CancerStage.EARLY, treatmentStages: [] as TreatmentStage[],
@@ -78,7 +77,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
     try {
         const profile: UserProfile = {
             name: formData.name, age: parseInt(formData.age, 10), height: parseInt(formData.height, 10),
-            weight: parseInt(formData.weight, 10), email: formData.email, gender: formData.gender,
+            weight: parseInt(formData.weight, 10), email: formData.email,
             cancerType: formData.cancerType, cancerStage: formData.cancerStage,
             otherConditions: formData.otherConditions.map(c => formData.conditionDetails[c] ? `${c} (${formData.conditionDetails[c]})` : c),
             treatmentStages: formData.treatmentStages, plan: 'Free',
@@ -102,13 +101,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
       <h1 className="text-3xl font-black text-emerald-900 text-center dark:text-white tracking-tight mb-6">Personal Details</h1>
       <input type="text" name="name" placeholder="Nickname" value={formData.name} onChange={handleChange} className={inputClasses} required />
       
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <input type="number" name="age" placeholder="Age" value={formData.age} onChange={handleChange} className={inputClasses} required />
-        <select name="gender" value={formData.gender} onChange={handleChange} className={inputClasses} required>
-            <option value="Female">Female</option>
-            <option value="Male">Male</option>
-            <option value="Other">Other</option>
-        </select>
       </div>
 
       <div className="flex gap-4">

@@ -29,7 +29,6 @@ export interface UserProfile {
   name: string;
   age: number;
   email: string;
-  gender: 'Male' | 'Female' | 'Other' | 'Prefer not to say';
   height: number; // in cm
   weight: number; // in kg
   cancerType: CancerType;
@@ -49,6 +48,7 @@ export interface Meal {
   reason: string; // Explanation for recommendation
   photoUrl: string;
   category: MealCategory;
+  recipe?: string;
 }
 
 export interface DailyMealPlan {
