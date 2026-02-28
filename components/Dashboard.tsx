@@ -4,7 +4,7 @@ import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafet
 import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, BowlIcon, PlusIcon, NauseaIcon, BellIcon, VideoCallIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon, DownloadIcon, ShieldCheckIcon, FileTextIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips } from '../services/geminiService';
 import { db } from '../services/db';
-import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, CartesianGrid } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { GoogleGenAI, Modality, LiveServerMessage, Blob } from "@google/genai";
 
@@ -890,6 +890,15 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
         return todaysLog.reduce((acc, curr) => acc + curr.nutrients.calories, 0);
     }, [loggedMeals]);
 
+    const todaysNutrients = useMemo(() => {
+        const todayStr = new Date().toLocaleDateString();
+        const todaysLog = loggedMeals.filter(m => new Date(m.timestamp).toLocaleDateString() === todayStr);
+        return todaysLog.reduce((acc, curr) => ({
+            sugar: acc.sugar + curr.nutrients.sugar,
+            salt: acc.salt + curr.nutrients.salt
+        }), { sugar: 0, salt: 0 });
+    }, [loggedMeals]);
+
     const openLogMeal = () => {
         setModal(<LogMealForm onComplete={() => { setModal(null); fetchData(); }} />);
     };
@@ -912,13 +921,44 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
             <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Nutrient Tracker</h2>
             
             {/* Today's Summary Card */}
-            <div className="glass-panel p-6 rounded-[2.5rem] mb-10 flex items-center justify-between border-l-8 border-brand-green shadow-xl">
-                <div>
-                    <p className="text-xs font-black uppercase text-gray-400 tracking-widest mb-1">Today's Intake</p>
-                    <p className="text-4xl font-black text-emerald-950 dark:text-white">{todaysCalories} <span className="text-lg font-bold text-brand-green">kcal</span></p>
+            <div className="glass-panel p-6 rounded-[2.5rem] mb-10 border-l-8 border-brand-green shadow-xl">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <p className="text-xs font-black uppercase text-gray-400 tracking-widest mb-1">Today's Intake</p>
+                        <p className="text-4xl font-black text-emerald-950 dark:text-white">{todaysCalories} <span className="text-lg font-bold text-brand-green">kcal</span></p>
+                    </div>
+                    <div className="p-4 bg-brand-green/10 rounded-full">
+                        <ChartIcon className="w-8 h-8 text-brand-green" />
+                    </div>
                 </div>
-                <div className="p-4 bg-brand-green/10 rounded-full">
-                    <ChartIcon className="w-8 h-8 text-brand-green" />
+                
+                <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-emerald-500/10">
+                    <div className="flex items-center gap-4">
+                        <div className="relative w-12 h-12 flex items-center justify-center">
+                            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                <path className="text-emerald-100 dark:text-emerald-900/30" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path className="text-amber-400" strokeDasharray={`${Math.min((todaysNutrients.sugar / 50) * 100, 100)}, 100`} strokeWidth="3" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            </svg>
+                            <span className="absolute text-[10px] font-black text-emerald-950 dark:text-white">{Math.round(todaysNutrients.sugar)}g</span>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Sugar</p>
+                            <p className="text-xs font-bold text-emerald-900/60 dark:text-emerald-100/60">Target: &lt;50g</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="relative w-12 h-12 flex items-center justify-center">
+                            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                <path className="text-emerald-100 dark:text-emerald-900/30" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path className="text-sky-400" strokeDasharray={`${Math.min((todaysNutrients.salt / 5) * 100, 100)}, 100`} strokeWidth="3" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            </svg>
+                            <span className="absolute text-[10px] font-black text-emerald-950 dark:text-white">{todaysNutrients.salt.toFixed(1)}g</span>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Salt</p>
+                            <p className="text-xs font-bold text-emerald-900/60 dark:text-emerald-100/60">Target: &lt;5g</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1270,9 +1310,10 @@ const LiveScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => v
                       }
                   },
                   onmessage: async (message: LiveServerMessage) => {
-                      if (message.serverContent?.modelTurn?.parts[0]?.inlineData?.data) {
+                      const audioDataStr = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+                      if (audioDataStr) {
                           setIsModelSpeaking(true);
-                          const audioData = decodeBase64(message.serverContent.modelTurn.parts[0].inlineData.data);
+                          const audioData = decodeBase64(audioDataStr);
                           nextStartTimeRef.current = Math.max(nextStartTimeRef.current, audioContextRef.current!.currentTime);
                           const buffer = await decodeAudioData(audioData, audioContextRef.current!, 24000, 1);
                           const source = audioContextRef.current!.createBufferSource();

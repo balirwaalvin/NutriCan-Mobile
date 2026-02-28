@@ -207,7 +207,7 @@ export const generateMealPlan = async (userProfile: UserProfile): Promise<Weekly
             }
         });
         
-        const jsonString = response.text.trim();
+        const jsonString = response.text?.trim() || "{}";
         const result = JSON.parse(jsonString);
 
         if (result.weekPlan && Array.isArray(result.weekPlan) && result.weekPlan.length === 7) {
@@ -290,7 +290,7 @@ export const getNutrientInfo = async (mealName: string): Promise<NutrientInfo | 
             }
         });
 
-        const jsonString = response.text.trim();
+        const jsonString = response.text?.trim() || "{}";
         const result = JSON.parse(jsonString);
         
         if (typeof result.calories === 'number' && typeof result.sugar === 'number' && typeof result.salt === 'number') {
@@ -340,7 +340,7 @@ export const getSymptomTips = async (symptom: SymptomType): Promise<RecommendedF
             }
         });
 
-        const jsonString = response.text.trim();
+        const jsonString = response.text?.trim() || "{}";
         const result = JSON.parse(jsonString);
 
         if (result.recommendations && Array.isArray(result.recommendations)) {
