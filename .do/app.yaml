@@ -67,3 +67,16 @@ static_sites:
       - key: VITE_API_URL
         value: "${backend.PUBLIC_URL}"
         scope: BUILD_TIME
+
+ingress:
+  rules:
+    - component:
+        name: backend
+      match:
+        path:
+          prefix: /api
+    - component:
+        name: frontend
+      match:
+        path:
+          prefix: /
