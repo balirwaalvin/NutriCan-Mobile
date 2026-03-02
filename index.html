@@ -1,0 +1,200 @@
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#064E3B" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="https://firebasestorage.googleapis.com/v0/b/nutrican-studio.firebasestorage.app/o/nutri-can.png?alt=media&token=fd1179f2-de7e-46cc-869d-555695da50cb" />
+    <title>NutriCan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'brand-green': '#22C55E',
+              'brand-teal': '#14B8A6',
+              'brand-emerald': '#10B981',
+              'brand-dark': '#064E3B',
+              'brand-glow': 'rgba(34, 197, 94, 0.4)',
+              'mtn-yellow': '#FFCC00',
+              'airtel-red': '#FF0000',
+            },
+            backgroundImage: {
+              'gradient-primary': 'linear-gradient(135deg, #065f46 0%, #115e59 100%)',
+              'gradient-secondary': 'linear-gradient(135deg, #10B981 0%, #14B8A6 100%)',
+              'gradient-mesh': 'radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.3) 0, transparent 50%), radial-gradient(at 50% 0%, rgba(20, 184, 166, 0.3) 0, transparent 50%), radial-gradient(at 100% 0%, rgba(6, 78, 59, 0.3) 0, transparent 50%)',
+              'gradient-background-light': 'linear-gradient(180deg, #f0fdfa 0%, #f0fdf4 100%)',
+              'gradient-background-dark': 'radial-gradient(circle at top, #064e3b, #022c22)',
+            },
+            boxShadow: {
+              'glow-primary': '0 0 20px rgba(16, 185, 129, 0.5)',
+              'glow-large': '0 0 40px rgba(16, 185, 129, 0.3)',
+              'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+              'card-button': '0 12px 24px -8px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            },
+            keyframes: {
+              'float': {
+                '0%, 100%': { transform: 'translateY(0) scale(1)' },
+                '50%': { transform: 'translateY(-20px) scale(1.05)' },
+              },
+              'drift': {
+                '0%': { transform: 'translate(0, 0) rotate(0deg)' },
+                '50%': { transform: 'translate(100px, 100px) rotate(180deg)' },
+                '100%': { transform: 'translate(0, 0) rotate(360deg)' },
+              },
+              'pulse-soft': {
+                '0%, 100%': { opacity: '0.4', transform: 'scale(1)' },
+                '50%': { opacity: '0.8', transform: 'scale(1.1)' },
+              }
+            },
+            animation: {
+              'float': 'float 6s ease-in-out infinite',
+              'drift': 'drift 25s linear infinite',
+              'pulse-soft': 'pulse-soft 4s ease-in-out infinite',
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+      body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        overflow-x: hidden;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .bg-bubbles {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      .bubble {
+        position: absolute;
+        background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.12), rgba(16, 185, 129, 0.08));
+        border-radius: 50%;
+        filter: blur(50px);
+        animation: drift 30s linear infinite;
+      }
+
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+      }
+      .dark .glass-panel {
+        background: rgba(6, 78, 59, 0.2);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 1.5rem;
+        font-weight: 800;
+        box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+      }
+      .btn-primary:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 15px 30px -5px rgba(16, 185, 129, 0.5);
+      }
+      .btn-primary:active {
+        transform: translateY(0) scale(0.97);
+      }
+
+      .btn-secondary {
+        background: white;
+        color: #064E3B;
+        padding: 1rem 2rem;
+        border-radius: 1.5rem;
+        font-weight: 800;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        border: 1px solid rgba(16, 185, 129, 0.1);
+      }
+      .dark .btn-secondary {
+        background: rgba(255, 255, 255, 0.05);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .card-button-wrapper {
+        background: white;
+        border-radius: 2.2rem;
+        padding: 0.6rem;
+        box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.08);
+        transition: all 0.3s ease;
+      }
+      .dark .card-button-wrapper {
+        background: rgba(6, 78, 59, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.3);
+      }
+      .card-button-wrapper:active {
+        transform: scale(0.98);
+        box-shadow: 0 5px 15px -5px rgba(0, 0, 0, 0.1);
+      }
+
+      @keyframes fade-in-up {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in-up {
+        animation: fade-in-up 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+      }
+
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+
+    <script type="importmap">
+{
+  "imports": {
+    "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.25.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "firebase/app": "https://aistudiocdn.com/firebase@10.12.2/app",
+    "firebase/auth": "https://aistudiocdn.com/firebase@10.12.2/auth",
+    "firebase/database": "https://aistudiocdn.com/firebase@10.12.2/database",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
+  }
+}
+</script>
+  </head>
+  <body class="bg-gradient-background-light dark:bg-gradient-background-dark text-slate-800 dark:text-slate-200 min-h-screen">
+    <div class="bg-bubbles">
+      <div class="bubble w-[400px] h-[400px] -top-20 -left-20 animate-drift"></div>
+      <div class="bubble w-[300px] h-[300px] top-1/2 -right-10 animate-drift" style="animation-delay: -5s"></div>
+      <div class="bubble w-[350px] h-[350px] bottom-0 left-1/4 animate-drift" style="animation-delay: -12s"></div>
+      <div class="bubble w-[200px] h-[200px] top-1/4 right-1/4 animate-drift" style="animation-delay: -18s"></div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
