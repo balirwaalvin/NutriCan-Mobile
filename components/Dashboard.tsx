@@ -6,7 +6,6 @@ import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSympto
 import { db } from '../services/db';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ThemeContext } from '../contexts/ThemeContext';
-import { GoogleGenAI, Modality, LiveServerMessage, Blob } from "@google/genai";
 
 // --- Shared Props Interface ---
 interface DashboardProps {

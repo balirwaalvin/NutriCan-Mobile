@@ -9,6 +9,7 @@ const profileRoutes = require('./routes/profile');
 const journalRoutes = require('./routes/journal');
 const mealsRoutes = require('./routes/meals');
 const documentsRoutes = require('./routes/documents');
+const aiRoutes = require('./routes/ai');
 
 const app = express();
 
@@ -21,11 +22,15 @@ app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (e.g. mobile apps, curl, Postman)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS: Origin "${origin}" is not allowed.`));
+      if (!origin) return callback(null, true);
+      // In development, allow any localhost port automatically
+      if (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/.test(origin)) {
+        return callback(null, true);
       }
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error(`CORS: Origin "${origin}" is not allowed.`));
     },
     credentials: true,
   })
@@ -44,6 +49,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/journal', journalRoutes);
 app.use('/api/meals', mealsRoutes);
 app.use('/api/documents', documentsRoutes);
+app.use('/api/ai', aiRoutes);
 
 // ── Global error handler ──────────────────────────────────────────────────────
 app.use((err, _req, res, _next) => {
