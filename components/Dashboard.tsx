@@ -1466,10 +1466,18 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
     ];
 
     const slideshowImages = [
-        "https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FVegetable%20loop%2Fvegetable1.png?alt=media&token=ad8be5e6-c143-4ea9-9029-1421423b37d9",
+        // Colourful healthy food spread
+        "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80",
+        // Fresh fruit & veg prep
         "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&q=80",
+        // Vibrant salad bowl
         "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&q=80",
-        "https://images.unsplash.com/photo-1547592180-85f173990554?w=800&q=80"
+        // Hearty stew / warm meal
+        "https://images.unsplash.com/photo-1547592180-85f173990554?w=800&q=80",
+        // Healthy grain & veggie bowl
+        "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80",
+        // Grilled fish dish
+        "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=800&q=80",
     ];
     
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
