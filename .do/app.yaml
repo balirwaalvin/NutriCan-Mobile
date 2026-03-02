@@ -10,10 +10,10 @@ services:
       branch: main
       deploy_on_push: true
     build_command: npm install
-    run_command: node server.js
+    run_command: npm start
     environment_slug: node-js
     instance_count: 1
-    instance_size_slug: basic-xxs   # ~$5/month – upgrade anytime
+    instance_size_slug: basic-xxs
     http_port: 8080
     health_check:
       http_path: /health

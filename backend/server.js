@@ -60,15 +60,16 @@ app.use((err, _req, res, _next) => {
 // ── Connect DB then start server ──────────────────────────────────────────────
 const PORT = process.env.PORT || 4000;
 
-const server = app.listen(PORT, async () => {
+// Start HTTP server first so health checks always pass, then connect to DB.
+const server = app.listen(PORT, () => {
   console.log(`🚀 NutriCan API running on http://localhost:${PORT}`);
-  try {
-    await connectDB(process.env.MONGODB_URI);
-  } catch (err) {
-    console.error('❌ MongoDB connection failed:', err.message);
-    console.error('   Check that MONGODB_URI is set correctly in backend/.env');
-    process.exit(1);
-  }
+  // Connect after the server is already accepting requests.
+  // Do NOT exit on failure – Mongoose will keep retrying and the health
+  // check endpoint must stay reachable for DigitalOcean App Platform.
+  connectDB(process.env.MONGODB_URI).catch((err) => {
+    console.error('❌ MongoDB connection failed (will retry):', err.message);
+    console.error('   Make sure MONGODB_URI is set in the environment.');
+  });
 });
 
 // ── Graceful shutdown ──────────────────────────────────────────────────────────
