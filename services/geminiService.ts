@@ -102,9 +102,8 @@ const FOOD_IMAGE_MAP: { [key: string]: string } = {
     'juice': 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=800&q=80',
     'stew': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=800&q=80',
     'soup': 'https://images.unsplash.com/photo-1547592180-85f173990554?w=800&q=80',
-    // --- Extra aliases so compound AI names always hit a relevant image ---
+    // --- Extra compound aliases (longest-first sort makes these win over short keys) ---
     'nile perch': 'https://images.unsplash.com/photo-1519708227418-c8fd9a3a2b7b?w=800&q=80',
-    'silver fish': 'https://images.unsplash.com/photo-1559847844-5315695dadae?w=800&q=80',
     'g-nut sauce': 'https://images.unsplash.com/photo-1604152135912-04a022e23696?w=800&q=80',
     'groundnut sauce': 'https://images.unsplash.com/photo-1604152135912-04a022e23696?w=800&q=80',
     'groundnut stew': 'https://images.unsplash.com/photo-1604152135912-04a022e23696?w=800&q=80',
@@ -117,16 +116,14 @@ const FOOD_IMAGE_MAP: { [key: string]: string } = {
     'fruit salad': 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=800&q=80',
     'mixed fruit': 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=800&q=80',
     'passion fruit': 'https://images.unsplash.com/photo-1536617066864-41da0045f442?w=800&q=80',
-    'nile': 'https://images.unsplash.com/photo-1519708227418-c8fd9a3a2b7b?w=800&q=80',
+    'irish potato': 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=800&q=80',
     'boiled egg': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=800&q=80',
     'scrambled egg': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=800&q=80',
     'fried egg': 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=800&q=80',
     'boiled yam': 'https://images.unsplash.com/photo-1596097635121-14b63b7a0c19?w=800&q=80',
     'boiled potato': 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=800&q=80',
     'sukuma wiki': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800&q=80',
-    'garden egg': 'https://images.unsplash.com/photo-1615485925763-867862f80c6c?w=800&q=80',
-    'sweet potato': 'https://images.unsplash.com/photo-1596097635121-14b63b7a0c19?w=800&q=80',
-    'irish potato': 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=800&q=80',
+    'nile': 'https://images.unsplash.com/photo-1519708227418-c8fd9a3a2b7b?w=800&q=80',
 };
 
 const getMealPhotoUrl = (mealName: string): string => {

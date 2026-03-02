@@ -1,0 +1,77 @@
+name: nutrican
+region: nyc
+
+# ── Backend – Express API ─────────────────────────────────────────────────────
+services:
+  - name: backend
+    source_dir: backend
+    github:
+      repo: balirwaalvin/NutriCan-Mobile
+      branch: main
+      deploy_on_push: true
+    build_command: npm install
+    run_command: node server.js
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: basic-xxs   # ~$5/month – upgrade anytime
+    http_port: 8080
+    health_check:
+      http_path: /health
+    envs:
+      - key: NODE_ENV
+        value: "production"
+        scope: RUN_TIME
+      - key: PORT
+        value: "8080"
+        scope: RUN_TIME
+      # ── Secrets – fill these in the App Platform dashboard ─────────────────
+      - key: MONGODB_URI
+        scope: RUN_TIME
+        type: SECRET
+      - key: JWT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: JWT_EXPIRES_IN
+        value: "7d"
+        scope: RUN_TIME
+      # ── Groq AI ────────────────────────────────────────────────────────────
+      - key: GROQ_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      # ── DigitalOcean Spaces ────────────────────────────────────────────────
+      - key: DO_SPACES_ENDPOINT
+        value: "https://sfo3.digitaloceanspaces.com"
+        scope: RUN_TIME
+      - key: DO_SPACES_REGION
+        value: "sfo3"
+        scope: RUN_TIME
+      - key: DO_SPACES_BUCKET
+        value: "nutrican-store"
+        scope: RUN_TIME
+      - key: DO_SPACES_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: DO_SPACES_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      # ── CORS – allow the frontend static site ─────────────────────────────
+      - key: ALLOWED_ORIGINS
+        value: "${frontend.PUBLIC_URL}"
+        scope: RUN_TIME
+
+# ── Frontend – Vite / React static site ──────────────────────────────────────
+static_sites:
+  - name: frontend
+    source_dir: /
+    github:
+      repo: balirwaalvin/NutriCan-Mobile
+      branch: main
+      deploy_on_push: true
+    build_command: npm install && npm run build
+    output_dir: dist
+    index_document: index.html
+    error_document: index.html   # SPA fallback
+    envs:
+      - key: VITE_API_URL
+        value: "${backend.PUBLIC_URL}"
+        scope: BUILD_TIME
