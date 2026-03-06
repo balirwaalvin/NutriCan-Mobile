@@ -9,147 +9,196 @@ import { ThemeContext } from '../contexts/ThemeContext';
 
 // --- Shared Props Interface ---
 interface DashboardProps {
-  userProfile: UserProfile;
-  onLogout: () => void;
+    userProfile: UserProfile;
+    onLogout: () => void;
 }
 
 // --- Constants ---
 const CONDITION_LEVELS: Record<string, string[]> = {
-  [OtherCondition.DIABETES]: ['Type 1', 'Type 2', 'Prediabetes', 'Gestational'],
-  [OtherCondition.HYPERTENSION]: ['Elevated', 'Stage 1', 'Stage 2', 'Hypertensive Crisis'],
-  [OtherCondition.HYPOTENSION]: ['Mild', 'Chronic', 'Orthostatic', 'Severe'],
+    [OtherCondition.DIABETES]: ['Type 1', 'Type 2', 'Prediabetes', 'Gestational'],
+    [OtherCondition.HYPERTENSION]: ['Elevated', 'Stage 1', 'Stage 2', 'Hypertensive Crisis'],
+    [OtherCondition.HYPOTENSION]: ['Mild', 'Chronic', 'Orthostatic', 'Severe'],
 };
 
 // --- Audio Encoding/Decoding Utilities ---
 function decodeBase64(base64: string) {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
 }
 
 function encodeBase64(bytes: Uint8Array) {
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
 }
 
 async function decodeAudioData(
-  data: Uint8Array,
-  ctx: AudioContext,
-  sampleRate: number,
-  numChannels: number,
+    data: Uint8Array,
+    ctx: AudioContext,
+    sampleRate: number,
+    numChannels: number,
 ): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer);
-  const frameCount = dataInt16.length / numChannels;
-  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+    const dataInt16 = new Int16Array(data.buffer);
+    const frameCount = dataInt16.length / numChannels;
+    const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 
-  for (let channel = 0; channel < numChannels; channel++) {
-    const channelData = buffer.getChannelData(channel);
-    for (let i = 0; i < frameCount; i++) {
-      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    for (let channel = 0; channel < numChannels; channel++) {
+        const channelData = buffer.getChannelData(channel);
+        for (let i = 0; i < frameCount; i++) {
+            channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+        }
     }
-  }
-  return buffer;
+    return buffer;
 }
 
 // --- Reusable UI Components ---
 
 const Modal: React.FC<{ children: React.ReactNode; closeModal: () => void; fullScreen?: boolean }> = ({ children, closeModal, fullScreen }) => (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-4 sm:p-6 animate-fade-in" onClick={closeModal}>
-    <div className={`bg-white dark:bg-emerald-950 w-full rounded-[3rem] relative shadow-2xl animate-fade-in-up border-4 border-emerald-500/20 overflow-hidden flex flex-col ${fullScreen ? 'h-[95vh] max-w-4xl' : 'max-h-[90vh] max-w-lg'}`} onClick={e => e.stopPropagation()}>
-      <button onClick={closeModal} className="absolute top-6 right-6 p-3 glass-panel rounded-full text-emerald-900 dark:text-white hover:scale-110 transition-transform z-50 shadow-lg">
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-      </button>
-      <div className={`flex-grow overflow-y-auto ${fullScreen ? 'p-0' : 'p-8 pt-10'}`}>
-        {children}
-      </div>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-4 sm:p-6 animate-fade-in" onClick={closeModal}>
+        <div className={`bg-white dark:bg-emerald-950 w-full rounded-[3rem] relative shadow-2xl animate-fade-in-up border-4 border-emerald-500/20 overflow-hidden flex flex-col ${fullScreen ? 'h-[95vh] max-w-4xl' : 'max-h-[90vh] max-w-lg'}`} onClick={e => e.stopPropagation()}>
+            <button onClick={closeModal} className="absolute top-6 right-6 p-3 glass-panel rounded-full text-emerald-900 dark:text-white hover:scale-110 transition-transform z-50 shadow-lg">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <div className={`flex-grow overflow-y-auto ${fullScreen ? 'p-0' : 'p-8 pt-10'}`}>
+                {children}
+            </div>
+        </div>
     </div>
-  </div>
 );
 
 const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: DashboardPage) => void }> = ({ activePage, onNavigate }) => {
-  const navItems = [
-    { page: 'home' as DashboardPage, icon: HomeIcon, label: 'Home' },
-    { page: 'tracker' as DashboardPage, icon: ChartIcon, label: 'Tracker' },
-    { page: 'live' as DashboardPage, icon: BroadcastIcon, label: 'Live' },
-    { page: 'library' as DashboardPage, icon: BookIcon, label: 'Library' },
-    { page: 'profile' as DashboardPage, icon: UserIcon, label: 'Profile' },
-  ];
+    const navItems = [
+        { page: 'home' as DashboardPage, icon: HomeIcon, label: 'Home' },
+        { page: 'tracker' as DashboardPage, icon: ChartIcon, label: 'Tracker' },
+        { page: 'live' as DashboardPage, icon: BroadcastIcon, label: 'Live' },
+        { page: 'library' as DashboardPage, icon: BookIcon, label: 'Library' },
+        { page: 'profile' as DashboardPage, icon: UserIcon, label: 'Profile' },
+    ];
 
-  return (
-    <div className="fixed bottom-0 left-0 right-0 w-full sm:max-w-md md:max-w-lg mx-auto bg-white/80 backdrop-blur-2xl border-t border-white/20 flex justify-around p-3 pb-8 dark:bg-emerald-950/60 z-30 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.15)] rounded-t-[3rem]">
-      {navItems.map(item => {
-          const isActive = activePage === item.page;
-          return (
-            <button key={item.page} onClick={() => onNavigate(item.page)} className="flex flex-col items-center justify-center w-14 transition-all transform active:scale-90 group">
-              <div className={`relative p-3 rounded-[1.2rem] transition-all duration-500 ${isActive ? 'bg-brand-green shadow-glow-primary scale-110' : 'bg-transparent'}`}>
-                <item.icon className={`w-6 h-6 transition-colors duration-300 ${isActive ? 'text-white' : 'text-emerald-800/40 dark:text-emerald-300/30'}`} />
-              </div>
-              <span className={`text-[10px] mt-2 font-black transition-all duration-300 uppercase tracking-tighter ${isActive ? 'text-brand-green dark:text-brand-emerald' : 'text-gray-400 opacity-0 group-hover:opacity-100'}`}>{item.label}</span>
-            </button>
-          )
-      })}
-    </div>
-  );
+    return (
+        <div className="fixed bottom-0 left-0 right-0 w-full sm:max-w-md md:max-w-lg mx-auto bg-white/80 backdrop-blur-2xl border-t border-white/20 flex justify-around p-3 pb-8 dark:bg-emerald-950/60 z-30 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.15)] rounded-t-[3rem]">
+            {navItems.map(item => {
+                const isActive = activePage === item.page;
+                return (
+                    <button key={item.page} onClick={() => onNavigate(item.page)} className="flex flex-col items-center justify-center w-14 transition-all transform active:scale-90 group">
+                        <div className={`relative p-3 rounded-[1.2rem] transition-all duration-500 ${isActive ? 'bg-brand-green shadow-glow-primary scale-110' : 'bg-transparent'}`}>
+                            <item.icon className={`w-6 h-6 transition-colors duration-300 ${isActive ? 'text-white' : 'text-emerald-800/40 dark:text-emerald-300/30'}`} />
+                        </div>
+                        <span className={`text-[10px] mt-2 font-black transition-all duration-300 uppercase tracking-tighter ${isActive ? 'text-brand-green dark:text-brand-emerald' : 'text-gray-400 opacity-0 group-hover:opacity-100'}`}>{item.label}</span>
+                    </button>
+                )
+            })}
+        </div>
+    );
 };
 
 const EmergencyButton: React.FC<{ activePage: DashboardPage }> = ({ activePage }) => {
-  const [showModal, setShowModal] = useState(false);
-  if (activePage === 'tracker') return null;
-  return (
-    <>
-      <div className="fixed bottom-32 right-6 z-50">
-        <button onClick={() => setShowModal(true)} className="bg-gradient-to-br from-red-500 to-red-700 text-white rounded-2xl w-14 h-14 flex items-center justify-center shadow-lg shadow-red-500/30 hover:scale-110 active:scale-95 transition-all group overflow-hidden">
-            <span className="font-extrabold text-xs relative z-10">SOS</span>
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform"></div>
-        </button>
-      </div>
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-6 animate-fade-in" onClick={() => setShowModal(false)}>
-          <div className="glass-panel p-8 rounded-[3rem] shadow-2xl text-center max-w-xs w-full animate-fade-in-up" onClick={e => e.stopPropagation()}>
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+    const [showModal, setShowModal] = useState(false);
+    if (activePage === 'tracker') return null;
+    return (
+        <>
+            <div className="fixed bottom-32 right-6 z-50">
+                <button onClick={() => setShowModal(true)} className="bg-gradient-to-br from-red-500 to-red-700 text-white rounded-2xl w-14 h-14 flex items-center justify-center shadow-lg shadow-red-500/30 hover:scale-110 active:scale-95 transition-all group overflow-hidden">
+                    <span className="font-extrabold text-xs relative z-10">SOS</span>
+                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform"></div>
+                </button>
             </div>
-            <h2 className="text-2xl font-black mb-2 text-red-600 dark:text-red-400">Emergency</h2>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">Direct contact with urgent care.</p>
-            <div className="space-y-4">
-              <div className="card-button-wrapper !bg-transparent border-none p-0">
-                <button className="btn-primary w-full !bg-red-600 shadow-red-500/30 font-black">Call Hospital</button>
-              </div>
-              <div className="card-button-wrapper !bg-transparent border-none p-0">
-                <button className="btn-secondary w-full font-black">Caregiver SOS</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
+            {showModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-6 animate-fade-in" onClick={() => setShowModal(false)}>
+                    <div className="glass-panel p-8 rounded-[3rem] shadow-2xl text-center max-w-xs w-full animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        </div>
+                        <h2 className="text-2xl font-black mb-2 text-red-600 dark:text-red-400">Emergency</h2>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">Direct contact with urgent care.</p>
+                        <div className="space-y-4">
+                            <div className="card-button-wrapper !bg-transparent border-none p-0">
+                                <button className="btn-primary w-full !bg-red-600 shadow-red-500/30 font-black">Call Hospital</button>
+                            </div>
+                            <div className="card-button-wrapper !bg-transparent border-none p-0">
+                                <button className="btn-secondary w-full font-black">Caregiver SOS</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
 };
 
 // --- Modals ---
 
-const PaymentModal: React.FC<{ onPaymentSuccess: () => void; closeModal: () => void }> = ({ onPaymentSuccess, closeModal }) => {
-    const [step, setStep] = useState<'method' | 'processing' | 'success'>('method');
-    const [selectedProvider, setSelectedProvider] = useState<'MTN' | 'Airtel' | null>(null);
+// ---- Premium Paywall Banner (reusable) ----
+const PremiumGate: React.FC<{ onUpgrade: () => void; featureName: string }> = ({ onUpgrade, featureName }) => (
+    <div className="p-6 pb-40 animate-fade-in-up flex flex-col items-center justify-center min-h-[80vh] text-center">
+        <div className="relative mb-10">
+            <div className="absolute inset-0 bg-amber-400/30 blur-3xl animate-pulse-soft rounded-full"></div>
+            <div className="w-32 h-32 glass-panel rounded-[3rem] flex items-center justify-center relative border-2 border-amber-400/30 shadow-2xl">
+                <PremiumIcon className="w-16 h-16 text-amber-500" />
+            </div>
+        </div>
+        <span className="px-4 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 mb-6">
+            Premium Feature
+        </span>
+        <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-4 tracking-tighter">{featureName}</h2>
+        <p className="text-gray-500 font-bold text-sm mb-10 max-w-[260px] leading-relaxed">
+            Unlock this feature and everything else NutriCan has to offer — for just <span className="text-emerald-600 dark:text-emerald-400 font-black">15,000 UGX/month</span>.
+        </p>
+        <div className="w-full max-w-xs space-y-4 mb-8">
+            {['Live AI Nutrition Consultation', 'Full Resource Library', 'Priority Doctor Connect'].map((perk, i) => (
+                <div key={i} className="flex items-center gap-3 text-left">
+                    <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                    </div>
+                    <span className="text-sm font-bold text-emerald-950 dark:text-white">{perk}</span>
+                </div>
+            ))}
+        </div>
+        <div className="card-button-wrapper w-full max-w-xs">
+            <button onClick={onUpgrade} className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-5">
+                Upgrade to Premium
+            </button>
+        </div>
+    </div>
+);
 
-    const handlePay = (provider: 'MTN' | 'Airtel') => {
+const PaymentModal: React.FC<{ onPaymentSuccess: () => void; closeModal: () => void }> = ({ onPaymentSuccess, closeModal }) => {
+    const [step, setStep] = useState<'method' | 'phone' | 'processing' | 'success'>('method');
+    const [selectedProvider, setSelectedProvider] = useState<'MTN' | 'Airtel' | null>(null);
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [phoneError, setPhoneError] = useState('');
+
+    const handleSelectProvider = (provider: 'MTN' | 'Airtel') => {
         setSelectedProvider(provider);
+        setStep('phone');
+    };
+
+    const handleConfirmPayment = () => {
+        const digits = phoneNumber.replace(/\D/g, '');
+        if (digits.length < 9) {
+            setPhoneError('Please enter a valid Ugandan phone number.');
+            return;
+        }
+        setPhoneError('');
         setStep('processing');
-        setTimeout(() => setStep('success'), 3000);
+        setTimeout(() => setStep('success'), 3500);
     };
 
     const handleFinish = () => {
         onPaymentSuccess();
         closeModal();
     };
+
+    const providerColor = selectedProvider === 'MTN' ? 'bg-yellow-400' : 'bg-red-600';
+    const providerPrefix = selectedProvider === 'MTN' ? '077 / 078' : '075 / 070';
 
     return (
         <div className="fixed inset-0 bg-emerald-950/98 backdrop-blur-3xl z-[200] flex items-center justify-center p-6 animate-fade-in">
@@ -158,63 +207,132 @@ const PaymentModal: React.FC<{ onPaymentSuccess: () => void; closeModal: () => v
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
 
+                {/* Step 1: Choose provider */}
                 {step === 'method' && (
-                  <div className="animate-fade-in">
-                    <div className="w-20 h-20 bg-brand-green/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-glow-primary">
-                        <PremiumIcon className="w-10 h-10 text-brand-green" />
-                    </div>
-                    <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">NutriCan Pro</h2>
-                    <p className="text-gray-500 mb-8 font-bold text-sm">Upgrade for 15,000 UGX / Month</p>
-                    
-                    <div className="space-y-4 mb-8">
-                        <div className="card-button-wrapper">
-                            <button onClick={() => handlePay('MTN')} className="w-full flex items-center justify-between p-4 font-black text-emerald-950 dark:text-white group">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-mtn-yellow rounded-xl shadow-lg"></div>
-                                    <span>MTN MoMo</span>
-                                </div>
-                                <ChevronLeftIcon className="w-5 h-5 rotate-180 opacity-30 group-hover:opacity-100 transition-opacity" />
-                            </button>
+                    <div className="animate-fade-in">
+                        <div className="w-20 h-20 bg-brand-green/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-glow-primary">
+                            <PremiumIcon className="w-10 h-10 text-brand-green" />
                         </div>
-                        <div className="card-button-wrapper">
-                            <button onClick={() => handlePay('Airtel')} className="w-full flex items-center justify-between p-4 font-black text-emerald-950 dark:text-white group">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-airtel-red rounded-xl shadow-lg"></div>
-                                    <span>Airtel Money</span>
-                                </div>
-                                <ChevronLeftIcon className="w-5 h-5 rotate-180 opacity-30 group-hover:opacity-100 transition-opacity" />
-                            </button>
+                        <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-1 tracking-tighter">NutriCan Premium</h2>
+                        <p className="text-gray-500 mb-1 font-bold text-sm">15,000 UGX / Month</p>
+                        <p className="text-[10px] font-black uppercase text-brand-green tracking-widest mb-8">Mobile Money</p>
+
+                        <div className="space-y-4 mb-6">
+                            <div className="card-button-wrapper">
+                                <button onClick={() => handleSelectProvider('MTN')} className="w-full flex items-center justify-between p-4 font-black text-emerald-950 dark:text-white group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-yellow-400 rounded-xl shadow-lg flex items-center justify-center">
+                                            <span className="text-black font-black text-[10px] leading-tight text-center">MTN<br />MoMo</span>
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="font-black text-sm">MTN Mobile Money</p>
+                                            <p className="text-[10px] text-gray-400 font-bold">077 / 078 numbers</p>
+                                        </div>
+                                    </div>
+                                    <ChevronLeftIcon className="w-5 h-5 rotate-180 opacity-30 group-hover:opacity-100 transition-opacity" />
+                                </button>
+                            </div>
+                            <div className="card-button-wrapper">
+                                <button onClick={() => handleSelectProvider('Airtel')} className="w-full flex items-center justify-between p-4 font-black text-emerald-950 dark:text-white group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-red-600 rounded-xl shadow-lg flex items-center justify-center">
+                                            <span className="text-white font-black text-[10px] leading-tight text-center">Airtel<br />Money</span>
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="font-black text-sm">Airtel Money</p>
+                                            <p className="text-[10px] text-gray-400 font-bold">075 / 070 numbers</p>
+                                        </div>
+                                    </div>
+                                    <ChevronLeftIcon className="w-5 h-5 rotate-180 opacity-30 group-hover:opacity-100 transition-opacity" />
+                                </button>
+                            </div>
                         </div>
+                        <p className="text-[10px] text-gray-400 font-bold">Secured by Mobile Money Uganda</p>
                     </div>
-                  </div>
                 )}
 
+                {/* Step 2: Phone number input */}
+                {step === 'phone' && (
+                    <div className="animate-fade-in">
+                        <button onClick={() => setStep('method')} className="absolute top-8 left-8 p-2 text-emerald-800 dark:text-emerald-100 hover:scale-110 transition-transform">
+                            <ChevronLeftIcon className="w-6 h-6" />
+                        </button>
+                        <div className={`w-16 h-16 ${providerColor} rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl`}>
+                            <span className={`font-black text-[11px] leading-tight text-center ${selectedProvider === 'MTN' ? 'text-black' : 'text-white'}`}>
+                                {selectedProvider === 'MTN' ? 'MTN\nMoMo' : 'Airtel\nMoney'}
+                            </span>
+                        </div>
+                        <h2 className="text-2xl font-black text-emerald-950 dark:text-white mb-1 tracking-tighter">{selectedProvider} Mobile Money</h2>
+                        <p className="text-gray-500 mb-6 font-bold text-sm">Enter your {selectedProvider} number to pay <span className="text-emerald-600 font-black">UGX 15,000</span></p>
+
+                        <div className="mb-3 text-left">
+                            <label className="text-[10px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest block mb-2">Phone Number ({providerPrefix})</label>
+                            <div className="flex items-center glass-panel rounded-2xl border-2 border-emerald-500/20 focus-within:border-brand-green transition-colors overflow-hidden">
+                                <span className="px-4 font-black text-emerald-600 text-sm border-r border-emerald-500/20 py-5">+256</span>
+                                <input
+                                    type="tel"
+                                    value={phoneNumber}
+                                    onChange={e => { setPhoneNumber(e.target.value); setPhoneError(''); }}
+                                    placeholder="7X XXX XXXX"
+                                    maxLength={12}
+                                    className="flex-1 p-5 bg-transparent outline-none font-black text-lg text-emerald-950 dark:text-white placeholder-gray-300"
+                                />
+                            </div>
+                            {phoneError && <p className="text-red-500 text-xs font-bold mt-2">{phoneError}</p>}
+                        </div>
+
+                        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl mb-6 text-left">
+                            <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest mb-1">Payment Summary</p>
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm font-bold text-gray-600 dark:text-gray-300">NutriCan Premium (1 month)</span>
+                                <span className="font-black text-emerald-950 dark:text-white">15,000 UGX</span>
+                            </div>
+                        </div>
+
+                        <div className="card-button-wrapper">
+                            <button onClick={handleConfirmPayment} className="btn-primary w-full shadow-glow-primary uppercase tracking-widest text-xs py-5">
+                                Confirm & Pay
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Step 3: Processing */}
                 {step === 'processing' && (
-                  <div className="py-10 animate-fade-in flex flex-col items-center">
-                    <div className={`w-20 h-20 rounded-3xl mb-8 flex items-center justify-center shadow-2xl animate-pulse ${selectedProvider === 'MTN' ? 'bg-mtn-yellow' : 'bg-airtel-red'}`}>
-                        <LogoIcon className="w-12 h-12 invert brightness-0" />
+                    <div className="py-10 animate-fade-in flex flex-col items-center">
+                        <div className={`w-20 h-20 rounded-3xl mb-8 flex items-center justify-center shadow-2xl animate-pulse ${selectedProvider === 'MTN' ? 'bg-yellow-400' : 'bg-red-600'}`}>
+                            <svg className={`w-10 h-10 ${selectedProvider === 'MTN' ? 'text-black' : 'text-white'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                        </div>
+                        <p className="font-black text-xl text-emerald-950 dark:text-white mb-2">Awaiting Approval</p>
+                        <p className="text-gray-500 font-bold text-sm mb-1">Check your phone for a</p>
+                        <p className="text-gray-500 font-bold text-sm">{selectedProvider === 'MTN' ? 'MTN MoMo' : 'Airtel Money'} payment prompt</p>
+                        <p className="text-[10px] text-brand-green font-black uppercase tracking-widest mt-2">+256 {phoneNumber}</p>
+                        <div className="mt-8 flex gap-2">
+                            <div className="w-3 h-3 bg-brand-green rounded-full animate-bounce"></div>
+                            <div className="w-3 h-3 bg-brand-green rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                            <div className="w-3 h-3 bg-brand-green rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                        </div>
+                        <p className="text-[10px] text-gray-400 font-bold mt-8">Do not close this screen</p>
                     </div>
-                    <p className="font-black text-xl text-emerald-950 dark:text-white mb-2">Processing Payment</p>
-                    <p className="text-gray-500 font-bold text-sm">Please check your phone for a MoMo prompt...</p>
-                    <div className="mt-8 flex gap-2">
-                        <div className="w-3 h-3 bg-brand-green rounded-full animate-bounce"></div>
-                        <div className="w-3 h-3 bg-brand-green rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                        <div className="w-3 h-3 bg-brand-green rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                    </div>
-                  </div>
                 )}
 
+                {/* Step 4: Success */}
                 {step === 'success' && (
-                  <div className="animate-fade-in py-6">
-                    <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-glow-primary">
-                        <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
+                    <div className="animate-fade-in py-6">
+                        <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-glow-primary">
+                            <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2">Payment Confirmed!</h2>
+                        <p className="text-gray-500 mb-1 font-bold text-sm">15,000 UGX received via {selectedProvider}.</p>
+                        <p className="text-gray-500 mb-8 font-bold text-sm">Welcome to NutriCan Premium 🎉</p>
+                        <div className="p-4 bg-brand-green/10 rounded-2xl mb-8">
+                            <p className="text-[10px] font-black uppercase text-brand-green tracking-widest">Subscription Active</p>
+                            <p className="font-black text-emerald-950 dark:text-white mt-1">Valid for 30 days</p>
+                        </div>
+                        <div className="card-button-wrapper">
+                            <button onClick={handleFinish} className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-sm">Start Exploring</button>
+                        </div>
                     </div>
-                    <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2">Upgrade Success!</h2>
-                    <p className="text-gray-500 mb-10 font-bold">Welcome to NutriCan Premium.</p>
-                    <div className="card-button-wrapper">
-                        <button onClick={handleFinish} className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-sm">Continue</button>
-                    </div>
-                  </div>
                 )}
             </div>
         </div>
@@ -286,10 +404,10 @@ const MedicalDocsScreen: React.FC<{ userProfile: UserProfile, onUploadSuccess: (
             ) : (
                 <div className="animate-fade-in">
                     <div className="border-4 border-dashed border-emerald-500/20 rounded-[2.5rem] p-8 text-center mb-8 relative hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-colors">
-                        <input 
-                            type="file" 
-                            accept=".pdf" 
-                            onChange={handleFileChange} 
+                        <input
+                            type="file"
+                            accept=".pdf"
+                            onChange={handleFileChange}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                         />
                         <div className="flex flex-col items-center">
@@ -310,9 +428,9 @@ const MedicalDocsScreen: React.FC<{ userProfile: UserProfile, onUploadSuccess: (
                     )}
 
                     <div className="card-button-wrapper">
-                        <button 
-                            onClick={handleUpload} 
-                            disabled={!file || uploading} 
+                        <button
+                            onClick={handleUpload}
+                            disabled={!file || uploading}
                             className={`btn-primary w-full shadow-glow-primary ${!file || uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             {uploading ? 'Securely Uploading...' : 'Submit Documents'}
@@ -327,15 +445,15 @@ const MedicalDocsScreen: React.FC<{ userProfile: UserProfile, onUploadSuccess: (
 const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfile) => void; onCancel: () => void }> = ({ user, onSave, onCancel }) => {
     const [formData, setFormData] = useState<UserProfile>(user);
     const [isLoading, setIsLoading] = useState(false);
-    
+
     // State for local condition handling (parsed from user profile)
-    const [conditionsState, setConditionsState] = useState<{selected: string[], details: Record<string, string>}>({ selected: [], details: {} });
+    const [conditionsState, setConditionsState] = useState<{ selected: string[], details: Record<string, string> }>({ selected: [], details: {} });
 
     // Initialize conditions state from the user profile string[]
     useEffect(() => {
         const selected: string[] = [];
         const details: Record<string, string> = {};
-        
+
         user.otherConditions.forEach(c => {
             // Check if string contains detail like "Diabetes (Type 1)"
             const match = c.match(/^(.+) \((.+)\)$/);
@@ -355,7 +473,7 @@ const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfi
 
     // Update formData whenever conditionsState changes
     useEffect(() => {
-        const formattedConditions = conditionsState.selected.map(c => 
+        const formattedConditions = conditionsState.selected.map(c =>
             conditionsState.details[c] ? `${c} (${conditionsState.details[c]})` : c
         );
         setFormData(prev => ({ ...prev, otherConditions: formattedConditions }));
@@ -377,19 +495,19 @@ const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfi
             return { ...prev, treatmentStages: stages };
         });
     };
-    
+
     const handleConditionChange = (condition: string) => {
         setConditionsState(prev => {
             const isSelected = prev.selected.includes(condition);
             let newSelected = isSelected ? prev.selected.filter(c => c !== condition) : [...prev.selected, condition];
             let newDetails = { ...prev.details };
-            
+
             if (!isSelected && CONDITION_LEVELS[condition]) {
                 newDetails[condition] = CONDITION_LEVELS[condition][0];
             } else if (isSelected) {
                 delete newDetails[condition];
             }
-            
+
             return { selected: newSelected, details: newDetails };
         });
     };
@@ -422,15 +540,15 @@ const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfi
 
     return (
         <div className="pb-4">
-             <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter text-center">Account Settings</h2>
-             <p className="text-gray-500 mb-8 font-medium text-center text-sm">Update your biometrics for better AI plans.</p>
-             
-             <form onSubmit={handleSubmit} className="space-y-6">
+            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter text-center">Account Settings</h2>
+            <p className="text-gray-500 mb-8 font-medium text-center text-sm">Update your biometrics for better AI plans.</p>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                     <label className={labelClass}>Full Name</label>
                     <input name="name" type="text" value={formData.name} onChange={handleChange} className={inputClass} />
                 </div>
-                
+
                 <div className="grid grid-cols-1 gap-4">
                     <div>
                         <label className={labelClass}>Age</label>
@@ -467,8 +585,8 @@ const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfi
                     <label className={labelClass}>Other Conditions</label>
                     <div className="space-y-3">
                         {Object.values(OtherCondition).map(condition => {
-                             const isChecked = conditionsState.selected.includes(condition);
-                             return (
+                            const isChecked = conditionsState.selected.includes(condition);
+                            return (
                                 <div key={condition} className={`p-4 rounded-2xl border-2 transition-all ${isChecked ? 'border-brand-green bg-brand-green/10' : 'border-emerald-500/10 bg-white/50 dark:bg-emerald-900/20'}`}>
                                     <div className="flex items-center justify-between cursor-pointer" onClick={() => handleConditionChange(condition)}>
                                         <span className="font-bold text-sm text-emerald-950 dark:text-white">{condition}</span>
@@ -478,8 +596,8 @@ const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfi
                                     </div>
                                     {isChecked && CONDITION_LEVELS[condition] && (
                                         <div className="mt-3 pl-4 animate-fade-in">
-                                            <select 
-                                                value={conditionsState.details[condition] || CONDITION_LEVELS[condition][0]} 
+                                            <select
+                                                value={conditionsState.details[condition] || CONDITION_LEVELS[condition][0]}
                                                 onChange={(e) => handleDetailChange(condition, e.target.value)}
                                                 onClick={(e) => e.stopPropagation()}
                                                 className="w-full p-2 bg-white/50 dark:bg-black/20 rounded-xl text-xs font-bold outline-none text-emerald-900 dark:text-white border border-emerald-500/20"
@@ -491,7 +609,7 @@ const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfi
                                         </div>
                                     )}
                                 </div>
-                             );
+                            );
                         })}
                     </div>
                 </div>
@@ -516,7 +634,7 @@ const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfi
                         {isLoading ? 'Saving Changes...' : 'Update Profile'}
                     </button>
                 </div>
-             </form>
+            </form>
         </div>
     );
 };
@@ -540,12 +658,12 @@ const SymptomTipsScreen: React.FC = () => {
                 <div className="grid grid-cols-2 gap-5">
                     {Object.values(SymptomType).map((symptom) => (
                         <div key={symptom} className="card-button-wrapper">
-                          <button onClick={() => handleSymptomSelect(symptom)} className="w-full h-full p-6 flex flex-col items-center gap-3 text-center transition-all active:scale-95 group">
-                              <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl text-brand-green group-hover:rotate-12 transition-transform">
-                                  <NauseaIcon className="w-7 h-7" />
-                              </div>
-                              <span className="text-[11px] font-black text-emerald-900 dark:text-emerald-100 uppercase tracking-tighter">{symptom}</span>
-                          </button>
+                            <button onClick={() => handleSymptomSelect(symptom)} className="w-full h-full p-6 flex flex-col items-center gap-3 text-center transition-all active:scale-95 group">
+                                <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl text-brand-green group-hover:rotate-12 transition-transform">
+                                    <NauseaIcon className="w-7 h-7" />
+                                </div>
+                                <span className="text-[11px] font-black text-emerald-900 dark:text-emerald-100 uppercase tracking-tighter">{symptom}</span>
+                            </button>
                         </div>
                     ))}
                 </div>
@@ -603,7 +721,7 @@ const RemindersScreen: React.FC = () => {
         <div className="p-4 pb-16">
             <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">My Alerts</h2>
             <p className="text-gray-500 mb-8 font-medium">Staying on schedule.</p>
-            
+
             {/* Active Reminders List */}
             <div className="space-y-4 mb-10">
                 {activeReminders.map((rem) => (
@@ -618,7 +736,7 @@ const RemindersScreen: React.FC = () => {
                             </div>
                         </div>
                         <button onClick={() => removeReminder(rem.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
                 ))}
@@ -645,74 +763,74 @@ const RemindersScreen: React.FC = () => {
                     </div>
                 ))}
             </div>
-            
+
             <div className="card-button-wrapper mt-8">
-              <button className="btn-primary w-full shadow-glow-primary">Create Custom Alert</button>
+                <button className="btn-primary w-full shadow-glow-primary">Create Custom Alert</button>
             </div>
         </div>
     );
 };
 
 const MealPlanScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
-  const [mealPlan, setMealPlan] = useState<WeeklyMealPlan | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedDayIndex, setSelectedDayIndex] = useState((new Date().getDay() + 6) % 7);
-  const [swappingState, setSwappingState] = useState<{dayIndex: number, mealType: string} | null>(null);
-  
-  // Re-fetch when userProfile changes to ensure gradual change based on new suffering/condition
-  const fetchMealPlan = useCallback(async () => {
-    setLoading(true);
-    const plan = await generateMealPlan(userProfile);
-    setMealPlan(plan);
-    setLoading(false);
-  }, [userProfile]); // Dependent on userProfile
+    const [mealPlan, setMealPlan] = useState<WeeklyMealPlan | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [selectedDayIndex, setSelectedDayIndex] = useState((new Date().getDay() + 6) % 7);
+    const [swappingState, setSwappingState] = useState<{ dayIndex: number, mealType: string } | null>(null);
 
-  useEffect(() => { fetchMealPlan(); }, [fetchMealPlan]);
-  
-  const handleSwapMeal = async (dayIndex: number, mealType: 'breakfast' | 'lunch' | 'dinner') => {
-    if (!mealPlan) return;
-    setSwappingState({ dayIndex, mealType });
-    const mealToSwap = mealPlan[dayIndex][mealType];
-    const newMeal = await swapMeal(userProfile, mealToSwap, mealPlan[dayIndex].day, mealType);
-    if (newMeal && mealPlan) {
-      const updatedPlan = [...mealPlan];
-      updatedPlan[dayIndex] = { ...updatedPlan[dayIndex], [mealType]: newMeal };
-      setMealPlan(updatedPlan);
-    }
-    setSwappingState(null);
-  };
-  if (loading) return <div className="p-20 text-center flex flex-col items-center justify-center h-full"><LogoIcon className="animate-spin h-16 w-16 text-brand-green mb-4" /><p className="font-black text-emerald-900 dark:text-emerald-300">Building your menu...</p></div>;
-  if (!mealPlan) return <div className="p-10 text-center">Failed to load plan.</div>;
-  const dayShortNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  return (
-    <div className="p-4 pb-20">
-      <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Weekly Plan</h2>
-      <div className="flex justify-between gap-2 mb-10 bg-emerald-100/50 dark:bg-emerald-900/20 p-2 rounded-[2.5rem] overflow-x-auto no-scrollbar shadow-inner border border-emerald-500/10">
-        {dayShortNames.map((day, index) => (
-          <button key={day} onClick={() => setSelectedDayIndex(index)} className={`px-5 py-3 rounded-2xl font-black text-[11px] transition-all duration-300 ${selectedDayIndex === index ? 'bg-brand-green text-white shadow-glow-primary scale-105' : 'text-emerald-900/40 dark:text-white/40'}`}>
-            {day}
-          </button>
-        ))}
-      </div>
-      <div key={selectedDayIndex} className="space-y-10 animate-fade-in">
-        {(['breakfast', 'lunch', 'dinner'] as const).map((type) => (
-          <MealCard key={type} meal={mealPlan[selectedDayIndex][type]} title={type.charAt(0).toUpperCase() + type.slice(1)} delay={100} onSwap={() => handleSwapMeal(selectedDayIndex, type)} isSwapping={swappingState?.dayIndex === selectedDayIndex && swappingState?.mealType === type} />
-        ))}
-      </div>
-    </div>
-  );
+    // Re-fetch when userProfile changes to ensure gradual change based on new suffering/condition
+    const fetchMealPlan = useCallback(async () => {
+        setLoading(true);
+        const plan = await generateMealPlan(userProfile);
+        setMealPlan(plan);
+        setLoading(false);
+    }, [userProfile]); // Dependent on userProfile
+
+    useEffect(() => { fetchMealPlan(); }, [fetchMealPlan]);
+
+    const handleSwapMeal = async (dayIndex: number, mealType: 'breakfast' | 'lunch' | 'dinner') => {
+        if (!mealPlan) return;
+        setSwappingState({ dayIndex, mealType });
+        const mealToSwap = mealPlan[dayIndex][mealType];
+        const newMeal = await swapMeal(userProfile, mealToSwap, mealPlan[dayIndex].day, mealType);
+        if (newMeal && mealPlan) {
+            const updatedPlan = [...mealPlan];
+            updatedPlan[dayIndex] = { ...updatedPlan[dayIndex], [mealType]: newMeal };
+            setMealPlan(updatedPlan);
+        }
+        setSwappingState(null);
+    };
+    if (loading) return <div className="p-20 text-center flex flex-col items-center justify-center h-full"><LogoIcon className="animate-spin h-16 w-16 text-brand-green mb-4" /><p className="font-black text-emerald-900 dark:text-emerald-300">Building your menu...</p></div>;
+    if (!mealPlan) return <div className="p-10 text-center">Failed to load plan.</div>;
+    const dayShortNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return (
+        <div className="p-4 pb-20">
+            <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Weekly Plan</h2>
+            <div className="flex justify-between gap-2 mb-10 bg-emerald-100/50 dark:bg-emerald-900/20 p-2 rounded-[2.5rem] overflow-x-auto no-scrollbar shadow-inner border border-emerald-500/10">
+                {dayShortNames.map((day, index) => (
+                    <button key={day} onClick={() => setSelectedDayIndex(index)} className={`px-5 py-3 rounded-2xl font-black text-[11px] transition-all duration-300 ${selectedDayIndex === index ? 'bg-brand-green text-white shadow-glow-primary scale-105' : 'text-emerald-900/40 dark:text-white/40'}`}>
+                        {day}
+                    </button>
+                ))}
+            </div>
+            <div key={selectedDayIndex} className="space-y-10 animate-fade-in">
+                {(['breakfast', 'lunch', 'dinner'] as const).map((type) => (
+                    <MealCard key={type} meal={mealPlan[selectedDayIndex][type]} title={type.charAt(0).toUpperCase() + type.slice(1)} delay={100} onSwap={() => handleSwapMeal(selectedDayIndex, type)} isSwapping={swappingState?.dayIndex === selectedDayIndex && swappingState?.mealType === type} />
+                ))}
+            </div>
+        </div>
+    );
 };
 
 const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () => void, isSwapping: boolean }> = ({ meal, title, delay, onSwap, isSwapping }) => {
     return (
         <div className="glass-panel rounded-[3rem] shadow-2xl overflow-hidden animate-fade-in-up group relative border border-white/40" style={{ animationDelay: `${delay}ms` }}>
             <div className="relative h-48 overflow-hidden">
-                <img src={meal.photoUrl} alt={meal.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"/>
+                <img src={meal.photoUrl} alt={meal.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                 <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 to-transparent"></div>
                 {isSwapping && <div className="absolute inset-0 glass-panel flex items-center justify-center"><LogoIcon className="animate-spin h-14 w-14 text-brand-green" /></div>}
                 <div className="absolute bottom-6 left-8 right-8">
-                  <span className="text-[9px] font-black uppercase text-brand-green bg-white px-3 py-1 rounded-full mb-2 inline-block shadow-lg tracking-widest">{title}</span>
-                  <p className="font-black text-2xl text-white drop-shadow-2xl">{meal.name}</p>
+                    <span className="text-[9px] font-black uppercase text-brand-green bg-white px-3 py-1 rounded-full mb-2 inline-block shadow-lg tracking-widest">{title}</span>
+                    <p className="font-black text-2xl text-white drop-shadow-2xl">{meal.name}</p>
                 </div>
             </div>
             <div className="p-8">
@@ -729,7 +847,7 @@ const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () 
                     </div>
                 )}
                 <div className="card-button-wrapper">
-                  <button onClick={onSwap} disabled={isSwapping} className="btn-primary w-full !text-base shadow-glow-primary">Swap for something else</button>
+                    <button onClick={onSwap} disabled={isSwapping} className="btn-primary w-full !text-base shadow-glow-primary">Swap for something else</button>
                 </div>
             </div>
         </div>
@@ -747,7 +865,7 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
         "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&q=80",
         "https://images.unsplash.com/photo-1547592180-85f173990554?w=800&q=80"
     ];
-    
+
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     useEffect(() => {
@@ -774,7 +892,7 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
                     </div>
                     <h3 className="text-2xl font-black text-emerald-950 dark:text-white mb-3">Food Safety Checker</h3>
                     <p className="text-gray-500 dark:text-emerald-100/70 font-bold text-sm mb-8 leading-relaxed">
-                        Unsure about a meal? Type in any food name to instantly see if it's safe for your 
+                        Unsure about a meal? Type in any food name to instantly see if it's safe for your
                         <span className="text-brand-green"> {userProfile.cancerType}</span> recovery journey.
                     </p>
                     <div className="card-button-wrapper w-full">
@@ -786,10 +904,10 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
             )}
             <div className="relative rounded-[2.5rem] mb-10 h-48 overflow-hidden shadow-2xl group border-4 border-white/20 animate-fade-in-up">
                 {slideshowImages.map((src, index) => (
-                    <img 
+                    <img
                         key={src}
-                        src={src} 
-                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'}`} 
+                        src={src}
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'}`}
                         alt="Healthy food"
                     />
                 ))}
@@ -802,7 +920,7 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
             <form onSubmit={handleSearch} className="relative mb-12">
                 <input type="text" value={food} onChange={(e) => setFood(e.target.value)} placeholder="Type meal name..." className="w-full pl-8 pr-20 py-6 glass-panel rounded-[2.5rem] text-lg font-black outline-none focus:ring-4 focus:ring-brand-green/20 transition-all shadow-inner border-2 border-white/50" />
                 <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 bg-brand-green p-4 rounded-full text-white shadow-glow-primary active:scale-90 transition-all">
-                    <SearchIcon className="w-6 h-6"/>
+                    <SearchIcon className="w-6 h-6" />
                 </button>
             </form>
             {loading && <div className="text-center py-20 animate-pulse"><LogoIcon className="animate-spin h-16 w-16 mx-auto text-brand-green" /></div>}
@@ -810,7 +928,7 @@ const FoodSafetyCheckerScreen: React.FC<{ userProfile: UserProfile }> = ({ userP
                 <div className={`p-8 rounded-[3rem] shadow-2xl animate-fade-in-up border-b-8 ${result.status === FoodSafetyStatus.SAFE ? 'bg-emerald-50 border-emerald-500 dark:bg-emerald-900/20' : 'bg-red-50 border-red-500 dark:bg-red-900/20'}`}>
                     <div className="flex flex-col items-center text-center">
                         <div className={`p-5 rounded-[2rem] mb-6 ${result.status === FoodSafetyStatus.SAFE ? 'bg-emerald-500 shadow-emerald-500/30' : 'bg-red-500 shadow-red-500/30'} shadow-xl`}>
-                           {result.status === FoodSafetyStatus.SAFE ? <BowlIcon className="w-10 h-10 text-white" /> : <LogoIcon className="w-10 h-10 text-white" />}
+                            {result.status === FoodSafetyStatus.SAFE ? <BowlIcon className="w-10 h-10 text-white" /> : <LogoIcon className="w-10 h-10 text-white" />}
                         </div>
                         <h3 className="text-3xl font-black mb-4 capitalize text-emerald-950 dark:text-white">{food}</h3>
                         <div className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-8 ${result.status === FoodSafetyStatus.SAFE ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
@@ -860,12 +978,12 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
         journalData.forEach(entry => {
             const date = new Date(entry.timestamp).toLocaleDateString();
             if (!dailyStats[date]) dailyStats[date] = { calories: 0, energy: 0 };
-            dailyStats[date].energy = entry.energy; 
+            dailyStats[date].energy = entry.energy;
         });
 
         // Fill in last 7 days even if empty to make chart look good
         const today = new Date();
-        for(let i = 6; i >= 0; i--) {
+        for (let i = 6; i >= 0; i--) {
             const d = new Date(today);
             d.setDate(d.getDate() - i);
             const dateStr = d.toLocaleDateString();
@@ -880,7 +998,7 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
                 energy: stats.energy || 0
             }))
             .sort((a, b) => a.fullDate.getTime() - b.fullDate.getTime())
-            .slice(-7); 
+            .slice(-7);
     }, [loggedMeals, journalData]);
 
     const todaysCalories = useMemo(() => {
@@ -909,7 +1027,7 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
     if (loading) {
         return (
             <div className="p-10 text-center flex flex-col items-center justify-center min-h-[60vh]">
-                <ChartIcon className="w-16 h-16 text-emerald-300 mb-4 animate-pulse"/>
+                <ChartIcon className="w-16 h-16 text-emerald-300 mb-4 animate-pulse" />
                 <p className="font-black text-emerald-900 dark:text-white uppercase tracking-widest text-xs">Syncing Biometrics...</p>
             </div>
         );
@@ -918,7 +1036,7 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
     return (
         <div className="p-6 pb-40 animate-fade-in">
             <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Nutrient Tracker</h2>
-            
+
             {/* Today's Summary Card */}
             <div className="glass-panel p-6 rounded-[2.5rem] mb-10 border-l-8 border-brand-green shadow-xl">
                 <div className="flex items-center justify-between mb-6">
@@ -930,7 +1048,7 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
                         <ChartIcon className="w-8 h-8 text-brand-green" />
                     </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-emerald-500/10">
                     <div className="flex items-center gap-4">
                         <div className="relative w-12 h-12 flex items-center justify-center">
@@ -970,14 +1088,14 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
                         <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <defs>
                                 <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#10B981" stopOpacity={0.8}/>
-                                    <stop offset="100%" stopColor="#10B981" stopOpacity={0.3}/>
+                                    <stop offset="0%" stopColor="#10B981" stopOpacity={0.8} />
+                                    <stop offset="100%" stopColor="#10B981" stopOpacity={0.3} />
                                 </linearGradient>
                             </defs>
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF', fontWeight: 800 }} dy={10} />
                             <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} />
                             <YAxis yAxisId="right" orientation="right" domain={[0, 10]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#F59E0B' }} hide />
-                            <Tooltip 
+                            <Tooltip
                                 contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', backgroundColor: 'rgba(255,255,255,0.95)' }}
                                 labelStyle={{ fontWeight: 800, color: '#064E3B', marginBottom: '0.5rem' }}
                             />
@@ -997,7 +1115,7 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
                     </div>
                 </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-5 mb-12">
                 <div className="card-button-wrapper">
                     <button onClick={openLogMeal} className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-brand-green text-white shadow-glow-primary active:scale-95 transition-all">
@@ -1018,11 +1136,11 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
                 {loggedMeals.length > 0 ? loggedMeals.map(meal => (
                     <div key={meal.id} className="glass-panel p-6 rounded-[2.5rem] flex items-center gap-5 border-l-4 border-emerald-500 transition-all hover:translate-x-1 shadow-md">
                         <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl text-brand-green shadow-inner">
-                          <BowlIcon className="w-7 h-7" />
+                            <BowlIcon className="w-7 h-7" />
                         </div>
                         <div className="flex-grow">
-                          <p className="font-black text-emerald-950 dark:text-white text-lg leading-tight capitalize">{meal.name}</p>
-                          <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mt-1">{new Date(meal.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                            <p className="font-black text-emerald-950 dark:text-white text-lg leading-tight capitalize">{meal.name}</p>
+                            <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mt-1">{new Date(meal.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
                         <p className="text-brand-green font-black text-lg">{meal.nutrients.calories}<span className="text-[10px] ml-1">kcal</span></p>
                     </div>
@@ -1039,7 +1157,7 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
 const LogMealForm: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const [mealName, setMealName] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!mealName.trim()) return;
@@ -1065,9 +1183,9 @@ const LogMealForm: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
             <p className="text-gray-500 text-sm mb-8 font-bold">What did you eat? AI will calculate the nutrition.</p>
             <form onSubmit={handleSubmit} className="space-y-8">
                 <div className="relative">
-                    <input 
-                        type="text" 
-                        value={mealName} 
+                    <input
+                        type="text"
+                        value={mealName}
                         onChange={(e) => setMealName(e.target.value)}
                         placeholder="e.g. Rice and Beans"
                         className="w-full p-6 glass-panel rounded-3xl border-2 border-emerald-500/20 focus:border-brand-green outline-none font-black text-lg"
@@ -1116,10 +1234,10 @@ const CheckInForm: React.FC<{ onComplete: () => void, userProfile: UserProfile }
                     <label className="text-[10px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest block mb-4">Energy Level ({energy}/10)</label>
                     <div className="flex items-center gap-6">
                         <FatigueIcon className={`w-8 h-8 ${energy < 4 ? 'text-rose-500' : 'text-emerald-500/20'}`} />
-                        <input 
-                            type="range" min="1" max="10" 
-                            value={energy} 
-                            onChange={(e) => setEnergy(parseInt(e.target.value))} 
+                        <input
+                            type="range" min="1" max="10"
+                            value={energy}
+                            onChange={(e) => setEnergy(parseInt(e.target.value))}
                             className="flex-grow accent-brand-green h-2 bg-emerald-100 rounded-full"
                         />
                         <LogoIcon className={`w-8 h-8 ${energy > 7 ? 'text-brand-green' : 'text-emerald-500/20'}`} />
@@ -1127,17 +1245,17 @@ const CheckInForm: React.FC<{ onComplete: () => void, userProfile: UserProfile }
                 </div>
                 <div>
                     <label className="text-[10px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest block mb-3">Current Weight (kg)</label>
-                    <input 
-                        type="number" 
-                        value={weight} 
+                    <input
+                        type="number"
+                        value={weight}
                         onChange={(e) => setWeight(e.target.value)}
                         className="w-full p-5 glass-panel rounded-2xl border-2 border-emerald-500/20 focus:border-brand-green outline-none font-black text-xl text-center"
                     />
                 </div>
                 <div>
                     <label className="text-[10px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest block mb-3">Wellness Notes</label>
-                    <textarea 
-                        value={notes} 
+                    <textarea
+                        value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         placeholder="How are you feeling today?"
                         className="w-full p-5 glass-panel rounded-2xl border-2 border-emerald-500/20 focus:border-brand-green outline-none font-bold text-sm min-h-[100px]"
@@ -1153,41 +1271,51 @@ const CheckInForm: React.FC<{ onComplete: () => void, userProfile: UserProfile }
     );
 };
 
-const LibraryScreen: React.FC = () => {
+const LibraryScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => void }> = ({ userProfile, onUpgradeRequest }) => {
+    const isPremium = userProfile.plan === 'Premium';
+
+    if (!isPremium) {
+        return <PremiumGate onUpgrade={onUpgradeRequest} featureName="Resource Library" />;
+    }
+
     const resources = [
         { title: 'Nutritional Support Basics', category: 'Recovery', readTime: '5 min', icon: BowlIcon, color: 'text-emerald-500' },
         { title: 'Hydrating During Treatment', category: 'Wellness', readTime: '4 min', icon: HomeIcon, color: 'text-sky-500' },
         { title: 'Top Local Superfoods Guide', category: 'Diet', readTime: '7 min', icon: ProteinIcon, color: 'text-amber-500' },
         { title: 'Mindful Eating Strategies', category: 'Mindset', readTime: '6 min', icon: UserIcon, color: 'text-violet-500' },
+        { title: 'Managing Chemo Side Effects', category: 'Treatment', readTime: '8 min', icon: NauseaIcon, color: 'text-rose-500' },
+        { title: 'Post-Recovery Protein Guide', category: 'Recovery', readTime: '6 min', icon: ProteinIcon, color: 'text-teal-500' },
     ];
 
     const handleDownload = (title: string) => {
-        // Simulated download functionality
-        alert(`Downloading resource: ${title}`);
+        alert(`Downloading: "${title}"\n\nThis is a simulated download.`);
     };
 
     return (
         <div className="p-6 pb-40 animate-fade-in">
-            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">Resources</h2>
+            <div className="flex items-center gap-3 mb-2">
+                <h2 className="text-3xl font-black text-emerald-950 dark:text-white tracking-tighter">Resource Library</h2>
+                <span className="px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-amber-500/20">Premium</span>
+            </div>
             <p className="text-gray-500 mb-10 font-medium">Knowledge for empowerment.</p>
-            <div className="space-y-6">
+            <div className="space-y-5">
                 {resources.map((res, i) => (
                     <div key={i} className="card-button-wrapper">
-                      <div className="w-full p-6 flex justify-between items-center group text-left">
-                          <div className="flex gap-5 items-center flex-grow">
-                            <div className={`p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-[1.5rem] ${res.color} group-hover:rotate-12 transition-transform shadow-inner`}>
-                              <res.icon className="w-8 h-8" />
+                        <div className="w-full p-6 flex justify-between items-center group text-left">
+                            <div className="flex gap-5 items-center flex-grow">
+                                <div className={`p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-[1.5rem] ${res.color} group-hover:rotate-12 transition-transform shadow-inner`}>
+                                    <res.icon className="w-8 h-8" />
+                                </div>
+                                <div>
+                                    <span className="text-[9px] font-black uppercase text-brand-green tracking-widest bg-brand-green/10 px-2 py-0.5 rounded-md mb-2 inline-block">#{res.category}</span>
+                                    <p className="font-black text-emerald-950 dark:text-white text-base leading-tight">{res.title}</p>
+                                    <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">{res.readTime} reading time</p>
+                                </div>
                             </div>
-                            <div>
-                                <span className="text-[9px] font-black uppercase text-brand-green tracking-widest bg-brand-green/10 px-2 py-0.5 rounded-md mb-2 inline-block">#{res.category}</span>
-                                <p className="font-black text-emerald-950 dark:text-white text-lg leading-tight">{res.title}</p>
-                                <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">{res.readTime} reading time</p>
-                            </div>
-                          </div>
-                          <button onClick={() => handleDownload(res.title)} className="p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-full text-brand-green hover:bg-brand-green hover:text-white transition-all shadow-md active:scale-90 ml-2">
-                            <DownloadIcon className="w-5 h-5" />
-                          </button>
-                      </div>
+                            <button onClick={() => handleDownload(res.title)} className="p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-full text-brand-green hover:bg-brand-green hover:text-white transition-all shadow-md active:scale-90 ml-2">
+                                <DownloadIcon className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
                 ))}
             </div>
@@ -1204,22 +1332,43 @@ const LibraryScreen: React.FC = () => {
 // --- Live Portal Sections with Gemini Live ---
 
 const LiveScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () => void }> = ({ userProfile, onUpgradeRequest }) => {
+    const isPremium = userProfile.plan === 'Premium';
+
+    if (!isPremium) {
+        return <PremiumGate onUpgrade={onUpgradeRequest} featureName="NutriCan Live" />;
+    }
+
     return (
         <div className="p-4 pb-40 animate-fade-in-up flex flex-col min-h-screen">
-            <h1 className="text-3xl font-black mb-2 text-emerald-950 dark:text-white tracking-tighter">NutriCan Live</h1>
+            <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-3xl font-black text-emerald-950 dark:text-white tracking-tighter">NutriCan Live</h1>
+                <span className="px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full text-[9px] font-black uppercase tracking-widest border border-amber-500/20">Premium</span>
+            </div>
             <p className="text-gray-500 mb-10 font-medium">Real-time recovery consultation.</p>
 
             <div className="glass-panel p-8 rounded-[3.5rem] shadow-2xl relative overflow-hidden border-b-8 border-brand-green flex flex-col items-center justify-center min-h-[400px] text-center">
-                <div className="w-24 h-24 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-6 shadow-inner">
-                    <BroadcastIcon className="w-12 h-12 text-amber-500" />
+                <div className="absolute inset-0 bg-brand-green/5 blur-3xl animate-pulse-soft"></div>
+                <div className="w-24 h-24 bg-brand-green/10 rounded-full flex items-center justify-center mb-6 shadow-inner relative">
+                    <BroadcastIcon className="w-12 h-12 text-brand-green" />
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white dark:border-emerald-900 animate-pulse"></span>
                 </div>
-                <h2 className="text-2xl font-black text-emerald-950 dark:text-white mb-4">Under Maintenance</h2>
-                <p className="text-gray-600 dark:text-emerald-100/70 font-bold leading-relaxed max-w-xs mx-auto">
-                    We are currently upgrading our live consultation systems to serve you better. 
-                    This feature will be back online shortly.
+                <h2 className="text-2xl font-black text-emerald-950 dark:text-white mb-4">Live Consultation</h2>
+                <p className="text-gray-600 dark:text-emerald-100/70 font-bold leading-relaxed max-w-xs mx-auto mb-8">
+                    You have Premium access. Live AI nutrition consultations are available for you.
                 </p>
-                <div className="mt-8 px-6 py-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full text-xs font-black uppercase tracking-widest border border-amber-500/20">
-                    Check back soon
+                <div className="mt-4 px-6 py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-black uppercase tracking-widest border border-emerald-500/20 mb-8">
+                    Feature coming soon — stay tuned!
+                </div>
+                <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl w-full text-left">
+                    <p className="text-[10px] font-black uppercase text-brand-green tracking-widest mb-2">What's included</p>
+                    {['Real-time AI Nutritionist Chat', 'Voice & Video Consultation', 'Personalized Meal Adjustments'].map((f, i) => (
+                        <div key={i} className="flex items-center gap-2 mb-2">
+                            <div className="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                            </div>
+                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{f}</span>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
@@ -1479,7 +1628,7 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
         // Grilled fish dish
         "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=800&q=80",
     ];
-    
+
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     useEffect(() => {
@@ -1493,34 +1642,34 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
         <div className="p-6 page-transition pb-32">
             <div className="flex justify-between items-center mb-10">
                 <div>
-                  <h1 className="text-3xl font-black text-emerald-900 dark:text-white tracking-tight flex items-center gap-2">
-                      Hi, {userProfile.name}
-                      {userProfile.isVerified && <ShieldCheckIcon className="w-6 h-6 text-brand-green" />}
-                  </h1>
-                  <p className="text-emerald-700/70 dark:text-emerald-400 font-bold">Your healing dashboard</p>
+                    <h1 className="text-3xl font-black text-emerald-900 dark:text-white tracking-tight flex items-center gap-2">
+                        Hi, {userProfile.name}
+                        {userProfile.isVerified && <ShieldCheckIcon className="w-6 h-6 text-brand-green" />}
+                    </h1>
+                    <p className="text-emerald-700/70 dark:text-emerald-400 font-bold">Your healing dashboard</p>
                 </div>
                 <button onClick={() => setActivePage('profile')} className="relative group">
-                  <div className="absolute inset-0 bg-brand-green/20 rounded-full blur-xl transition-all group-hover:bg-brand-green/40"></div>
-                  <div className="w-14 h-14 glass-panel rounded-2xl flex items-center justify-center relative border border-white/40 shadow-glass group-active:scale-95 transition-transform">
-                    <UserIcon className="w-7 h-7 text-brand-green" />
-                  </div>
+                    <div className="absolute inset-0 bg-brand-green/20 rounded-full blur-xl transition-all group-hover:bg-brand-green/40"></div>
+                    <div className="w-14 h-14 glass-panel rounded-2xl flex items-center justify-center relative border border-white/40 shadow-glass group-active:scale-95 transition-transform">
+                        <UserIcon className="w-7 h-7 text-brand-green" />
+                    </div>
                 </button>
             </div>
 
             <div className="relative rounded-[2.5rem] mb-12 h-60 overflow-hidden shadow-2xl group border-4 border-white/20 animate-fade-in-up">
                 {slideshowImages.map((src, index) => (
-                    <img 
+                    <img
                         key={src}
-                        src={src} 
-                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'}`} 
+                        src={src}
+                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'}`}
                         alt="Healthy food"
                     />
                 ))}
                 <div className="absolute inset-0 bg-gradient-to-t from-emerald-950 via-emerald-950/20 to-transparent"></div>
                 <div className="absolute bottom-8 left-8 right-8">
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="w-2.5 h-2.5 bg-brand-green rounded-full animate-pulse shadow-glow-primary"></span>
-                      <span className="text-[10px] font-black uppercase text-brand-green tracking-widest">Healing Power</span>
+                        <span className="w-2.5 h-2.5 bg-brand-green rounded-full animate-pulse shadow-glow-primary"></span>
+                        <span className="text-[10px] font-black uppercase text-brand-green tracking-widest">Healing Power</span>
                     </div>
                     <p className="text-white font-black text-2xl drop-shadow-2xl leading-tight italic">"Strength begins with what's on your plate."</p>
                 </div>
@@ -1529,12 +1678,12 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
             <div className="grid grid-cols-2 gap-6">
                 {features.map((feature) => (
                     <div key={feature.name} className="card-button-wrapper">
-                      <button onClick={feature.action} className="w-full p-6 flex flex-col items-center justify-center text-center gap-4 transition-all active:scale-95 group">
-                          <div className={`p-4 ${feature.color} rounded-2xl shadow-xl transform group-hover:-translate-y-1 transition-transform`}>
-                              <feature.icon className="w-8 h-8 text-white" />
-                          </div>
-                          <span className="font-extrabold text-xs text-emerald-950 dark:text-white uppercase tracking-tighter">{feature.name}</span>
-                      </button>
+                        <button onClick={feature.action} className="w-full p-6 flex flex-col items-center justify-center text-center gap-4 transition-all active:scale-95 group">
+                            <div className={`p-4 ${feature.color} rounded-2xl shadow-xl transform group-hover:-translate-y-1 transition-transform`}>
+                                <feature.icon className="w-8 h-8 text-white" />
+                            </div>
+                            <span className="font-extrabold text-xs text-emerald-950 dark:text-white uppercase tracking-tighter">{feature.name}</span>
+                        </button>
                     </div>
                 ))}
             </div>
@@ -1542,13 +1691,13 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
     );
 };
 
-const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, setModal: (content: React.ReactNode) => void, onProfileUpdate: (profile: UserProfile) => void }> = ({ userProfile, onLogout, setModal, onProfileUpdate }) => {
+const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, setModal: (content: React.ReactNode) => void, onProfileUpdate: (profile: UserProfile) => void, onUpgradeRequest: () => void }> = ({ userProfile, onLogout, setModal, onProfileUpdate, onUpgradeRequest }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
 
     const openEditProfile = () => {
         setModal(
-            <EditProfileForm 
-                user={userProfile} 
+            <EditProfileForm
+                user={userProfile}
                 onSave={(updatedProfile) => {
                     onProfileUpdate(updatedProfile);
                     setModal(null);
@@ -1562,52 +1711,95 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, 
         <div className="p-8 pb-40">
             <div className="flex flex-col items-center mb-14 animate-fade-in-up">
                 <div className="relative mb-8">
-                  <div className="absolute inset-0 bg-brand-green/40 blur-[80px] rounded-full animate-pulse-soft"></div>
-                  <div className="w-40 h-40 glass-panel p-2 rounded-full border-4 border-brand-green/30 relative overflow-hidden shadow-2xl">
-                      <div className="w-full h-full bg-gradient-to-br from-brand-green to-emerald-800 rounded-full flex items-center justify-center">
-                        <UserIcon className="w-20 h-20 text-white" />
-                      </div>
-                  </div>
-                  {userProfile.isVerified && (
-                      <div className="absolute bottom-0 right-0 p-3 bg-brand-green rounded-full shadow-glow-primary border-4 border-white dark:border-emerald-900">
-                          <ShieldCheckIcon className="w-6 h-6 text-white" />
-                      </div>
-                  )}
+                    <div className="absolute inset-0 bg-brand-green/40 blur-[80px] rounded-full animate-pulse-soft"></div>
+                    <div className="w-40 h-40 glass-panel p-2 rounded-full border-4 border-brand-green/30 relative overflow-hidden shadow-2xl">
+                        <div className="w-full h-full bg-gradient-to-br from-brand-green to-emerald-800 rounded-full flex items-center justify-center">
+                            <UserIcon className="w-20 h-20 text-white" />
+                        </div>
+                    </div>
+                    {userProfile.isVerified && (
+                        <div className="absolute bottom-0 right-0 p-3 bg-brand-green rounded-full shadow-glow-primary border-4 border-white dark:border-emerald-900">
+                            <ShieldCheckIcon className="w-6 h-6 text-white" />
+                        </div>
+                    )}
                 </div>
                 <h2 className="text-4xl font-black dark:text-white text-emerald-950 mb-3 tracking-tighter">{userProfile.name}</h2>
                 <div className="px-8 py-2.5 bg-brand-green/10 border border-brand-green/20 rounded-full shadow-inner animate-pulse">
-                  <span className="text-[11px] font-black uppercase tracking-[0.4em] text-brand-green">{userProfile.plan} Member</span>
+                    <span className="text-[11px] font-black uppercase tracking-[0.4em] text-brand-green">{userProfile.plan} Member</span>
                 </div>
             </div>
 
             <div className="grid grid-cols-3 gap-5 mb-14">
-              {[ { label: 'HGT', val: userProfile.height + 'cm' }, { label: 'WGT', val: userProfile.weight + 'kg' }, { label: 'AGE', val: userProfile.age } ].map(stat => (
-                <div key={stat.label} className="glass-panel p-5 rounded-[2rem] text-center border-b-4 border-emerald-500/20 shadow-xl">
-                  <p className="text-[10px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest mb-2">{stat.label}</p>
-                  <p className="font-black text-xl text-emerald-950 dark:text-brand-emerald">{stat.val}</p>
-                </div>
-              ))}
+                {[{ label: 'HGT', val: userProfile.height + 'cm' }, { label: 'WGT', val: userProfile.weight + 'kg' }, { label: 'AGE', val: userProfile.age }].map(stat => (
+                    <div key={stat.label} className="glass-panel p-5 rounded-[2rem] text-center border-b-4 border-emerald-500/20 shadow-xl">
+                        <p className="text-[10px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest mb-2">{stat.label}</p>
+                        <p className="font-black text-xl text-emerald-950 dark:text-brand-emerald">{stat.val}</p>
+                    </div>
+                ))}
             </div>
 
             <div className="space-y-6">
+                {/* Subscription Card */}
+                <div className={`p-6 rounded-[2.5rem] border-2 shadow-xl relative overflow-hidden ${userProfile.plan === 'Premium'
+                    ? 'bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-400/30'
+                    : 'glass-panel border-amber-400/30'
+                    }`}>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${userProfile.plan === 'Premium' ? 'text-white/70' : 'text-amber-600 dark:text-amber-400'
+                                }`}>Current Plan</p>
+                            <p className={`text-2xl font-black tracking-tight ${userProfile.plan === 'Premium' ? 'text-white' : 'text-emerald-950 dark:text-white'
+                                }`}>{userProfile.plan === 'Premium' ? 'NutriCan Premium' : 'Free Plan'}</p>
+                            {userProfile.plan === 'Premium' && (
+                                <p className="text-white/70 text-xs font-bold mt-1">15,000 UGX / month</p>
+                            )}
+                        </div>
+                        <div className={`p-3 rounded-2xl ${userProfile.plan === 'Premium' ? 'bg-white/20' : 'bg-amber-500/10'
+                            }`}>
+                            <PremiumIcon className={`w-7 h-7 ${userProfile.plan === 'Premium' ? 'text-white' : 'text-amber-500'}`} />
+                        </div>
+                    </div>
+                    {userProfile.plan !== 'Premium' && (
+                        <div className="mt-5">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-bold mb-4">Upgrade to unlock Live Consultations &amp; the Resource Library.</p>
+                            <button
+                                onClick={onUpgradeRequest}
+                                className="w-full py-3 bg-amber-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all"
+                                id="profile-upgrade-btn"
+                            >
+                                Upgrade — 15,000 UGX/mo
+                            </button>
+                        </div>
+                    )}
+                    {userProfile.plan === 'Premium' && (
+                        <div className="mt-4 flex items-center gap-2">
+                            <div className="w-4 h-4 bg-white/30 rounded-full flex items-center justify-center">
+                                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                            </div>
+                            <span className="text-white/80 text-xs font-bold">All premium features active</span>
+                        </div>
+                    )}
+                </div>
+
                 <div className="card-button-wrapper">
-                  <button onClick={openEditProfile} className="w-full p-6 flex justify-between items-center font-black text-emerald-900 dark:text-white group">
-                    <span>Account Settings</span>
-                    <ChevronLeftIcon className="w-6 h-6 rotate-180 opacity-40 group-hover:opacity-100 transition-opacity" />
-                  </button>
+                    <button onClick={openEditProfile} className="w-full p-6 flex justify-between items-center font-black text-emerald-900 dark:text-white group">
+                        <span>Account Settings</span>
+                        <ChevronLeftIcon className="w-6 h-6 rotate-180 opacity-40 group-hover:opacity-100 transition-opacity" />
+                    </button>
                 </div>
                 <div className="card-button-wrapper">
-                  <button onClick={toggleTheme} className="w-full p-6 flex justify-between items-center font-black text-emerald-900 dark:text-white">
-                    <span>Dark Appearance</span>
-                    <div className={`w-14 h-8 rounded-full transition-colors relative shadow-inner ${theme === 'dark' ? 'bg-brand-green' : 'bg-gray-200'}`}>
-                      <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-md ${theme === 'dark' ? 'left-7' : 'left-1'}`}></div>
-                    </div>
-                  </button>
+                    <button onClick={toggleTheme} className="w-full p-6 flex justify-between items-center font-black text-emerald-900 dark:text-white">
+                        <span>Dark Appearance</span>
+                        <div className={`w-14 h-8 rounded-full transition-colors relative shadow-inner ${theme === 'dark' ? 'bg-brand-green' : 'bg-gray-200'}`}>
+                            <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-md ${theme === 'dark' ? 'left-7' : 'left-1'}`}></div>
+                        </div>
+                    </button>
                 </div>
                 <div className="pt-6">
-                  <div className="card-button-wrapper !bg-transparent border-none p-0">
-                    <button onClick={onLogout} className="btn-secondary w-full !bg-slate-900 !text-white !border-none !py-6 shadow-2xl active:scale-95 uppercase tracking-[0.3em] text-[11px] font-black">Sign Out Profile</button>
-                  </div>
+                    <div className="card-button-wrapper !bg-transparent border-none p-0">
+                        <button onClick={onLogout} className="btn-secondary w-full !bg-slate-900 !text-white !border-none !py-6 shadow-2xl active:scale-95 uppercase tracking-[0.3em] text-[11px] font-black">Sign Out Profile</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1617,77 +1809,77 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, 
 // --- Main Dashboard Component ---
 
 const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
-  const [activePage, setActivePage] = useState<DashboardPage>('home');
-  const [modalState, setModalState] = useState<{ content: React.ReactNode | null; fullScreen: boolean }>({ content: null, fullScreen: false });
-  const [showPayment, setShowPayment] = useState(false);
-  const [localProfile, setLocalProfile] = useState(userProfile);
+    const [activePage, setActivePage] = useState<DashboardPage>('home');
+    const [modalState, setModalState] = useState<{ content: React.ReactNode | null; fullScreen: boolean }>({ content: null, fullScreen: false });
+    const [showPayment, setShowPayment] = useState(false);
+    const [localProfile, setLocalProfile] = useState(userProfile);
 
-  const setModal = useCallback((content: React.ReactNode, options?: { fullScreen?: boolean }) => {
-    setModalState({ content, fullScreen: options?.fullScreen || false });
-  }, []);
+    const setModal = useCallback((content: React.ReactNode, options?: { fullScreen?: boolean }) => {
+        setModalState({ content, fullScreen: options?.fullScreen || false });
+    }, []);
 
-  const handleProfileUpdate = (updatedProfile: UserProfile) => {
-    setLocalProfile(updatedProfile);
-    // Force meal plan regeneration by updating the state that is passed to MealPlanScreen
-  };
+    const handleProfileUpdate = (updatedProfile: UserProfile) => {
+        setLocalProfile(updatedProfile);
+        // Force meal plan regeneration by updating the state that is passed to MealPlanScreen
+    };
 
-  // --- Random Pop-up Logic for Unverified Users ---
-  useEffect(() => {
-      if (!localProfile.documentsSubmitted && Math.random() > 0.7) { // 30% chance on mount/update
-          const timer = setTimeout(() => {
-              // Only show if no other modal is open to avoid conflict
-              if (!modalState.content) {
-                  setModal(
-                      <div className="text-center p-4">
-                          <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                              <ShieldCheckIcon className="w-10 h-10 text-amber-500" />
-                          </div>
-                          <h3 className="text-2xl font-black text-emerald-950 dark:text-white mb-2">Verify Your Profile</h3>
-                          <p className="text-gray-500 mb-8 font-bold text-sm">Please submit your medical forms to unlock the verified badge.</p>
-                          <div className="card-button-wrapper">
-                              <button 
-                                  onClick={() => setModal(<MedicalDocsScreen userProfile={localProfile} onUploadSuccess={(p) => { handleProfileUpdate(p); setModal(null); }} />)}
-                                  className="btn-primary w-full shadow-glow-primary"
-                              >
-                                  Verify Now
-                              </button>
-                          </div>
-                          <button onClick={() => setModal(null)} className="mt-4 text-xs font-black text-gray-400 uppercase tracking-widest">Remind me later</button>
-                      </div>
-                  );
-              }
-          }, 3000); // 3-second delay
-          return () => clearTimeout(timer);
-      }
-  }, [localProfile.documentsSubmitted, setModal, modalState.content]); // Dependency on submitted status
+    // --- Random Pop-up Logic for Unverified Users ---
+    useEffect(() => {
+        if (!localProfile.documentsSubmitted && Math.random() > 0.7) { // 30% chance on mount/update
+            const timer = setTimeout(() => {
+                // Only show if no other modal is open to avoid conflict
+                if (!modalState.content) {
+                    setModal(
+                        <div className="text-center p-4">
+                            <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <ShieldCheckIcon className="w-10 h-10 text-amber-500" />
+                            </div>
+                            <h3 className="text-2xl font-black text-emerald-950 dark:text-white mb-2">Verify Your Profile</h3>
+                            <p className="text-gray-500 mb-8 font-bold text-sm">Please submit your medical forms to unlock the verified badge.</p>
+                            <div className="card-button-wrapper">
+                                <button
+                                    onClick={() => setModal(<MedicalDocsScreen userProfile={localProfile} onUploadSuccess={(p) => { handleProfileUpdate(p); setModal(null); }} />)}
+                                    className="btn-primary w-full shadow-glow-primary"
+                                >
+                                    Verify Now
+                                </button>
+                            </div>
+                            <button onClick={() => setModal(null)} className="mt-4 text-xs font-black text-gray-400 uppercase tracking-widest">Remind me later</button>
+                        </div>
+                    );
+                }
+            }, 3000); // 3-second delay
+            return () => clearTimeout(timer);
+        }
+    }, [localProfile.documentsSubmitted, setModal, modalState.content]); // Dependency on submitted status
 
-  const screens = useMemo(() => ({
-    home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} onProfileUpdate={handleProfileUpdate} />,
-    tracker: <TrackerScreen userProfile={localProfile} setModal={setModal} />, 
-    live: <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
-    library: <LibraryScreen />,
-    profile: <ProfileScreen userProfile={localProfile} onLogout={onLogout} setModal={setModal} onProfileUpdate={handleProfileUpdate} />,
-    'doctor-connect': <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
-  }), [localProfile, onLogout, setActivePage, setModal]);
+    const screens = useMemo(() => ({
+        home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} onProfileUpdate={handleProfileUpdate} />,
+        tracker: <TrackerScreen userProfile={localProfile} setModal={setModal} />,
+        live: <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
+        library: <LibraryScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
+        profile: <ProfileScreen userProfile={localProfile} onLogout={onLogout} setModal={setModal} onProfileUpdate={handleProfileUpdate} onUpgradeRequest={() => setShowPayment(true)} />,
+        'doctor-connect': <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
+    }), [localProfile, onLogout, setActivePage, setModal]);
 
-  return (
-    <div className="min-h-screen bg-transparent relative">
-      <div className="animate-fade-in-up">{screens[activePage] || screens.home}</div>
-      <EmergencyButton activePage={activePage} />
-      <BottomNavBar activePage={activePage} onNavigate={setActivePage} />
-      {modalState.content && (
-        <Modal closeModal={() => setModal(null)} fullScreen={modalState.fullScreen}>
-            {modalState.content}
-        </Modal>
-      )}
-      {showPayment && (
-        <PaymentModal 
-          onPaymentSuccess={() => { setLocalProfile(p => ({...p, plan: 'Premium'})); setShowPayment(false); }} 
-          closeModal={() => setShowPayment(false)} 
-        />
-      )}
-    </div>
-  );
+    return (
+        <div className="min-h-screen bg-transparent relative">
+            <div className="animate-fade-in-up">{screens[activePage] || screens.home}</div>
+            <EmergencyButton activePage={activePage} />
+            <BottomNavBar activePage={activePage} onNavigate={setActivePage} />
+            {modalState.content && (
+                <Modal closeModal={() => setModal(null)} fullScreen={modalState.fullScreen}>
+                    {modalState.content}
+                </Modal>
+            )}
+            {showPayment && (
+                <PaymentModal
+                    onPaymentSuccess={() => { setLocalProfile(p => ({ ...p, plan: 'Premium' })); setShowPayment(false); }}
+                    closeModal={() => setShowPayment(false)}
+                />
+            )}
+        </div>
+    );
 };
 
 export default Dashboard;
