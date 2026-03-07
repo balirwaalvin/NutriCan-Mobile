@@ -475,15 +475,15 @@ const LockedFeatureModal: React.FC<{ featureName: string; isTrialExpired: boolea
 
             <div className="space-y-3">
                 <div className="card-button-wrapper">
-                    <button onClick={onSignUp} className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-5" id="guest-nav-signup-btn">
-                        Create Free Account
+                    <button
+                        onClick={onSubscribe}
+                        className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-5"
+                    >
+                        ✦ Subscribe — 15,000 UGX/mo
                     </button>
                 </div>
-                <button onClick={onSubscribe} className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-amber-600 dark:text-amber-400 border-2 border-amber-400/30 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors shadow active:scale-95" id="guest-nav-subscribe-btn">
-                    ✦ Subscribe — 15,000 UGX/mo
-                </button>
                 <button onClick={onClose} className="block w-full text-center text-xs font-black text-gray-400 uppercase tracking-widest pt-2 active:scale-95 transition-transform">
-                    Back to Meal Plan
+                    Maybe Later
                 </button>
             </div>
         </div>
