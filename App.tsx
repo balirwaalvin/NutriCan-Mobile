@@ -98,6 +98,7 @@ const App: React.FC = () => {
                 otherConditions: [],
                 treatmentStages: [],
                 plan: 'Free',
+                isGuest: true,
               });
             }}
           />

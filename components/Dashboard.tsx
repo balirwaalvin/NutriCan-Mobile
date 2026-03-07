@@ -1802,7 +1802,7 @@ const LiveScreenActive: React.FC<{ userProfile: UserProfile; onUpgradeRequest: (
 // --- Standard Screens ---
 
 const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: DashboardPage) => void, setModal: (content: React.ReactNode, options?: { fullScreen?: boolean }) => void, onProfileUpdate: (p: UserProfile) => void, onSignUpRequest?: () => void, onSubscribeRequest?: () => void }> = ({ userProfile, setActivePage, setModal, onProfileUpdate, onSignUpRequest, onSubscribeRequest }) => {
-    const isGuest = userProfile.name === 'Guest' && !userProfile.email;
+    const isGuest = !!userProfile.isGuest;
     const [showGuestFeatureGate, setShowGuestFeatureGate] = useState<string | null>(null);
 
     const guestGateAction = (featureName: string) => {
@@ -2044,7 +2044,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     const [localProfile, setLocalProfile] = useState(userProfile);
     const [guestNavGate, setGuestNavGate] = useState<string | null>(null); // feature name guest tried to access
 
-    const isGuest = localProfile.name === 'Guest' && !localProfile.email;
+    const isGuest = !!localProfile.isGuest;
 
     const setModal = useCallback((content: React.ReactNode, options?: { fullScreen?: boolean }) => {
         setModalState({ content, fullScreen: options?.fullScreen || false });
@@ -2096,7 +2096,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
         library: <LibraryScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
         profile: <ProfileScreen userProfile={localProfile} onLogout={onLogout} setModal={setModal} onProfileUpdate={handleProfileUpdate} onUpgradeRequest={() => setShowPayment(true)} />,
         'doctor-connect': <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
-    }), [localProfile, onLogout, setActivePage, setModal]);
+    }), [localProfile, isGuest, onLogout, setActivePage, setModal]);
 
     return (
         <div className="min-h-screen bg-transparent relative">

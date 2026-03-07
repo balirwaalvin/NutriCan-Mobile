@@ -20,9 +20,9 @@ export enum OtherCondition {
 }
 
 export enum TreatmentStage {
-    CHEMOTHERAPY = 'Chemotherapy',
-    RADIOTHERAPY = 'Radiotherapy',
-    POST_RECOVERY = 'Post Recovery',
+  CHEMOTHERAPY = 'Chemotherapy',
+  RADIOTHERAPY = 'Radiotherapy',
+  POST_RECOVERY = 'Post Recovery',
 }
 
 export interface UserProfile {
@@ -38,6 +38,7 @@ export interface UserProfile {
   plan: 'Free' | 'Premium';
   isVerified?: boolean;
   documentsSubmitted?: boolean;
+  isGuest?: boolean;
 }
 
 export type MealCategory = 'Protein' | 'Carbs' | 'Balanced' | 'Veggies';
@@ -52,10 +53,10 @@ export interface Meal {
 }
 
 export interface DailyMealPlan {
-    day: string;
-    breakfast: Meal;
-    lunch: Meal;
-    dinner: Meal;
+  day: string;
+  breakfast: Meal;
+  lunch: Meal;
+  dinner: Meal;
 }
 
 export type WeeklyMealPlan = DailyMealPlan[];
