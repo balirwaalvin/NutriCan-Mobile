@@ -2037,6 +2037,75 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, 
 
 // --- Main Dashboard Component ---
 
+// *** GUEST-ONLY ISOLATED DASHBOARD ***
+// Renders ONLY the meal plan for guest users. The full Dashboard with navigation
+// and all other screens is NEVER rendered for guests — eliminating any leakage.
+const GuestOnlyDashboard: React.FC<{ userProfile: UserProfile; onSignUp: () => void }> = ({ userProfile, onSignUp }) => {
+    const [showPayment, setShowPayment] = useState(false);
+
+    const handleSubscribe = () => setShowPayment(true);
+
+    return (
+        <div className="min-h-screen bg-transparent relative flex flex-col">
+
+            {/* Sticky top guest banner */}
+            <div className="sticky top-0 z-50 flex items-center justify-between px-5 py-4 bg-amber-500 shadow-xl">
+                <div>
+                    <p className="text-white font-black text-xs uppercase tracking-widest leading-none">Guest Mode</p>
+                    <p className="text-white/80 text-[10px] font-bold mt-0.5">Meal Plan only · Sign up for full access</p>
+                </div>
+                <button
+                    onClick={onSignUp}
+                    className="bg-white text-amber-600 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-2xl shadow-md active:scale-95 transition-transform"
+                >
+                    Sign Up
+                </button>
+            </div>
+
+            {/* Meal Plan — the ONLY screen guests can access */}
+            <div className="flex-1 pb-52 overflow-y-auto">
+                <MealPlanScreen
+                    userProfile={userProfile}
+                    isGuest={true}
+                    onSignUpRequest={onSignUp}
+                    onSubscribeRequest={handleSubscribe}
+                />
+            </div>
+
+            {/* Sticky bottom sign-up CTA */}
+            <div className="fixed bottom-0 left-0 right-0 w-full sm:max-w-md md:max-w-lg mx-auto bg-white/90 dark:bg-emerald-950/90 backdrop-blur-2xl border-t border-white/20 px-5 pt-4 pb-10 z-40 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)] rounded-t-[2.5rem]">
+                <p className="text-center text-[10px] font-black uppercase tracking-widest text-emerald-900/40 dark:text-white/30 mb-4">Unlock Full NutriCan Experience</p>
+                <div className="space-y-3">
+                    <div className="card-button-wrapper">
+                        <button
+                            onClick={onSignUp}
+                            className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-4"
+                            id="guest-bottom-signup-btn"
+                        >
+                            Create Free Account
+                        </button>
+                    </div>
+                    <button
+                        onClick={handleSubscribe}
+                        className="w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest text-amber-600 dark:text-amber-400 border-2 border-amber-400/40 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors active:scale-95"
+                        id="guest-bottom-subscribe-btn"
+                    >
+                        ✦ Subscribe — 15,000 UGX / mo
+                    </button>
+                </div>
+            </div>
+
+            {/* Payment modal (triggered by Subscribe button) */}
+            {showPayment && (
+                <PaymentModal
+                    onPaymentSuccess={() => { setShowPayment(false); onSignUp(); }}
+                    closeModal={() => setShowPayment(false)}
+                />
+            )}
+        </div>
+    );
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     const [activePage, setActivePage] = useState<DashboardPage>('home');
     const [modalState, setModalState] = useState<{ content: React.ReactNode | null; fullScreen: boolean }>({ content: null, fullScreen: false });
@@ -2057,7 +2126,6 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
 
     // --- Random Pop-up Logic for Unverified Users (skip for guests) ---
     useEffect(() => {
-        if (isGuest) return; // Guests don't get verification prompts
         if (!localProfile.documentsSubmitted && Math.random() > 0.7) { // 30% chance on mount/update
             const timer = setTimeout(() => {
                 // Only show if no other modal is open to avoid conflict
@@ -2086,8 +2154,24 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
         }
     }, [isGuest, localProfile.documentsSubmitted, setModal, modalState.content]); // Dependency on submitted status
 
+    // *** GUEST GUARD — placed after all hooks to comply with rules-of-hooks ***
+    // Return the fully isolated guest view. The full Dashboard never renders for guests.
+    if (isGuest) {
+        return (
+            <>
+                <GuestOnlyDashboard userProfile={localProfile} onSignUp={onLogout} />
+                {showPayment && (
+                    <PaymentModal
+                        onPaymentSuccess={() => { setLocalProfile(p => ({ ...p, plan: 'Premium', isGuest: false })); setShowPayment(false); onLogout(); }}
+                        closeModal={() => setShowPayment(false)}
+                    />
+                )}
+            </>
+        );
+    }
+
     // For guests, always show home screen regardless of activePage
-    const effectivePage: DashboardPage = isGuest ? 'home' : activePage;
+    const effectivePage: DashboardPage = activePage;
 
     const screens = useMemo(() => ({
         home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} onProfileUpdate={handleProfileUpdate} onSignUpRequest={onLogout} onSubscribeRequest={() => setShowPayment(true)} />,
