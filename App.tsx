@@ -10,6 +10,8 @@ const TermsScreen = lazy(() => import('./components/TermsScreen'));
 const OnboardingScreen = lazy(() => import('./components/OnboardingScreen'));
 const AuthScreen = lazy(() => import('./components/AuthScreen'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
+// Dedicated, self-contained portal for guest users (never mounts Dashboard).
+const GuestPortal = lazy(() => import('./components/GuestPortal'));
 
 // A loading component to show while pages are being loaded.
 const LoadingFallback: React.FC = () => (
@@ -31,13 +33,14 @@ const App: React.FC = () => {
       try {
         const profile = await db.getSession();
         if (profile) {
+          // Restored sessions are always real users — never guests
           setUserProfile(profile);
           setCurrentPage('dashboard');
         } else {
           setCurrentPage('splash'); // No session, start with splash
         }
       } catch (error) {
-        console.error("Session check failed", error);
+        console.error('Session check failed', error);
         setCurrentPage('splash'); // On error, default to splash
       }
     };
@@ -46,13 +49,21 @@ const App: React.FC = () => {
 
   const handleAuthSuccess = useCallback((profile: UserProfile) => {
     setUserProfile(profile);
-    setCurrentPage('dashboard');
+    // Route guests to their isolated portal; real users to the full dashboard
+    setCurrentPage(profile.isGuest ? 'guest' : 'dashboard');
   }, []);
 
   const handleLogout = useCallback(async () => {
     await db.signOut();
     setUserProfile(null);
     setAuthInitialView('signIn'); // Direct returning users to Sign In
+    setCurrentPage('auth');
+  }, []);
+
+  // Called when a guest taps "Sign Up" — clear guest state and go to auth
+  const handleGuestSignUp = useCallback(() => {
+    setUserProfile(null);
+    setAuthInitialView('initial');
     setCurrentPage('auth');
   }, []);
 
@@ -65,6 +76,7 @@ const App: React.FC = () => {
     switch (currentPage) {
       case 'splash':
         return <SplashScreen onGetStarted={() => setCurrentPage('terms')} />;
+
       case 'terms':
         return (
           <TermsScreen
@@ -72,6 +84,7 @@ const App: React.FC = () => {
             onBack={() => setCurrentPage('splash')}
           />
         );
+
       case 'onboarding':
         return (
           <OnboardingScreen
@@ -79,6 +92,7 @@ const App: React.FC = () => {
             onBack={() => setCurrentPage('terms')}
           />
         );
+
       case 'auth':
         return (
           <AuthScreen
@@ -86,7 +100,7 @@ const App: React.FC = () => {
             onAuthSuccess={handleAuthSuccess}
             onBack={() => setCurrentPage('onboarding')}
             onContinueAsGuest={() => {
-              // Create a default guest profile - Guest sessions are not persisted in DB by default
+              // Build guest profile with explicit isGuest flag
               handleAuthSuccess({
                 name: 'Guest',
                 age: 30,
@@ -103,8 +117,46 @@ const App: React.FC = () => {
             }}
           />
         );
+
+      // ── GUEST ROUTE: completely separate from Dashboard ──────────────────
+      case 'guest':
+        if (!userProfile || !userProfile.isGuest) {
+          // Safety fallback: not actually a guest — go to auth
+          return (
+            <AuthScreen
+              initialView="initial"
+              onAuthSuccess={handleAuthSuccess}
+              onContinueAsGuest={() => { }}
+              onBack={() => setCurrentPage('onboarding')}
+            />
+          );
+        }
+        return (
+          <GuestPortal
+            userProfile={userProfile}
+            onSignUp={handleGuestSignUp}
+          />
+        );
+
+      // ── DASHBOARD: only reached by authenticated (non-guest) users ───────
       case 'dashboard':
-        return userProfile ? <Dashboard userProfile={userProfile} onLogout={handleLogout} /> : <AuthScreen onAuthSuccess={handleAuthSuccess} onContinueAsGuest={() => { }} onBack={() => setCurrentPage('onboarding')} />;
+        if (!userProfile) {
+          return (
+            <AuthScreen
+              initialView="signIn"
+              onAuthSuccess={handleAuthSuccess}
+              onContinueAsGuest={() => { }}
+              onBack={() => setCurrentPage('onboarding')}
+            />
+          );
+        }
+        // Extra safety: guests should never be on this route, but redirect if so
+        if (userProfile.isGuest) {
+          setCurrentPage('guest');
+          return <LoadingFallback />;
+        }
+        return <Dashboard userProfile={userProfile} onLogout={handleLogout} />;
+
       default:
         return <SplashScreen onGetStarted={() => setCurrentPage('terms')} />;
     }

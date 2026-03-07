@@ -1,5 +1,5 @@
 
-export type Page = 'splash' | 'terms' | 'onboarding' | 'auth' | 'dashboard';
+export type Page = 'splash' | 'terms' | 'onboarding' | 'auth' | 'dashboard' | 'guest';
 
 export type DashboardPage = 'home' | 'tracker' | 'live' | 'doctor-connect' | 'profile' | 'library';
 
