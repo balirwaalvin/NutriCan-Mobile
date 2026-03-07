@@ -78,6 +78,7 @@ function mapProfile(raw: any): UserProfile {
     plan: raw.plan ?? 'Free',
     isVerified: raw.isVerified ?? false,
     documentsSubmitted: raw.documentsSubmitted ?? false,
+    isGuest: raw.isGuest ?? false,
   };
 }
 
