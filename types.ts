@@ -40,6 +40,8 @@ export interface UserProfile {
   documentsSubmitted?: boolean;
   isGuest?: boolean;
   createdAt?: string; // For 7-day trial calculation
+  trialStartedAt?: string; // When the user actually started their 7-day trial
+  bmi?: number;
 }
 
 export type MealCategory = 'Protein' | 'Carbs' | 'Balanced' | 'Veggies';

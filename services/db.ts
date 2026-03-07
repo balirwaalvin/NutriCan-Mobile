@@ -80,6 +80,8 @@ function mapProfile(raw: any): UserProfile {
     documentsSubmitted: raw.documentsSubmitted ?? false,
     isGuest: raw.isGuest ?? false,
     createdAt: raw.createdAt,
+    trialStartedAt: raw.trialStartedAt,
+    bmi: raw.bmi,
   };
 }
 

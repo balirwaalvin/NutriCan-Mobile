@@ -17,6 +17,8 @@ const userSchema = new mongoose.Schema(
     isVerified: { type: Boolean, default: false },
     documentsSubmitted: { type: Boolean, default: false },
     isGuest: { type: Boolean, default: false },
+    trialStartedAt: { type: Date },
+    bmi: { type: Number },
   },
   { timestamps: true }
 );

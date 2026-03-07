@@ -91,13 +91,9 @@ const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: Das
                 const isActive = activePage === item.page;
 
                 // Determine lock status:
-                // If Premium: Never locked
-                // If Free + Trial Active: Locked if premiumOnly
-                // If Free + Trial Expired: Locked if not 'home'
-                const isLocked = !isPremium && (
-                    (isTrialActive && item.premiumOnly) ||
-                    (!isTrialActive && item.page !== 'home')
-                );
+                // If Premium or Trial Active: Never locked
+                // If Free + Trial Expired (or not started): Locked if not 'home'
+                const isLocked = !isPremium && !isTrialActive && item.page !== 'home';
 
                 return (
                     <button
@@ -674,10 +670,15 @@ const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfi
         e.preventDefault();
         setIsLoading(true);
         try {
-            // Update Firestore
-            await db.updateProfile(formData);
+            // Calculate BMI (weight in kg / (height in m)^2)
+            const heightInMeters = formData.height / 100;
+            const bmi = parseFloat((formData.weight / (heightInMeters * heightInMeters)).toFixed(1));
+            const submissionData = { ...formData, bmi };
+
+            // Update database
+            await db.updateProfile(submissionData);
             // Update local state in Dashboard
-            onSave(formData);
+            onSave(submissionData);
         } catch (error) {
             console.error("Failed to update profile", error);
             alert("Failed to update profile. Please try again.");
@@ -1968,10 +1969,7 @@ const HomeScreen: React.FC<{
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-24 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
                 {features.map((feature, i) => {
-                    const isLocked = !isPremium && (
-                        (isTrialActive && feature.premiumOnly) ||
-                        (!isTrialActive && feature.title !== 'Personalised Meal Plan')
-                    );
+                    const isLocked = !isPremium && !isTrialActive && feature.title !== 'Personalised Meal Plan';
 
                     return (
                         <div key={i} className="relative group perspective-1000">
@@ -2044,11 +2042,16 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, 
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-5 mb-14">
-                {[{ label: 'HGT', val: userProfile.height + 'cm' }, { label: 'WGT', val: userProfile.weight + 'kg' }, { label: 'AGE', val: userProfile.age }].map(stat => (
-                    <div key={stat.label} className="glass-panel p-5 rounded-[2rem] text-center border-b-4 border-emerald-500/20 shadow-xl">
-                        <p className="text-[10px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest mb-2">{stat.label}</p>
-                        <p className="font-black text-xl text-emerald-950 dark:text-brand-emerald">{stat.val}</p>
+            <div className="grid grid-cols-4 gap-3 mb-14">
+                {[
+                    { label: 'HGT', val: userProfile.height + 'cm' },
+                    { label: 'WGT', val: userProfile.weight + 'kg' },
+                    { label: 'AGE', val: userProfile.age },
+                    { label: 'BMI', val: userProfile.bmi || '--' }
+                ].map(stat => (
+                    <div key={stat.label} className="glass-panel p-4 rounded-[1.5rem] text-center border-b-4 border-emerald-500/20 shadow-xl flex flex-col justify-center">
+                        <p className="text-[9px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest mb-1">{stat.label}</p>
+                        <p className="font-black text-lg text-emerald-950 dark:text-brand-emerald">{stat.val}</p>
                     </div>
                 ))}
             </div>
@@ -2122,6 +2125,54 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, 
 };
 
 // --- Main Dashboard Component ---
+
+// *** MANUAL TRIAL ACTIVATION PORTAL ***
+const TrialActivationPortal: React.FC<{ onActivate: () => void }> = ({ onActivate }) => {
+    return (
+        <div className="min-h-screen bg-emerald-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-green/20 to-teal-900/40 pointer-events-none"></div>
+            <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-brand-green/30 rounded-full blur-[100px] pointer-events-none animate-pulse-soft"></div>
+            <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-amber-500/20 rounded-full blur-[100px] pointer-events-none animate-pulse-soft" style={{ animationDelay: '2s' }}></div>
+
+            <div className="relative z-10 text-center w-full max-w-md bg-white/10 dark:bg-black/20 backdrop-blur-3xl border border-white/20 p-10 rounded-[3.5rem] shadow-2xl animate-fade-in-up flex flex-col items-center">
+                <div className="w-24 h-24 bg-gradient-to-tr from-amber-400 to-amber-600 rounded-[2rem] p-0.5 shadow-2xl mb-8 transform rotate-3 relative shadow-amber-500/40">
+                    <div className="w-full h-full bg-white dark:bg-emerald-950 rounded-[1.8rem] flex items-center justify-center">
+                        <PremiumIcon className="w-12 h-12 text-amber-500" />
+                    </div>
+                    <div className="absolute -top-3 -right-3 w-8 h-8 bg-brand-green rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-emerald-950">
+                        <span className="text-white text-xs font-black">7D</span>
+                    </div>
+                </div>
+
+                <h1 className="text-4xl font-black text-white mb-4 tracking-tighter leading-none">Unlock Premium</h1>
+                <p className="text-white/80 font-bold mb-8 leading-relaxed">
+                    Start your <span className="text-amber-400">7-Day Free Trial</span> today. Get unlimited access to Live AI Consultations, the full Research Library, and advanced Meal Swapping — completely free.
+                </p>
+
+                <div className="w-full text-left space-y-3 mb-10 px-2">
+                    {['Live AI Consultations', 'Advanced Nutrient Tracking', 'Full Recovery Library', 'Unlimited Meal Swaps'].map((feat, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                            <div className="w-5 h-5 bg-brand-green/20 rounded-full border border-brand-green/40 flex items-center justify-center">
+                                <svg className="w-3 h-3 text-brand-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                            </div>
+                            <span className="text-sm font-bold text-white/90">{feat}</span>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="w-full card-button-wrapper p-1">
+                    <button
+                        onClick={onActivate}
+                        className="w-full py-5 bg-gradient-to-r from-brand-green to-emerald-600 rounded-2xl text-white font-black uppercase text-sm tracking-widest shadow-glow-primary active:scale-95 transition-all transform hover:-translate-y-1"
+                    >
+                        Start My Free Trial Now
+                    </button>
+                </div>
+                <p className="mt-6 text-[10px] text-white/40 font-black uppercase tracking-widest text-center">No payment required</p>
+            </div>
+        </div>
+    );
+};
 
 // *** GUEST-ONLY ISOLATED DASHBOARD ***
 // Renders ONLY the meal plan for guest users. The full Dashboard with navigation
@@ -2202,15 +2253,35 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     const isGuest = !!localProfile.isGuest;
     const isPremium = localProfile.plan === 'Premium';
 
-    // Calculate trial status (7 days from creation)
+    // Calculate trial status (7 days from activation)
     const isTrialActive = useMemo(() => {
-        if (!localProfile.createdAt) return true; // Default to true if missing for older accounts
-        const createdDate = new Date(localProfile.createdAt);
+        if (!localProfile.trialStartedAt) return false; // Not started yet
+        const startedDate = new Date(localProfile.trialStartedAt);
         const now = new Date();
-        const diffTime = Math.abs(now.getTime() - createdDate.getTime());
+        const diffTime = Math.abs(now.getTime() - startedDate.getTime());
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays <= 7;
-    }, [localProfile.createdAt]);
+    }, [localProfile.trialStartedAt]);
+
+    const activateTrial = async () => {
+        try {
+            const updated = await db.updateProfile({ trialStartedAt: new Date().toISOString() });
+            setLocalProfile(updated);
+        } catch (error) {
+            console.error("Failed to activate trial:", error);
+            alert("Could not activate trial. Please try again.");
+        }
+    };
+
+    // --- Show Trial Portal on entry if not started ---
+    useEffect(() => {
+        if (!isGuest && !isPremium && !localProfile.trialStartedAt && !modalState.content) {
+            setModalState({
+                content: <TrialActivationPortal onActivate={() => { activateTrial(); setModalState({ content: null, fullScreen: false }); }} />,
+                fullScreen: true,
+            });
+        }
+    }, [isGuest, isPremium, localProfile.trialStartedAt, modalState.content]);
 
     const setModal = useCallback((content: React.ReactNode, options?: { fullScreen?: boolean }) => {
         setModalState({ content, fullScreen: options?.fullScreen || false });

@@ -14,6 +14,7 @@ router.patch('/', requireAuth, async (req, res) => {
       'name', 'age', 'height', 'weight',
       'cancerType', 'cancerStage', 'otherConditions',
       'treatmentStages', 'plan', 'isVerified', 'documentsSubmitted',
+      'trialStartedAt', 'bmi'
     ];
 
     const updates = {};
