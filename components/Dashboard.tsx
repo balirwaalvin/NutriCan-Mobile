@@ -74,25 +74,42 @@ const Modal: React.FC<{ children: React.ReactNode; closeModal: () => void; fullS
     </div>
 );
 
-const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: DashboardPage) => void }> = ({ activePage, onNavigate }) => {
+const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: DashboardPage) => void; isGuest?: boolean; onGuestNavigate?: (featureName: string) => void }> = ({ activePage, onNavigate, isGuest, onGuestNavigate }) => {
     const navItems = [
-        { page: 'home' as DashboardPage, icon: HomeIcon, label: 'Home' },
-        { page: 'tracker' as DashboardPage, icon: ChartIcon, label: 'Tracker' },
-        { page: 'live' as DashboardPage, icon: BroadcastIcon, label: 'Live' },
-        { page: 'library' as DashboardPage, icon: BookIcon, label: 'Library' },
-        { page: 'profile' as DashboardPage, icon: UserIcon, label: 'Profile' },
+        { page: 'home' as DashboardPage, icon: HomeIcon, label: 'Home', guestAllowed: true },
+        { page: 'tracker' as DashboardPage, icon: ChartIcon, label: 'Tracker', guestAllowed: false },
+        { page: 'live' as DashboardPage, icon: BroadcastIcon, label: 'Live', guestAllowed: false },
+        { page: 'library' as DashboardPage, icon: BookIcon, label: 'Library', guestAllowed: false },
+        { page: 'profile' as DashboardPage, icon: UserIcon, label: 'Profile', guestAllowed: false },
     ];
 
     return (
         <div className="fixed bottom-0 left-0 right-0 w-full sm:max-w-md md:max-w-lg mx-auto bg-white/80 backdrop-blur-2xl border-t border-white/20 flex justify-around p-3 pb-8 dark:bg-emerald-950/60 z-30 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.15)] rounded-t-[3rem]">
             {navItems.map(item => {
                 const isActive = activePage === item.page;
+                const isLocked = isGuest && !item.guestAllowed;
                 return (
-                    <button key={item.page} onClick={() => onNavigate(item.page)} className="flex flex-col items-center justify-center w-14 transition-all transform active:scale-90 group">
+                    <button
+                        key={item.page}
+                        onClick={() => {
+                            if (isLocked) { onGuestNavigate?.(item.label); return; }
+                            onNavigate(item.page);
+                        }}
+                        className="flex flex-col items-center justify-center w-14 transition-all transform active:scale-90 group relative"
+                    >
                         <div className={`relative p-3 rounded-[1.2rem] transition-all duration-500 ${isActive ? 'bg-brand-green shadow-glow-primary scale-110' : 'bg-transparent'}`}>
-                            <item.icon className={`w-6 h-6 transition-colors duration-300 ${isActive ? 'text-white' : 'text-emerald-800/40 dark:text-emerald-300/30'}`} />
+                            <item.icon className={`w-6 h-6 transition-colors duration-300 ${isActive ? 'text-white' : isLocked ? 'text-emerald-800/20 dark:text-emerald-300/15' : 'text-emerald-800/40 dark:text-emerald-300/30'}`} />
+                            {isLocked && (
+                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-400 rounded-full flex items-center justify-center shadow">
+                                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                            )}
                         </div>
-                        <span className={`text-[10px] mt-2 font-black transition-all duration-300 uppercase tracking-tighter ${isActive ? 'text-brand-green dark:text-brand-emerald' : 'text-gray-400 opacity-0 group-hover:opacity-100'}`}>{item.label}</span>
+                        <span className={`text-[10px] mt-2 font-black transition-all duration-300 uppercase tracking-tighter ${isActive ? 'text-brand-green dark:text-brand-emerald' : isLocked ? 'text-gray-300/50 dark:text-white/20' : 'text-gray-400 opacity-0 group-hover:opacity-100'}`}>
+                            {item.label}
+                        </span>
                     </button>
                 )
             })}
@@ -405,6 +422,63 @@ const GuestSwapModal: React.FC<{ onSignUp: () => void; onSubscribe: () => void; 
                 </button>
                 <button onClick={onClose} className="block w-full text-center text-xs font-black text-gray-400 uppercase tracking-widest pt-2 active:scale-95 transition-transform">
                     Continue Browsing
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
+// --- Guest Nav Gate Modal (shown when guest taps restricted nav items) ---
+const GuestNavGateModal: React.FC<{ featureName: string; onSignUp: () => void; onSubscribe: () => void; onClose: () => void }> = ({ featureName, onSignUp, onSubscribe, onClose }) => (
+    <div className="fixed inset-0 bg-emerald-950/95 backdrop-blur-3xl z-[300] flex items-center justify-center p-6 animate-fade-in" onClick={onClose}>
+        <div className="bg-white dark:bg-emerald-900/60 max-w-sm w-full rounded-[3.5rem] p-10 text-center shadow-2xl relative border-b-8 border-brand-green overflow-hidden glass-panel animate-fade-in-up" onClick={e => e.stopPropagation()}>
+            <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-brand-green/20 rounded-full blur-3xl pointer-events-none" />
+            <button onClick={onClose} className="absolute top-7 right-7 p-2.5 rounded-full bg-gray-100 dark:bg-white/10 text-emerald-800 dark:text-white hover:scale-110 transition-transform">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+
+            <div className="relative mb-8">
+                <div className="absolute inset-0 bg-amber-400/20 blur-3xl animate-pulse-soft rounded-full" />
+                <div className="w-24 h-24 glass-panel rounded-[2rem] flex items-center justify-center mx-auto relative border-2 border-amber-400/30 shadow-2xl">
+                    <svg className="w-12 h-12 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+            </div>
+
+            <span className="px-4 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 mb-5 inline-block">
+                Account Required
+            </span>
+
+            <h2 className="text-2xl font-black text-emerald-950 dark:text-white mb-3 tracking-tighter">
+                {featureName} is Locked
+            </h2>
+            <p className="text-gray-500 dark:text-gray-300 font-bold text-sm mb-8 leading-relaxed">
+                Create a free account or subscribe to access <span className="font-black text-emerald-700 dark:text-emerald-400">{featureName}</span> and all other NutriCan features.
+            </p>
+
+            <div className="w-full text-left space-y-3 mb-8 px-2">
+                {['Nutrient Tracker & Journal', 'Live AI Nutrition Consultation', 'Full Resource Library', 'Doctor Connect'].map((perk, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                        <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 shadow">
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <span className="text-sm font-bold text-emerald-950 dark:text-white">{perk}</span>
+                    </div>
+                ))}
+            </div>
+
+            <div className="space-y-3">
+                <div className="card-button-wrapper">
+                    <button onClick={onSignUp} className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-5" id="guest-nav-signup-btn">
+                        Create Free Account
+                    </button>
+                </div>
+                <button onClick={onSubscribe} className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-amber-600 dark:text-amber-400 border-2 border-amber-400/30 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors shadow active:scale-95" id="guest-nav-subscribe-btn">
+                    ✦ Subscribe — 15,000 UGX/mo
+                </button>
+                <button onClick={onClose} className="block w-full text-center text-xs font-black text-gray-400 uppercase tracking-widest pt-2 active:scale-95 transition-transform">
+                    Back to Meal Plan
                 </button>
             </div>
         </div>
@@ -960,8 +1034,8 @@ const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () 
                         onClick={onSwap}
                         disabled={isSwapping}
                         className={`w-full !text-base shadow-glow-primary flex items-center justify-center gap-2 ${isGuest
-                                ? 'btn-secondary !border-amber-400/50 !text-amber-600 dark:!text-amber-400 hover:!bg-amber-50 dark:hover:!bg-amber-900/20'
-                                : 'btn-primary'
+                            ? 'btn-secondary !border-amber-400/50 !text-amber-600 dark:!text-amber-400 hover:!bg-amber-50 dark:hover:!bg-amber-900/20'
+                            : 'btn-primary'
                             }`}
                     >
                         {isGuest && (
@@ -1729,13 +1803,19 @@ const LiveScreenActive: React.FC<{ userProfile: UserProfile; onUpgradeRequest: (
 
 const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: DashboardPage) => void, setModal: (content: React.ReactNode, options?: { fullScreen?: boolean }) => void, onProfileUpdate: (p: UserProfile) => void, onSignUpRequest?: () => void, onSubscribeRequest?: () => void }> = ({ userProfile, setActivePage, setModal, onProfileUpdate, onSignUpRequest, onSubscribeRequest }) => {
     const isGuest = userProfile.name === 'Guest' && !userProfile.email;
+    const [showGuestFeatureGate, setShowGuestFeatureGate] = useState<string | null>(null);
+
+    const guestGateAction = (featureName: string) => {
+        if (isGuest) { setShowGuestFeatureGate(featureName); }
+    };
+
     const features = [
-        { name: 'Personalised Meal Plan', icon: BowlIcon, color: 'bg-emerald-500', action: () => setModal(<MealPlanScreen userProfile={userProfile} isGuest={isGuest} onSignUpRequest={() => { setModal(null); onSignUpRequest?.(); }} onSubscribeRequest={() => { setModal(null); onSubscribeRequest?.(); }} />) },
-        { name: 'Food Safety Checker', icon: SearchIcon, color: 'bg-teal-500', action: () => setModal(<FoodSafetyCheckerScreen userProfile={userProfile} />) },
-        { name: 'Nutrient Tracker', icon: ChartIcon, color: 'bg-sky-500', action: () => setActivePage('tracker') },
-        { name: 'Symptom Tips', icon: NauseaIcon, color: 'bg-indigo-500', action: () => setModal(<SymptomTipsScreen />) },
-        { name: 'Medical Docs', icon: ShieldCheckIcon, color: 'bg-amber-500', action: () => setModal(<MedicalDocsScreen userProfile={userProfile} onUploadSuccess={onProfileUpdate} />) },
-        { name: 'Alerts', icon: BellIcon, color: 'bg-rose-500', action: () => setModal(<RemindersScreen />) },
+        { name: 'Personalised Meal Plan', icon: BowlIcon, color: 'bg-emerald-500', guestAllowed: true, action: () => setModal(<MealPlanScreen userProfile={userProfile} isGuest={isGuest} onSignUpRequest={() => { setModal(null); onSignUpRequest?.(); }} onSubscribeRequest={() => { setModal(null); onSubscribeRequest?.(); }} />) },
+        { name: 'Food Safety Checker', icon: SearchIcon, color: 'bg-teal-500', guestAllowed: false, action: () => setModal(<FoodSafetyCheckerScreen userProfile={userProfile} />) },
+        { name: 'Nutrient Tracker', icon: ChartIcon, color: 'bg-sky-500', guestAllowed: false, action: () => setActivePage('tracker') },
+        { name: 'Symptom Tips', icon: NauseaIcon, color: 'bg-indigo-500', guestAllowed: false, action: () => setModal(<SymptomTipsScreen />) },
+        { name: 'Medical Docs', icon: ShieldCheckIcon, color: 'bg-amber-500', guestAllowed: false, action: () => setModal(<MedicalDocsScreen userProfile={userProfile} onUploadSuccess={onProfileUpdate} />) },
+        { name: 'Alerts', icon: BellIcon, color: 'bg-rose-500', guestAllowed: false, action: () => setModal(<RemindersScreen />) },
     ];
 
     const slideshowImages = [
@@ -1799,17 +1879,42 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
                 </div>
             </div>
 
+            {/* Guest Feature Gate Modal (inline within HomeScreen) */}
+            {showGuestFeatureGate && (
+                <GuestNavGateModal
+                    featureName={showGuestFeatureGate}
+                    onClose={() => setShowGuestFeatureGate(null)}
+                    onSignUp={() => { setShowGuestFeatureGate(null); onSignUpRequest?.(); }}
+                    onSubscribe={() => { setShowGuestFeatureGate(null); onSubscribeRequest?.(); }}
+                />
+            )}
+
             <div className="grid grid-cols-2 gap-6">
-                {features.map((feature) => (
-                    <div key={feature.name} className="card-button-wrapper">
-                        <button onClick={feature.action} className="w-full p-6 flex flex-col items-center justify-center text-center gap-4 transition-all active:scale-95 group">
-                            <div className={`p-4 ${feature.color} rounded-2xl shadow-xl transform group-hover:-translate-y-1 transition-transform`}>
-                                <feature.icon className="w-8 h-8 text-white" />
-                            </div>
-                            <span className="font-extrabold text-xs text-emerald-950 dark:text-white uppercase tracking-tighter">{feature.name}</span>
-                        </button>
-                    </div>
-                ))}
+                {features.map((feature) => {
+                    const locked = isGuest && !feature.guestAllowed;
+                    return (
+                        <div key={feature.name} className={`card-button-wrapper relative ${locked ? 'opacity-50' : ''}`}>
+                            <button
+                                onClick={() => locked ? guestGateAction(feature.name) : feature.action()}
+                                className="w-full p-6 flex flex-col items-center justify-center text-center gap-4 transition-all active:scale-95 group"
+                            >
+                                <div className={`p-4 ${locked ? 'bg-gray-300 dark:bg-gray-700' : feature.color} rounded-2xl shadow-xl transform group-hover:-translate-y-1 transition-transform relative`}>
+                                    <feature.icon className="w-8 h-8 text-white" />
+                                    {locked && (
+                                        <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center shadow-md">
+                                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                </div>
+                                <span className={`font-extrabold text-xs uppercase tracking-tighter ${locked ? 'text-gray-400 dark:text-gray-500' : 'text-emerald-950 dark:text-white'}`}>
+                                    {feature.name}
+                                </span>
+                            </button>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
@@ -1937,6 +2042,9 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     const [modalState, setModalState] = useState<{ content: React.ReactNode | null; fullScreen: boolean }>({ content: null, fullScreen: false });
     const [showPayment, setShowPayment] = useState(false);
     const [localProfile, setLocalProfile] = useState(userProfile);
+    const [guestNavGate, setGuestNavGate] = useState<string | null>(null); // feature name guest tried to access
+
+    const isGuest = localProfile.name === 'Guest' && !localProfile.email;
 
     const setModal = useCallback((content: React.ReactNode, options?: { fullScreen?: boolean }) => {
         setModalState({ content, fullScreen: options?.fullScreen || false });
@@ -1947,8 +2055,9 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
         // Force meal plan regeneration by updating the state that is passed to MealPlanScreen
     };
 
-    // --- Random Pop-up Logic for Unverified Users ---
+    // --- Random Pop-up Logic for Unverified Users (skip for guests) ---
     useEffect(() => {
+        if (isGuest) return; // Guests don't get verification prompts
         if (!localProfile.documentsSubmitted && Math.random() > 0.7) { // 30% chance on mount/update
             const timer = setTimeout(() => {
                 // Only show if no other modal is open to avoid conflict
@@ -1975,7 +2084,10 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
             }, 3000); // 3-second delay
             return () => clearTimeout(timer);
         }
-    }, [localProfile.documentsSubmitted, setModal, modalState.content]); // Dependency on submitted status
+    }, [isGuest, localProfile.documentsSubmitted, setModal, modalState.content]); // Dependency on submitted status
+
+    // For guests, always show home screen regardless of activePage
+    const effectivePage: DashboardPage = isGuest ? 'home' : activePage;
 
     const screens = useMemo(() => ({
         home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} onProfileUpdate={handleProfileUpdate} onSignUpRequest={onLogout} onSubscribeRequest={() => setShowPayment(true)} />,
@@ -1988,9 +2100,23 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
 
     return (
         <div className="min-h-screen bg-transparent relative">
-            <div className="animate-fade-in-up">{screens[activePage] || screens.home}</div>
-            <EmergencyButton activePage={activePage} />
-            <BottomNavBar activePage={activePage} onNavigate={setActivePage} />
+            <div className="animate-fade-in-up">{screens[effectivePage] || screens.home}</div>
+            <EmergencyButton activePage={effectivePage} />
+            <BottomNavBar
+                activePage={effectivePage}
+                onNavigate={setActivePage}
+                isGuest={isGuest}
+                onGuestNavigate={(featureName) => setGuestNavGate(featureName)}
+            />
+            {/* Guest Nav Gate Popup */}
+            {guestNavGate && (
+                <GuestNavGateModal
+                    featureName={guestNavGate}
+                    onClose={() => setGuestNavGate(null)}
+                    onSignUp={() => { setGuestNavGate(null); onLogout(); }}
+                    onSubscribe={() => { setGuestNavGate(null); setShowPayment(true); }}
+                />
+            )}
             {modalState.content && (
                 <Modal closeModal={() => setModal(null)} fullScreen={modalState.fullScreen}>
                     {modalState.content}
