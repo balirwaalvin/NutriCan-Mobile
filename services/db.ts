@@ -79,6 +79,7 @@ function mapProfile(raw: any): UserProfile {
     isVerified: raw.isVerified ?? false,
     documentsSubmitted: raw.documentsSubmitted ?? false,
     isGuest: raw.isGuest ?? false,
+    createdAt: raw.createdAt,
   };
 }
 

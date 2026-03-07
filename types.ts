@@ -39,6 +39,7 @@ export interface UserProfile {
   isVerified?: boolean;
   documentsSubmitted?: boolean;
   isGuest?: boolean;
+  createdAt?: string; // For 7-day trial calculation
 }
 
 export type MealCategory = 'Protein' | 'Carbs' | 'Balanced' | 'Veggies';

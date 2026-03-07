@@ -74,25 +74,36 @@ const Modal: React.FC<{ children: React.ReactNode; closeModal: () => void; fullS
     </div>
 );
 
-const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: DashboardPage) => void; isGuest?: boolean; onGuestNavigate?: (featureName: string) => void }> = ({ activePage, onNavigate, isGuest, onGuestNavigate }) => {
+const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: DashboardPage) => void; userProfile: UserProfile; isTrialActive: boolean; onLockedNavigate?: (featureName: string) => void }> = ({ activePage, onNavigate, userProfile, isTrialActive, onLockedNavigate }) => {
     const navItems = [
         { page: 'home' as DashboardPage, icon: HomeIcon, label: 'Home', guestAllowed: true },
-        { page: 'tracker' as DashboardPage, icon: ChartIcon, label: 'Tracker', guestAllowed: false },
-        { page: 'live' as DashboardPage, icon: BroadcastIcon, label: 'Live', guestAllowed: false },
-        { page: 'library' as DashboardPage, icon: BookIcon, label: 'Library', guestAllowed: false },
-        { page: 'profile' as DashboardPage, icon: UserIcon, label: 'Profile', guestAllowed: false },
+        { page: 'tracker' as DashboardPage, icon: ChartIcon, label: 'Tracker', premiumOnly: false, trialAllowed: true }, // Allowed in trial
+        { page: 'live' as DashboardPage, icon: BroadcastIcon, label: 'Live', premiumOnly: true, trialAllowed: false }, // Premium only
+        { page: 'library' as DashboardPage, icon: BookIcon, label: 'Library', premiumOnly: true, trialAllowed: false }, // Premium only
+        { page: 'profile' as DashboardPage, icon: UserIcon, label: 'Profile', premiumOnly: false, trialAllowed: true }, // Allowed in trial (maybe locked after?)
     ];
+
+    const isPremium = userProfile.plan === 'Premium';
 
     return (
         <div className="fixed bottom-0 left-0 right-0 w-full sm:max-w-md md:max-w-lg mx-auto bg-white/80 backdrop-blur-2xl border-t border-white/20 flex justify-around p-3 pb-8 dark:bg-emerald-950/60 z-30 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.15)] rounded-t-[3rem]">
             {navItems.map(item => {
                 const isActive = activePage === item.page;
-                const isLocked = isGuest && !item.guestAllowed;
+
+                // Determine lock status:
+                // If Premium: Never locked
+                // If Free + Trial Active: Locked if premiumOnly
+                // If Free + Trial Expired: Locked if not 'home'
+                const isLocked = !isPremium && (
+                    (isTrialActive && item.premiumOnly) ||
+                    (!isTrialActive && item.page !== 'home')
+                );
+
                 return (
                     <button
                         key={item.page}
                         onClick={() => {
-                            if (isLocked) { onGuestNavigate?.(item.label); return; }
+                            if (isLocked) { onLockedNavigate?.(item.label); return; }
                             onNavigate(item.page);
                         }}
                         className="flex flex-col items-center justify-center w-14 transition-all transform active:scale-90 group relative"
@@ -406,30 +417,22 @@ const GuestSwapModal: React.FC<{ onSignUp: () => void; onSubscribe: () => void; 
             <div className="space-y-3">
                 <div className="card-button-wrapper">
                     <button
-                        onClick={onSignUp}
+                        onClick={onSubscribe}
                         className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-5"
-                        id="guest-swap-signup-btn"
                     >
-                        Create Free Account
+                        ✦ Subscribe — 15,000 UGX/mo
                     </button>
                 </div>
-                <button
-                    onClick={onSubscribe}
-                    className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-amber-600 dark:text-amber-400 border-2 border-amber-400/30 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors shadow active:scale-95"
-                    id="guest-swap-subscribe-btn"
-                >
-                    ✦ Subscribe — 15,000 UGX/mo
-                </button>
                 <button onClick={onClose} className="block w-full text-center text-xs font-black text-gray-400 uppercase tracking-widest pt-2 active:scale-95 transition-transform">
-                    Continue Browsing
+                    Maybe Later
                 </button>
             </div>
         </div>
     </div>
 );
 
-// --- Guest Nav Gate Modal (shown when guest taps restricted nav items) ---
-const GuestNavGateModal: React.FC<{ featureName: string; onSignUp: () => void; onSubscribe: () => void; onClose: () => void }> = ({ featureName, onSignUp, onSubscribe, onClose }) => (
+// --- Locked Feature Modal (shown when free user taps restricted items) ---
+const LockedFeatureModal: React.FC<{ featureName: string; isTrialExpired: boolean; onSubscribe: () => void; onClose: () => void }> = ({ featureName, isTrialExpired, onSubscribe, onClose }) => (
     <div className="fixed inset-0 bg-emerald-950/95 backdrop-blur-3xl z-[300] flex items-center justify-center p-6 animate-fade-in" onClick={onClose}>
         <div className="bg-white dark:bg-emerald-900/60 max-w-sm w-full rounded-[3.5rem] p-10 text-center shadow-2xl relative border-b-8 border-brand-green overflow-hidden glass-panel animate-fade-in-up" onClick={e => e.stopPropagation()}>
             <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-brand-green/20 rounded-full blur-3xl pointer-events-none" />
@@ -446,15 +449,17 @@ const GuestNavGateModal: React.FC<{ featureName: string; onSignUp: () => void; o
                 </div>
             </div>
 
-            <span className="px-4 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 mb-5 inline-block">
-                Account Required
+            <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border mb-5 inline-block ${isTrialExpired ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'}`}>
+                {isTrialExpired ? 'Trial Expired' : 'Premium Feature'}
             </span>
 
             <h2 className="text-2xl font-black text-emerald-950 dark:text-white mb-3 tracking-tighter">
-                {featureName} is Locked
+                {isTrialExpired ? 'Your 7-Day Trial has Ended' : `${featureName} is Locked`}
             </h2>
             <p className="text-gray-500 dark:text-gray-300 font-bold text-sm mb-8 leading-relaxed">
-                Create a free account or subscribe to access <span className="font-black text-emerald-700 dark:text-emerald-400">{featureName}</span> and all other NutriCan features.
+                {isTrialExpired
+                    ? `Subscribe to unlock ${featureName} and keep using all NutriCan features.`
+                    : `Subscribe to access ${featureName} and other advanced AI features.`}
             </p>
 
             <div className="w-full text-left space-y-3 mb-8 px-2">
@@ -827,7 +832,7 @@ const SymptomTipsScreen: React.FC = () => {
                                     <img src={tip.photoUrl} alt={tip.name} className="w-24 h-24 object-cover rounded-3xl shadow-md" />
                                     <div className="flex-grow">
                                         <p className="font-black text-emerald-950 dark:text-white text-base mb-1">{tip.name}</p>
-                                        <p className="text-xs text-gray-500 dark:text-emerald-100/60 leading-relaxed font-medium">{tip.description}</p>
+                                        <p className="text-xs text-gray-500 dark:text-emerald-100/70 leading-relaxed font-medium">{tip.description}</p>
                                     </div>
                                 </div>
                             ))}
@@ -923,6 +928,19 @@ const MealPlanScreen: React.FC<{ userProfile: UserProfile; isGuest?: boolean; on
     const [selectedDayIndex, setSelectedDayIndex] = useState((new Date().getDay() + 6) % 7);
     const [swappingState, setSwappingState] = useState<{ dayIndex: number, mealType: string } | null>(null);
     const [showGuestSwapModal, setShowGuestSwapModal] = useState(false);
+    const [showLockedFeatureGate, setShowLockedFeatureGate] = useState<string | null>(null);
+
+    const isPremium = userProfile.plan === 'Premium';
+
+    // Calculate trial status
+    const isTrialActive = useMemo(() => {
+        if (!userProfile.createdAt) return true;
+        const createdDate = new Date(userProfile.createdAt);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - createdDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+    }, [userProfile.createdAt]);
 
     // Re-fetch when userProfile changes to ensure gradual change based on new suffering/condition
     const fetchMealPlan = useCallback(async () => {
@@ -940,6 +958,13 @@ const MealPlanScreen: React.FC<{ userProfile: UserProfile; isGuest?: boolean; on
             setShowGuestSwapModal(true);
             return;
         }
+
+        // Free users past 7-day trial cannot swap
+        if (!isPremium && !isTrialActive) {
+            setShowLockedFeatureGate('Meal Swapping');
+            return;
+        }
+
         if (!mealPlan) return;
         setSwappingState({ dayIndex, mealType });
         const mealToSwap = mealPlan[dayIndex][mealType];
@@ -962,6 +987,15 @@ const MealPlanScreen: React.FC<{ userProfile: UserProfile; isGuest?: boolean; on
                     onClose={() => setShowGuestSwapModal(false)}
                     onSignUp={() => { setShowGuestSwapModal(false); onSignUpRequest?.(); }}
                     onSubscribe={() => { setShowGuestSwapModal(false); onSubscribeRequest?.(); }}
+                />
+            )}
+            {/* Locked Feature Gate (for Free users past trial) */}
+            {showLockedFeatureGate && (
+                <LockedFeatureModal
+                    featureName={showLockedFeatureGate}
+                    isTrialExpired={!isTrialActive}
+                    onClose={() => setShowLockedFeatureGate(null)}
+                    onSubscribe={() => { setShowLockedFeatureGate(null); onSubscribeRequest?.(); }}
                 />
             )}
             <div className="p-4 pb-20">
@@ -1713,10 +1747,10 @@ const LiveScreenActive: React.FC<{ userProfile: UserProfile; onUpgradeRequest: (
                   speechConfig: {
                       voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
                   },
-                  systemInstruction: \`You are a warm and knowledgeable cancer nutrition specialist at NutriCan.
-                  User: \${userProfile.name}, Age: \${userProfile.age}, Condition: \${userProfile.cancerType}.
+                  systemInstruction: `You are a warm and knowledgeable cancer nutrition specialist at NutriCan.
+                  User: ${userProfile.name}, Age: ${userProfile.age}, Condition: ${userProfile.cancerType}.
                   Assist with real-time food advice, symptom management, and emotional support.
-                  Be encouraging and concise.\`
+                  Be encouraging and concise.`
               }
           });
 
@@ -1740,7 +1774,7 @@ const LiveScreenActive: React.FC<{ userProfile: UserProfile; onUpgradeRequest: (
             <div className="glass-panel p-8 rounded-[3.5rem] shadow-2xl relative overflow-hidden border-b-8 border-brand-green flex flex-col items-center">
                 {isConnected ? (
                   <div className="w-full animate-fade-in">
-                    <div className={\`w-full aspect-video rounded-[2.5rem] mb-8 relative overflow-hidden bg-emerald-950 shadow-inner flex items-center justify-center \${modality === 'video' ? 'block' : 'hidden'}\`}>
+                    <div className={`w-full aspect-video rounded-[2.5rem] mb-8 relative overflow-hidden bg-emerald-950 shadow-inner flex items-center justify-center ${modality === 'video' ? 'block' : 'hidden'}`}>
                         <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
                         <canvas ref={canvasRef} className="hidden" />
                         <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/60 to-transparent pointer-events-none"></div>
@@ -1754,7 +1788,7 @@ const LiveScreenActive: React.FC<{ userProfile: UserProfile; onUpgradeRequest: (
                         <div className="flex flex-col items-center justify-center py-10">
                             <div className="flex items-center gap-1 h-12 mb-8">
                                 {[...Array(12)].map((_, i) => (
-                                    <div key={i} className={\`w-1.5 bg-brand-green rounded-full \${isModelSpeaking ? 'animate-bounce' : 'opacity-40'}\`} style={{ height: isModelSpeaking ? \`\${20 + Math.random() * 80}%\` : '10%', animationDelay: \`\${i * 0.1}s\` }}></div>
+                                    <div key={i} className={`w-1.5 bg-brand-green rounded-full ${isModelSpeaking ? 'animate-bounce' : 'opacity-40'}`} style={{ height: isModelSpeaking ? `${20 + Math.random() * 80}%` : '10%', animationDelay: `${i * 0.1}s` }}></div>
                                 ))}
                             </div>
                             <p className="text-emerald-900 dark:text-emerald-300 font-black text-xl mb-1 uppercase tracking-tighter">NutriCan AI Expert</p>
@@ -1791,8 +1825,8 @@ const LiveScreenActive: React.FC<{ userProfile: UserProfile; onUpgradeRequest: (
             </div>
             
             <div className="mt-8 flex justify-center gap-4">
-                <button onClick={() => setModality('audio')} className={\`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all \${modality === 'audio' ? 'bg-brand-green text-white shadow-glow-primary' : 'glass-panel text-gray-400'}\`}>Audio Mode</button>
-                <button onClick={() => setModality('video')} className={\`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all \${modality === 'video' ? 'bg-brand-green text-white shadow-glow-primary' : 'glass-panel text-gray-400'}\`}>Video Mode</button>
+                <button onClick={() => setModality('audio')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${modality === 'audio' ? 'bg-brand-green text-white shadow-glow-primary' : 'glass-panel text-gray-400'}`}>Audio Mode</button>
+                <button onClick={() => setModality('video')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${modality === 'video' ? 'bg-brand-green text-white shadow-glow-primary' : 'glass-panel text-gray-400'}`}>Video Mode</button>
             </div>
         </div>
     );
@@ -1801,23 +1835,66 @@ const LiveScreenActive: React.FC<{ userProfile: UserProfile; onUpgradeRequest: (
 
 // --- Standard Screens ---
 
-const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: DashboardPage) => void, setModal: (content: React.ReactNode, options?: { fullScreen?: boolean }) => void, onProfileUpdate: (p: UserProfile) => void, onSignUpRequest?: () => void, onSubscribeRequest?: () => void }> = ({ userProfile, setActivePage, setModal, onProfileUpdate, onSignUpRequest, onSubscribeRequest }) => {
+const HomeScreen: React.FC<{
+    userProfile: UserProfile;
+    setActivePage: (page: DashboardPage) => void;
+    setModal: (content: React.ReactNode, options?: { fullScreen?: boolean }) => void;
+    onProfileUpdate: (profile: UserProfile) => void;
+    onSignUpRequest: () => void;
+    onSubscribeRequest?: () => void;
+    isTrialActive: boolean;
+}> = ({ userProfile, setActivePage, setModal, onProfileUpdate, onSignUpRequest, onSubscribeRequest, isTrialActive }) => {
     const isGuest = !!userProfile.isGuest;
-    const [showGuestFeatureGate, setShowGuestFeatureGate] = useState<string | null>(null);
+    const [showLockedFeatureGate, setShowLockedFeatureGate] = useState<string | null>(null);
 
-    const guestGateAction = (featureName: string) => {
-        if (isGuest) { setShowGuestFeatureGate(featureName); }
+    const lockedFeatureAction = (featureName: string) => {
+        setShowLockedFeatureGate(featureName);
     };
 
     const features = [
-        { name: 'Personalised Meal Plan', icon: BowlIcon, color: 'bg-emerald-500', guestAllowed: true, action: () => setModal(<MealPlanScreen userProfile={userProfile} isGuest={isGuest} onSignUpRequest={() => { setModal(null); onSignUpRequest?.(); }} onSubscribeRequest={() => { setModal(null); onSubscribeRequest?.(); }} />) },
-        { name: 'Food Safety Checker', icon: SearchIcon, color: 'bg-teal-500', guestAllowed: false, action: () => setModal(<FoodSafetyCheckerScreen userProfile={userProfile} />) },
-        { name: 'Nutrient Tracker', icon: ChartIcon, color: 'bg-sky-500', guestAllowed: false, action: () => setActivePage('tracker') },
-        { name: 'Symptom Tips', icon: NauseaIcon, color: 'bg-indigo-500', guestAllowed: false, action: () => setModal(<SymptomTipsScreen />) },
-        { name: 'Medical Docs', icon: ShieldCheckIcon, color: 'bg-amber-500', guestAllowed: false, action: () => setModal(<MedicalDocsScreen userProfile={userProfile} onUploadSuccess={onProfileUpdate} />) },
-        { name: 'Alerts', icon: BellIcon, color: 'bg-rose-500', guestAllowed: false, action: () => setModal(<RemindersScreen />) },
+        {
+            title: 'Personalised Meal Plan',
+            description: 'AI-tailored recipes for your current treatment stage.',
+            icon: BowlIcon,
+            color: 'bg-emerald-500',
+            bgLight: 'bg-emerald-50 dark:bg-emerald-900/20',
+            onClick: () => setActivePage('home'),
+            premiumOnly: false,
+            trialAllowed: true
+        },
+        {
+            title: 'Nutrient Tracker & Journal',
+            description: 'Log meals, track vital metrics and journal your recovery journey.',
+            icon: ChartIcon,
+            color: 'bg-amber-500',
+            bgLight: 'bg-amber-50 dark:bg-amber-900/20',
+            onClick: () => setActivePage('tracker'),
+            premiumOnly: false,
+            trialAllowed: true
+        },
+        {
+            title: 'Live Nutrition AI',
+            description: 'Get instant answers about foods, recipes, and symptoms.',
+            icon: BroadcastIcon,
+            color: 'bg-sky-500',
+            bgLight: 'bg-sky-50 dark:bg-sky-900/20',
+            onClick: () => setActivePage('live'),
+            premiumOnly: true,
+            trialAllowed: false
+        },
+        {
+            title: 'Resource Library',
+            description: 'Expert articles, guides, and cancer nutrition research.',
+            icon: BookIcon,
+            color: 'bg-rose-500',
+            bgLight: 'bg-rose-50 dark:bg-rose-900/20',
+            onClick: () => setActivePage('library'),
+            premiumOnly: true,
+            trialAllowed: false
+        }
     ];
 
+    const isPremium = userProfile.plan === 'Premium';
     const slideshowImages = [
         // Colourful healthy food spread
         "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80",
@@ -1879,38 +1956,47 @@ const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: Das
                 </div>
             </div>
 
-            {/* Guest Feature Gate Modal (inline within HomeScreen) */}
-            {showGuestFeatureGate && (
-                <GuestNavGateModal
-                    featureName={showGuestFeatureGate}
-                    onClose={() => setShowGuestFeatureGate(null)}
-                    onSignUp={() => { setShowGuestFeatureGate(null); onSignUpRequest?.(); }}
-                    onSubscribe={() => { setShowGuestFeatureGate(null); onSubscribeRequest?.(); }}
+            {/* Guest Feature Gate */}
+            {showLockedFeatureGate && (
+                <LockedFeatureModal
+                    featureName={showLockedFeatureGate}
+                    isTrialExpired={!isTrialActive}
+                    onClose={() => setShowLockedFeatureGate(null)}
+                    onSubscribe={() => { setShowLockedFeatureGate(null); onSubscribeRequest?.(); }}
                 />
             )}
 
-            <div className="grid grid-cols-2 gap-6">
-                {features.map((feature) => {
-                    const locked = isGuest && !feature.guestAllowed;
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-24 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+                {features.map((feature, i) => {
+                    const isLocked = !isPremium && (
+                        (isTrialActive && feature.premiumOnly) ||
+                        (!isTrialActive && feature.title !== 'Personalised Meal Plan')
+                    );
+
                     return (
-                        <div key={feature.name} className={`card-button-wrapper relative ${locked ? 'opacity-50' : ''}`}>
+                        <div key={i} className="relative group perspective-1000">
                             <button
-                                onClick={() => locked ? guestGateAction(feature.name) : feature.action()}
-                                className="w-full p-6 flex flex-col items-center justify-center text-center gap-4 transition-all active:scale-95 group"
+                                onClick={isLocked ? () => lockedFeatureAction(feature.title) : feature.onClick}
+                                className={`w-full text-left p-6 rounded-[2rem] border-2 transition-all duration-300 relative overflow-hidden h-full flex flex-col justify-between
+                                    ${isLocked ? 'bg-gray-50/50 dark:bg-gray-800/20 border-gray-200/50 dark:border-gray-700/30' : 'bg-white/80 dark:bg-emerald-950/80 border-transparent hover:border-emerald-500/30 hover:shadow-xl hover:-translate-y-1'}`}
                             >
-                                <div className={`p-4 ${locked ? 'bg-gray-300 dark:bg-gray-700' : feature.color} rounded-2xl shadow-xl transform group-hover:-translate-y-1 transition-transform relative`}>
-                                    <feature.icon className="w-8 h-8 text-white" />
-                                    {locked && (
-                                        <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center shadow-md">
-                                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                                            </svg>
-                                        </div>
-                                    )}
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 
+                                    ${isLocked ? 'bg-gray-200 dark:bg-gray-700' : feature.color} ${isLocked ? '' : 'shadow-lg shadow-' + feature.color.split('-')[1] + '-500/30 text-white'}`}>
+                                    <feature.icon className={`w-6 h-6 ${isLocked ? 'text-gray-400 dark:text-gray-500' : ''}`} />
                                 </div>
-                                <span className={`font-extrabold text-xs uppercase tracking-tighter ${locked ? 'text-gray-400 dark:text-gray-500' : 'text-emerald-950 dark:text-white'}`}>
-                                    {feature.name}
-                                </span>
+                                <div>
+                                    <h3 className={`font-black text-lg mb-2 tracking-tight ${isLocked ? 'text-gray-400 dark:text-gray-500' : 'text-emerald-950 dark:text-white'}`}>
+                                        {feature.title}
+                                    </h3>
+                                    <p className={`text-sm font-bold leading-relaxed ${isLocked ? 'text-gray-300 dark:text-gray-600' : 'text-gray-500 dark:text-gray-400'}`}>
+                                        {feature.description}
+                                    </p>
+                                </div>
+                                {isLocked && (
+                                    <div className="absolute top-6 right-6 p-2 bg-gray-100 dark:bg-gray-800 rounded-full shadow-inner">
+                                        <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
+                                    </div>
+                                )}
                             </button>
                         </div>
                     );
@@ -2111,9 +2197,20 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     const [modalState, setModalState] = useState<{ content: React.ReactNode | null; fullScreen: boolean }>({ content: null, fullScreen: false });
     const [showPayment, setShowPayment] = useState(false);
     const [localProfile, setLocalProfile] = useState(userProfile);
-    const [guestNavGate, setGuestNavGate] = useState<string | null>(null); // feature name guest tried to access
+    const [lockedFeatureGate, setLockedFeatureGate] = useState<string | null>(null); // feature name user tried to access
 
     const isGuest = !!localProfile.isGuest;
+    const isPremium = localProfile.plan === 'Premium';
+
+    // Calculate trial status (7 days from creation)
+    const isTrialActive = useMemo(() => {
+        if (!localProfile.createdAt) return true; // Default to true if missing for older accounts
+        const createdDate = new Date(localProfile.createdAt);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - createdDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+    }, [localProfile.createdAt]);
 
     const setModal = useCallback((content: React.ReactNode, options?: { fullScreen?: boolean }) => {
         setModalState({ content, fullScreen: options?.fullScreen || false });
@@ -2174,13 +2271,13 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     const effectivePage: DashboardPage = activePage;
 
     const screens = useMemo(() => ({
-        home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} onProfileUpdate={handleProfileUpdate} onSignUpRequest={onLogout} onSubscribeRequest={() => setShowPayment(true)} />,
+        home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} onProfileUpdate={handleProfileUpdate} onSignUpRequest={onLogout} onSubscribeRequest={() => setShowPayment(true)} isTrialActive={isTrialActive} />,
         tracker: <TrackerScreen userProfile={localProfile} setModal={setModal} />,
         live: <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
         library: <LibraryScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
         profile: <ProfileScreen userProfile={localProfile} onLogout={onLogout} setModal={setModal} onProfileUpdate={handleProfileUpdate} onUpgradeRequest={() => setShowPayment(true)} />,
         'doctor-connect': <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
-    }), [localProfile, isGuest, onLogout, setActivePage, setModal]);
+    }), [localProfile, isGuest, isTrialActive, onLogout, setActivePage, setModal]);
 
     return (
         <div className="min-h-screen bg-transparent relative">
@@ -2189,16 +2286,17 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
             <BottomNavBar
                 activePage={effectivePage}
                 onNavigate={setActivePage}
-                isGuest={isGuest}
-                onGuestNavigate={(featureName) => setGuestNavGate(featureName)}
+                userProfile={localProfile}
+                isTrialActive={isTrialActive}
+                onLockedNavigate={(featureName) => setLockedFeatureGate(featureName)}
             />
-            {/* Guest Nav Gate Popup */}
-            {guestNavGate && (
-                <GuestNavGateModal
-                    featureName={guestNavGate}
-                    onClose={() => setGuestNavGate(null)}
-                    onSignUp={() => { setGuestNavGate(null); onLogout(); }}
-                    onSubscribe={() => { setGuestNavGate(null); setShowPayment(true); }}
+            {/* Locked Feature Gate Popup */}
+            {lockedFeatureGate && (
+                <LockedFeatureModal
+                    featureName={lockedFeatureGate}
+                    isTrialExpired={!isTrialActive}
+                    onClose={() => setLockedFeatureGate(null)}
+                    onSubscribe={() => { setLockedFeatureGate(null); setShowPayment(true); }}
                 />
             )}
             {modalState.content && (
