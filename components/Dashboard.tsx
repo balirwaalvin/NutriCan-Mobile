@@ -2221,35 +2221,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
         // Force meal plan regeneration by updating the state that is passed to MealPlanScreen
     };
 
-    // --- Random Pop-up Logic for Unverified Users (skip for guests) ---
-    useEffect(() => {
-        if (!localProfile.documentsSubmitted && Math.random() > 0.7) { // 30% chance on mount/update
-            const timer = setTimeout(() => {
-                // Only show if no other modal is open to avoid conflict
-                if (!modalState.content) {
-                    setModal(
-                        <div className="text-center p-4">
-                            <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <ShieldCheckIcon className="w-10 h-10 text-amber-500" />
-                            </div>
-                            <h3 className="text-2xl font-black text-emerald-950 dark:text-white mb-2">Verify Your Profile</h3>
-                            <p className="text-gray-500 mb-8 font-bold text-sm">Please submit your medical forms to unlock the verified badge.</p>
-                            <div className="card-button-wrapper">
-                                <button
-                                    onClick={() => setModal(<MedicalDocsScreen userProfile={localProfile} onUploadSuccess={(p) => { handleProfileUpdate(p); setModal(null); }} />)}
-                                    className="btn-primary w-full shadow-glow-primary"
-                                >
-                                    Verify Now
-                                </button>
-                            </div>
-                            <button onClick={() => setModal(null)} className="mt-4 text-xs font-black text-gray-400 uppercase tracking-widest">Remind me later</button>
-                        </div>
-                    );
-                }
-            }, 3000); // 3-second delay
-            return () => clearTimeout(timer);
-        }
-    }, [isGuest, localProfile.documentsSubmitted, setModal, modalState.content]); // Dependency on submitted status
+    // --- Random Pop-up Logic for Unverified Users Removed ---
 
     // *** GUEST GUARD — placed after all hooks to comply with rules-of-hooks ***
     // Return the fully isolated guest view. The full Dashboard never renders for guests.
