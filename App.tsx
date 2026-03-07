@@ -67,21 +67,21 @@ const App: React.FC = () => {
         return <SplashScreen onGetStarted={() => setCurrentPage('terms')} />;
       case 'terms':
         return (
-          <TermsScreen 
-            onAgree={() => setCurrentPage('onboarding')} 
+          <TermsScreen
+            onAgree={() => setCurrentPage('onboarding')}
             onBack={() => setCurrentPage('splash')}
           />
         );
       case 'onboarding':
         return (
-          <OnboardingScreen 
-            onComplete={() => setCurrentPage('auth')} 
+          <OnboardingScreen
+            onComplete={() => setCurrentPage('auth')}
             onBack={() => setCurrentPage('terms')}
           />
         );
       case 'auth':
         return (
-          <AuthScreen 
+          <AuthScreen
             initialView={authInitialView}
             onAuthSuccess={handleAuthSuccess}
             onBack={() => setCurrentPage('onboarding')}
@@ -103,7 +103,7 @@ const App: React.FC = () => {
           />
         );
       case 'dashboard':
-        return userProfile ? <Dashboard userProfile={userProfile} onLogout={handleLogout} /> : <AuthScreen onAuthSuccess={handleAuthSuccess} onContinueAsGuest={() => {}} onBack={() => setCurrentPage('onboarding')} />;
+        return userProfile ? <Dashboard userProfile={userProfile} onLogout={handleLogout} /> : <AuthScreen onAuthSuccess={handleAuthSuccess} onContinueAsGuest={() => { }} onBack={() => setCurrentPage('onboarding')} />;
       default:
         return <SplashScreen onGetStarted={() => setCurrentPage('terms')} />;
     }

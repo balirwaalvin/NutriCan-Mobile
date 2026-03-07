@@ -339,6 +339,78 @@ const PaymentModal: React.FC<{ onPaymentSuccess: () => void; closeModal: () => v
     );
 };
 
+// --- Guest Swap Popup Modal ---
+const GuestSwapModal: React.FC<{ onSignUp: () => void; onSubscribe: () => void; onClose: () => void }> = ({ onSignUp, onSubscribe, onClose }) => (
+    <div className="fixed inset-0 bg-emerald-950/95 backdrop-blur-3xl z-[300] flex items-center justify-center p-6 animate-fade-in" onClick={onClose}>
+        <div className="bg-white dark:bg-emerald-900/60 max-w-sm w-full rounded-[3.5rem] p-10 text-center shadow-2xl relative border-b-8 border-brand-green overflow-hidden glass-panel animate-fade-in-up" onClick={e => e.stopPropagation()}>
+            {/* Decorative glow */}
+            <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-brand-green/20 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Close button */}
+            <button onClick={onClose} className="absolute top-7 right-7 p-2.5 rounded-full bg-gray-100 dark:bg-white/10 text-emerald-800 dark:text-white hover:scale-110 transition-transform">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+
+            {/* Lock icon */}
+            <div className="relative mb-8">
+                <div className="absolute inset-0 bg-amber-400/20 blur-3xl animate-pulse-soft rounded-full" />
+                <div className="w-24 h-24 glass-panel rounded-[2rem] flex items-center justify-center mx-auto relative border-2 border-amber-400/30 shadow-2xl">
+                    <svg className="w-12 h-12 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+            </div>
+
+            <span className="px-4 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 mb-5 inline-block">
+                Account Required
+            </span>
+
+            <h2 className="text-2xl font-black text-emerald-950 dark:text-white mb-3 tracking-tighter">
+                Swap Meals with a Free Account
+            </h2>
+            <p className="text-gray-500 dark:text-gray-300 font-bold text-sm mb-8 leading-relaxed">
+                Create your free account to swap meals.<br />
+                Or go <span className="text-emerald-600 dark:text-emerald-400 font-black">Premium</span> for full AI-powered meal customisation.
+            </p>
+
+            {/* Premium perks preview */}
+            <div className="w-full text-left space-y-3 mb-8 px-2">
+                {['AI Meal Swaps & Customisation', 'Live AI Nutrition Consultation', 'Full Resource Library'].map((perk, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                        <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 shadow">
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <span className="text-sm font-bold text-emerald-950 dark:text-white">{perk}</span>
+                    </div>
+                ))}
+            </div>
+
+            {/* CTA Buttons */}
+            <div className="space-y-3">
+                <div className="card-button-wrapper">
+                    <button
+                        onClick={onSignUp}
+                        className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-5"
+                        id="guest-swap-signup-btn"
+                    >
+                        Create Free Account
+                    </button>
+                </div>
+                <button
+                    onClick={onSubscribe}
+                    className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-amber-600 dark:text-amber-400 border-2 border-amber-400/30 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors shadow active:scale-95"
+                    id="guest-swap-subscribe-btn"
+                >
+                    ✦ Subscribe — 15,000 UGX/mo
+                </button>
+                <button onClick={onClose} className="block w-full text-center text-xs font-black text-gray-400 uppercase tracking-widest pt-2 active:scale-95 transition-transform">
+                    Continue Browsing
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
 // --- Sub-Screens ---
 
 const MedicalDocsScreen: React.FC<{ userProfile: UserProfile, onUploadSuccess: (updatedProfile: UserProfile) => void }> = ({ userProfile, onUploadSuccess }) => {
@@ -771,11 +843,12 @@ const RemindersScreen: React.FC = () => {
     );
 };
 
-const MealPlanScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile }) => {
+const MealPlanScreen: React.FC<{ userProfile: UserProfile; isGuest?: boolean; onSignUpRequest?: () => void; onSubscribeRequest?: () => void }> = ({ userProfile, isGuest, onSignUpRequest, onSubscribeRequest }) => {
     const [mealPlan, setMealPlan] = useState<WeeklyMealPlan | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedDayIndex, setSelectedDayIndex] = useState((new Date().getDay() + 6) % 7);
     const [swappingState, setSwappingState] = useState<{ dayIndex: number, mealType: string } | null>(null);
+    const [showGuestSwapModal, setShowGuestSwapModal] = useState(false);
 
     // Re-fetch when userProfile changes to ensure gradual change based on new suffering/condition
     const fetchMealPlan = useCallback(async () => {
@@ -788,6 +861,11 @@ const MealPlanScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile })
     useEffect(() => { fetchMealPlan(); }, [fetchMealPlan]);
 
     const handleSwapMeal = async (dayIndex: number, mealType: 'breakfast' | 'lunch' | 'dinner') => {
+        // Guests cannot swap — show sign-up prompt instead
+        if (isGuest) {
+            setShowGuestSwapModal(true);
+            return;
+        }
         if (!mealPlan) return;
         setSwappingState({ dayIndex, mealType });
         const mealToSwap = mealPlan[dayIndex][mealType];
@@ -799,29 +877,60 @@ const MealPlanScreen: React.FC<{ userProfile: UserProfile }> = ({ userProfile })
         }
         setSwappingState(null);
     };
+
     if (loading) return <div className="p-20 text-center flex flex-col items-center justify-center h-full"><LogoIcon className="animate-spin h-16 w-16 text-brand-green mb-4" /><p className="font-black text-emerald-900 dark:text-emerald-300">Building your menu...</p></div>;
     if (!mealPlan) return <div className="p-10 text-center">Failed to load plan.</div>;
     const dayShortNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return (
-        <div className="p-4 pb-20">
-            <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Weekly Plan</h2>
-            <div className="flex justify-between gap-2 mb-10 bg-emerald-100/50 dark:bg-emerald-900/20 p-2 rounded-[2.5rem] overflow-x-auto no-scrollbar shadow-inner border border-emerald-500/10">
-                {dayShortNames.map((day, index) => (
-                    <button key={day} onClick={() => setSelectedDayIndex(index)} className={`px-5 py-3 rounded-2xl font-black text-[11px] transition-all duration-300 ${selectedDayIndex === index ? 'bg-brand-green text-white shadow-glow-primary scale-105' : 'text-emerald-900/40 dark:text-white/40'}`}>
-                        {day}
-                    </button>
-                ))}
+        <>
+            {showGuestSwapModal && (
+                <GuestSwapModal
+                    onClose={() => setShowGuestSwapModal(false)}
+                    onSignUp={() => { setShowGuestSwapModal(false); onSignUpRequest?.(); }}
+                    onSubscribe={() => { setShowGuestSwapModal(false); onSubscribeRequest?.(); }}
+                />
+            )}
+            <div className="p-4 pb-20">
+                {/* Guest banner */}
+                {isGuest && (
+                    <div className="mb-6 flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-300/40 rounded-[1.5rem] p-4 animate-fade-in">
+                        <div className="p-2 bg-amber-100 dark:bg-amber-800/40 rounded-xl flex-shrink-0">
+                            <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-black text-amber-700 dark:text-amber-300 uppercase tracking-wide">Guest Mode</p>
+                            <p className="text-[11px] text-amber-600/80 dark:text-amber-400/70 font-bold leading-snug">Viewing meal plan only. Sign up to swap meals.</p>
+                        </div>
+                        <button
+                            onClick={() => onSignUpRequest?.()}
+                            className="text-[10px] font-black uppercase tracking-widest bg-amber-500 text-white px-3 py-2 rounded-xl shadow whitespace-nowrap active:scale-95 transition-transform"
+                        >
+                            Sign Up
+                        </button>
+                    </div>
+                )}
+
+                <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Weekly Plan</h2>
+                <div className="flex justify-between gap-2 mb-10 bg-emerald-100/50 dark:bg-emerald-900/20 p-2 rounded-[2.5rem] overflow-x-auto no-scrollbar shadow-inner border border-emerald-500/10">
+                    {dayShortNames.map((day, index) => (
+                        <button key={day} onClick={() => setSelectedDayIndex(index)} className={`px-5 py-3 rounded-2xl font-black text-[11px] transition-all duration-300 ${selectedDayIndex === index ? 'bg-brand-green text-white shadow-glow-primary scale-105' : 'text-emerald-900/40 dark:text-white/40'}`}>
+                            {day}
+                        </button>
+                    ))}
+                </div>
+                <div key={selectedDayIndex} className="space-y-10 animate-fade-in">
+                    {(['breakfast', 'lunch', 'dinner'] as const).map((type) => (
+                        <MealCard key={type} meal={mealPlan[selectedDayIndex][type]} title={type.charAt(0).toUpperCase() + type.slice(1)} delay={100} onSwap={() => handleSwapMeal(selectedDayIndex, type)} isSwapping={swappingState?.dayIndex === selectedDayIndex && swappingState?.mealType === type} isGuest={isGuest} />
+                    ))}
+                </div>
             </div>
-            <div key={selectedDayIndex} className="space-y-10 animate-fade-in">
-                {(['breakfast', 'lunch', 'dinner'] as const).map((type) => (
-                    <MealCard key={type} meal={mealPlan[selectedDayIndex][type]} title={type.charAt(0).toUpperCase() + type.slice(1)} delay={100} onSwap={() => handleSwapMeal(selectedDayIndex, type)} isSwapping={swappingState?.dayIndex === selectedDayIndex && swappingState?.mealType === type} />
-                ))}
-            </div>
-        </div>
+        </>
     );
 };
 
-const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () => void, isSwapping: boolean }> = ({ meal, title, delay, onSwap, isSwapping }) => {
+const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () => void, isSwapping: boolean, isGuest?: boolean }> = ({ meal, title, delay, onSwap, isSwapping, isGuest }) => {
     return (
         <div className="glass-panel rounded-[3rem] shadow-2xl overflow-hidden animate-fade-in-up group relative border border-white/40" style={{ animationDelay: `${delay}ms` }}>
             <div className="relative h-48 overflow-hidden">
@@ -836,7 +945,7 @@ const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () 
             <div className="p-8">
                 <p className="text-gray-600 text-sm mb-6 dark:text-emerald-100/70 leading-relaxed font-bold">{meal.description}</p>
                 <div className="mb-8 p-5 bg-emerald-50 dark:bg-emerald-900/30 rounded-[2rem] border-l-4 border-brand-green shadow-inner">
-                    <p className="text-xs text-emerald-900 dark:text-emerald-100 italic font-medium leading-relaxed">“{meal.reason}”</p>
+                    <p className="text-xs text-emerald-900 dark:text-emerald-100 italic font-medium leading-relaxed">"{meal.reason}"</p>
                 </div>
                 {meal.recipe && (
                     <div className="mb-8 p-5 bg-white dark:bg-emerald-900/20 rounded-[2rem] border border-emerald-500/20 shadow-sm">
@@ -847,7 +956,21 @@ const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () 
                     </div>
                 )}
                 <div className="card-button-wrapper">
-                    <button onClick={onSwap} disabled={isSwapping} className="btn-primary w-full !text-base shadow-glow-primary">Swap for something else</button>
+                    <button
+                        onClick={onSwap}
+                        disabled={isSwapping}
+                        className={`w-full !text-base shadow-glow-primary flex items-center justify-center gap-2 ${isGuest
+                                ? 'btn-secondary !border-amber-400/50 !text-amber-600 dark:!text-amber-400 hover:!bg-amber-50 dark:hover:!bg-amber-900/20'
+                                : 'btn-primary'
+                            }`}
+                    >
+                        {isGuest && (
+                            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        )}
+                        {isGuest ? 'Sign Up to Swap' : 'Swap for something else'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -1604,9 +1727,10 @@ const LiveScreenActive: React.FC<{ userProfile: UserProfile; onUpgradeRequest: (
 
 // --- Standard Screens ---
 
-const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: DashboardPage) => void, setModal: (content: React.ReactNode, options?: { fullScreen?: boolean }) => void, onProfileUpdate: (p: UserProfile) => void }> = ({ userProfile, setActivePage, setModal, onProfileUpdate }) => {
+const HomeScreen: React.FC<{ userProfile: UserProfile, setActivePage: (page: DashboardPage) => void, setModal: (content: React.ReactNode, options?: { fullScreen?: boolean }) => void, onProfileUpdate: (p: UserProfile) => void, onSignUpRequest?: () => void, onSubscribeRequest?: () => void }> = ({ userProfile, setActivePage, setModal, onProfileUpdate, onSignUpRequest, onSubscribeRequest }) => {
+    const isGuest = userProfile.name === 'Guest' && !userProfile.email;
     const features = [
-        { name: 'Personalised Meal Plan', icon: BowlIcon, color: 'bg-emerald-500', action: () => setModal(<MealPlanScreen userProfile={userProfile} />) },
+        { name: 'Personalised Meal Plan', icon: BowlIcon, color: 'bg-emerald-500', action: () => setModal(<MealPlanScreen userProfile={userProfile} isGuest={isGuest} onSignUpRequest={() => { setModal(null); onSignUpRequest?.(); }} onSubscribeRequest={() => { setModal(null); onSubscribeRequest?.(); }} />) },
         { name: 'Food Safety Checker', icon: SearchIcon, color: 'bg-teal-500', action: () => setModal(<FoodSafetyCheckerScreen userProfile={userProfile} />) },
         { name: 'Nutrient Tracker', icon: ChartIcon, color: 'bg-sky-500', action: () => setActivePage('tracker') },
         { name: 'Symptom Tips', icon: NauseaIcon, color: 'bg-indigo-500', action: () => setModal(<SymptomTipsScreen />) },
@@ -1854,7 +1978,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     }, [localProfile.documentsSubmitted, setModal, modalState.content]); // Dependency on submitted status
 
     const screens = useMemo(() => ({
-        home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} onProfileUpdate={handleProfileUpdate} />,
+        home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} onProfileUpdate={handleProfileUpdate} onSignUpRequest={onLogout} onSubscribeRequest={() => setShowPayment(true)} />,
         tracker: <TrackerScreen userProfile={localProfile} setModal={setModal} />,
         live: <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
         library: <LibraryScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
