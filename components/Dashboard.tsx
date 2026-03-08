@@ -2192,9 +2192,9 @@ const TrialActivationPortal: React.FC<{ onActivate: () => void; onDismiss: () =>
                     </div>
                 </div>
 
-                <h1 className="text-4xl font-black text-white mb-4 tracking-tighter leading-none">Unlock Premium</h1>
+                <h1 className="text-4xl font-black text-white mb-4 tracking-tighter leading-none">Your Trial is Active! 🎉</h1>
                 <p className="text-white/80 font-bold mb-8 leading-relaxed">
-                    Start your <span className="text-amber-400">7-Day Free Trial</span> today. Get unlimited access to Live AI Consultations, the full Research Library, and advanced Meal Swapping — completely free.
+                    You have <span className="text-amber-400">7 days of free access</span> to Live AI Consultations, the full Research Library, and advanced Meal Swapping — enjoy every feature completely free.
                 </p>
 
                 <div className="w-full text-left space-y-3 mb-10 px-2">
@@ -2213,7 +2213,7 @@ const TrialActivationPortal: React.FC<{ onActivate: () => void; onDismiss: () =>
                         onClick={onActivate}
                         className="w-full py-5 bg-gradient-to-r from-brand-green to-emerald-600 rounded-2xl text-white font-black uppercase text-sm tracking-widest shadow-glow-primary active:scale-95 transition-all transform hover:-translate-y-1"
                     >
-                        Start My Free Trial Now
+                        Start Exploring!
                     </button>
                 </div>
                 <p className="mt-6 text-[10px] text-white/40 font-black uppercase tracking-widest text-center">No payment required</p>
@@ -2301,6 +2301,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     const [localProfile, setLocalProfile] = useState(userProfile);
     const [lockedFeatureGate, setLockedFeatureGate] = useState<string | null>(null); // feature name user tried to access
     const [trialPopupDismissed, setTrialPopupDismissed] = useState(false);
+    const trialActivationInitiated = React.useRef(false);
 
     const isGuest = !!localProfile.isGuest;
     const isPremium = localProfile.plan === 'Premium';
@@ -2321,22 +2322,25 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
             setLocalProfile(updated);
         } catch (error) {
             console.error("Failed to activate trial:", error);
-            alert("Could not activate trial. Please try again.");
         }
     };
 
-    // --- Show Trial Portal on entry if not started ---
+    // --- Auto-activate trial for all free users (new and existing) ---
     useEffect(() => {
-        if (!isGuest && !isPremium && !localProfile.trialStartedAt && !modalState.content && !trialPopupDismissed) {
-            setModalState({
-                content: <TrialActivationPortal
-                    onActivate={() => { activateTrial(); setModalState({ content: null, fullScreen: false }); }}
-                    onDismiss={() => { setTrialPopupDismissed(true); setModalState({ content: null, fullScreen: false }); }}
-                />,
-                fullScreen: true,
-            });
+        if (!isGuest && !isPremium && !localProfile.trialStartedAt && !trialActivationInitiated.current) {
+            trialActivationInitiated.current = true;
+            activateTrial(); // Start trial immediately — no interaction required
+            if (!trialPopupDismissed) {
+                setModalState({
+                    content: <TrialActivationPortal
+                        onActivate={() => setModalState({ content: null, fullScreen: false })}
+                        onDismiss={() => { setTrialPopupDismissed(true); setModalState({ content: null, fullScreen: false }); }}
+                    />,
+                    fullScreen: true,
+                });
+            }
         }
-    }, [isGuest, isPremium, localProfile.trialStartedAt, modalState.content, trialPopupDismissed]);
+    }, [isGuest, isPremium, localProfile.trialStartedAt, trialPopupDismissed]);
 
     const setModal = useCallback((content: React.ReactNode, options?: { fullScreen?: boolean }) => {
         setModalState({ content, fullScreen: options?.fullScreen || false });
