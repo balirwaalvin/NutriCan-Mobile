@@ -2055,6 +2055,16 @@ const HomeScreen: React.FC<{
 const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, setModal: (content: React.ReactNode) => void, onProfileUpdate: (profile: UserProfile) => void, onUpgradeRequest: () => void }> = ({ userProfile, onLogout, setModal, onProfileUpdate, onUpgradeRequest }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
 
+    const profileTrialDaysRemaining = useMemo(() => {
+        if (!userProfile.trialStartedAt) return 0;
+        const startedDate = new Date(userProfile.trialStartedAt);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - startedDate.getTime());
+        const daysElapsed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        return Math.max(0, 7 - daysElapsed);
+    }, [userProfile.trialStartedAt]);
+    const profileTrialActive = profileTrialDaysRemaining > 0;
+
     const openEditProfile = () => {
         setModal(
             <EditProfileForm
@@ -2128,6 +2138,29 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, 
                     </div>
                     {userProfile.plan !== 'Premium' && (
                         <div className="mt-5">
+                            {profileTrialActive ? (
+                                <div className="mb-4 p-4 rounded-2xl bg-brand-green/10 border border-brand-green/20 flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-brand-green rounded-full flex items-center justify-center flex-shrink-0 shadow">
+                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-black text-brand-green uppercase tracking-widest">Free Trial Active</p>
+                                        <p className="text-sm font-black text-emerald-950 dark:text-white">
+                                            <span className="text-brand-green">{profileTrialDaysRemaining}</span> {profileTrialDaysRemaining === 1 ? 'day' : 'days'} remaining
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : userProfile.trialStartedAt ? (
+                                <div className="mb-4 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0 shadow">
+                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-black text-red-500 uppercase tracking-widest">Trial Expired</p>
+                                        <p className="text-sm font-bold text-gray-500 dark:text-gray-400">Subscribe to keep all features</p>
+                                    </div>
+                                </div>
+                            ) : null}
                             <p className="text-xs text-gray-500 dark:text-gray-400 font-bold mb-4">Upgrade to unlock Live Consultations &amp; the Resource Library.</p>
                             <button
                                 onClick={onUpgradeRequest}
@@ -2173,6 +2206,35 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, 
 };
 
 // --- Main Dashboard Component ---
+
+// *** TRIAL REMINDER POPUP (shows on every sign-in while trial is active) ***
+const TrialReminderPopup: React.FC<{ daysRemaining: number; onClose: () => void }> = ({ daysRemaining, onClose }) => (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-6 animate-fade-in" onClick={onClose}>
+        <div className="bg-white dark:bg-emerald-900/90 max-w-sm w-full rounded-[3rem] p-8 text-center shadow-2xl relative border-b-8 border-brand-green overflow-hidden glass-panel animate-fade-in-up" onClick={e => e.stopPropagation()}>
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-40 h-40 bg-brand-green/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="w-20 h-20 bg-gradient-to-br from-brand-green to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl shadow-brand-green/30">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <span className="px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-brand-green/10 text-brand-green border-brand-green/20 mb-4 inline-block">
+                Free Trial Active
+            </span>
+            <h2 className="text-5xl font-black text-emerald-950 dark:text-white tracking-tighter leading-none mb-1">{daysRemaining}</h2>
+            <p className="text-sm font-black text-emerald-950/60 dark:text-white/50 uppercase tracking-widest mb-2">
+                {daysRemaining === 1 ? 'day remaining' : 'days remaining'}
+            </p>
+            <p className="text-gray-500 dark:text-gray-300 font-bold text-sm mb-8 leading-relaxed">
+                {daysRemaining <= 2
+                    ? `Your trial ends soon. Subscribe to keep all NutriCan features.`
+                    : `Enjoy full access to all NutriCan premium features during your trial.`}
+            </p>
+            <div className="card-button-wrapper">
+                <button onClick={onClose} className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-4">
+                    Continue to App
+                </button>
+            </div>
+        </div>
+    </div>
+);
 
 // *** MANUAL TRIAL ACTIVATION PORTAL ***
 const TrialActivationPortal: React.FC<{ onActivate: () => void; onDismiss: () => void }> = ({ onActivate, onDismiss }) => {
@@ -2302,6 +2364,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     const [lockedFeatureGate, setLockedFeatureGate] = useState<string | null>(null); // feature name user tried to access
     const [trialPopupDismissed, setTrialPopupDismissed] = useState(false);
     const trialActivationInitiated = React.useRef(false);
+    const hadTrialOnMount = React.useRef(!!userProfile.trialStartedAt);
+    const [showTrialReminder, setShowTrialReminder] = useState(false);
 
     const isGuest = !!localProfile.isGuest;
     const isPremium = localProfile.plan === 'Premium';
@@ -2314,6 +2378,15 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
         const diffTime = Math.abs(now.getTime() - startedDate.getTime());
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays <= 7;
+    }, [localProfile.trialStartedAt]);
+
+    const trialDaysRemaining = useMemo(() => {
+        if (!localProfile.trialStartedAt) return 0;
+        const startedDate = new Date(localProfile.trialStartedAt);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - startedDate.getTime());
+        const daysElapsed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        return Math.max(0, 7 - daysElapsed);
     }, [localProfile.trialStartedAt]);
 
     const activateTrial = async () => {
@@ -2341,6 +2414,13 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
             }
         }
     }, [isGuest, isPremium, localProfile.trialStartedAt, trialPopupDismissed]);
+
+    // --- Show trial reminder on every sign-in for users already on an active trial ---
+    useEffect(() => {
+        if (!isGuest && !isPremium && isTrialActive && hadTrialOnMount.current) {
+            setShowTrialReminder(true);
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const setModal = useCallback((content: React.ReactNode, options?: { fullScreen?: boolean }) => {
         setModalState({ content, fullScreen: options?.fullScreen || false });
@@ -2383,6 +2463,12 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
 
     return (
         <div className="min-h-screen bg-transparent relative">
+            {showTrialReminder && (
+                <TrialReminderPopup
+                    daysRemaining={trialDaysRemaining}
+                    onClose={() => setShowTrialReminder(false)}
+                />
+            )}
             <div className="animate-fade-in-up">{screens[effectivePage] || screens.home}</div>
             <EmergencyButton activePage={effectivePage} />
             <BottomNavBar
