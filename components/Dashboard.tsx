@@ -1855,7 +1855,6 @@ const HomeScreen: React.FC<{
     const features = [
         {
             title: 'Personalised Meal Plan',
-            description: 'AI-tailored recipes for your current treatment stage.',
             icon: BowlIcon,
             color: 'bg-emerald-500',
             bgLight: 'bg-emerald-50 dark:bg-emerald-900/20',
@@ -1865,7 +1864,6 @@ const HomeScreen: React.FC<{
         },
         {
             title: 'Nutrient Tracker & Journal',
-            description: 'Log meals, track vital metrics and journal your recovery journey.',
             icon: ChartIcon,
             color: 'bg-amber-500',
             bgLight: 'bg-amber-50 dark:bg-amber-900/20',
@@ -1874,8 +1872,31 @@ const HomeScreen: React.FC<{
             trialAllowed: true
         },
         {
+            title: 'Food Safety Checker',
+            icon: SearchIcon,
+            color: 'bg-teal-500',
+            bgLight: 'bg-teal-50 dark:bg-teal-900/20',
+            onClick: () => setModal(<FoodSafetyCheckerScreen userProfile={userProfile} />, { fullScreen: true }),
+            premiumOnly: false,
+            trialAllowed: true
+        },
+        {
+            title: 'Medical Documents',
+            icon: ShieldCheckIcon,
+            color: 'bg-violet-500',
+            bgLight: 'bg-violet-50 dark:bg-violet-900/20',
+            onClick: () => setModal(
+                <MedicalDocsScreen
+                    userProfile={userProfile}
+                    onUploadSuccess={(updatedProfile) => { onProfileUpdate(updatedProfile); setModal(null); }}
+                />,
+                { fullScreen: true }
+            ),
+            premiumOnly: false,
+            trialAllowed: true
+        },
+        {
             title: 'Live Nutrition AI',
-            description: 'Get instant answers about foods, recipes, and symptoms.',
             icon: BroadcastIcon,
             color: 'bg-sky-500',
             bgLight: 'bg-sky-50 dark:bg-sky-900/20',
@@ -1884,8 +1905,16 @@ const HomeScreen: React.FC<{
             trialAllowed: false
         },
         {
+            title: 'Doctor Connect',
+            icon: VideoCallIcon,
+            color: 'bg-pink-500',
+            bgLight: 'bg-pink-50 dark:bg-pink-900/20',
+            onClick: () => setActivePage('doctor-connect'),
+            premiumOnly: true,
+            trialAllowed: false
+        },
+        {
             title: 'Resource Library',
-            description: 'Expert articles, guides, and cancer nutrition research.',
             icon: BookIcon,
             color: 'bg-rose-500',
             bgLight: 'bg-rose-50 dark:bg-rose-900/20',
@@ -1983,12 +2012,9 @@ const HomeScreen: React.FC<{
                                     <feature.icon className={`w-6 h-6 ${isLocked ? 'text-gray-400 dark:text-gray-500' : ''}`} />
                                 </div>
                                 <div>
-                                    <h3 className={`font-black text-lg mb-2 tracking-tight ${isLocked ? 'text-gray-400 dark:text-gray-500' : 'text-emerald-950 dark:text-white'}`}>
+                                    <h3 className={`font-black text-lg tracking-tight ${isLocked ? 'text-gray-400 dark:text-gray-500' : 'text-emerald-950 dark:text-white'}`}>
                                         {feature.title}
                                     </h3>
-                                    <p className={`text-sm font-bold leading-relaxed ${isLocked ? 'text-gray-300 dark:text-gray-600' : 'text-gray-500 dark:text-gray-400'}`}>
-                                        {feature.description}
-                                    </p>
                                 </div>
                                 {isLocked && (
                                     <div className="absolute top-6 right-6 p-2 bg-gray-100 dark:bg-gray-800 rounded-full shadow-inner">
