@@ -123,14 +123,13 @@ const GuestMealCard: React.FC<{
             <div className="mb-8 p-5 bg-emerald-50 dark:bg-emerald-900/30 rounded-[2rem] border-l-4 border-brand-green shadow-inner">
                 <p className="text-xs text-emerald-900 dark:text-emerald-100 italic font-medium leading-relaxed">"{meal.reason}"</p>
             </div>
-            {/* Locked swap button */}
+            {/* Swap button — looks unlocked, triggers sign-up on click */}
             <div className="card-button-wrapper">
                 <button
                     onClick={onSwapBlocked}
-                    className="w-full !text-base flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-amber-600 dark:text-amber-400 border-2 border-amber-400/40 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors active:scale-95"
+                    className="w-full !text-base shadow-glow-primary flex items-center justify-center gap-2 btn-primary"
                 >
-                    <LockIcon className="w-4 h-4 flex-shrink-0" />
-                    Sign Up to Swap
+                    Swap for something else
                 </button>
             </div>
         </div>
