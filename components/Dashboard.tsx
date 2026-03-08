@@ -1858,12 +1858,19 @@ const HomeScreen: React.FC<{
             icon: BowlIcon,
             color: 'bg-emerald-500',
             bgLight: 'bg-emerald-50 dark:bg-emerald-900/20',
-            onClick: () => setActivePage('home'),
+            onClick: () => setModal(
+                <MealPlanScreen
+                    userProfile={userProfile}
+                    onSignUpRequest={onSignUpRequest}
+                    onSubscribeRequest={onSubscribeRequest}
+                />,
+                { fullScreen: true }
+            ),
             premiumOnly: false,
             trialAllowed: true
         },
         {
-            title: 'Nutrient Tracker & Journal',
+            title: 'Nutrient Tracker',
             icon: ChartIcon,
             color: 'bg-amber-500',
             bgLight: 'bg-amber-50 dark:bg-amber-900/20',
@@ -1894,15 +1901,6 @@ const HomeScreen: React.FC<{
             ),
             premiumOnly: false,
             trialAllowed: true
-        },
-        {
-            title: 'Live Nutrition AI',
-            icon: BroadcastIcon,
-            color: 'bg-sky-500',
-            bgLight: 'bg-sky-50 dark:bg-sky-900/20',
-            onClick: () => setActivePage('live'),
-            premiumOnly: true,
-            trialAllowed: false
         },
         {
             title: 'Doctor Connect',
@@ -2007,7 +2005,7 @@ const HomeScreen: React.FC<{
                                 className={`w-full text-left p-6 rounded-[2rem] border-2 transition-all duration-300 relative overflow-hidden h-full flex flex-col justify-between
                                     ${isLocked ? 'bg-gray-50/50 dark:bg-gray-800/20 border-gray-200/50 dark:border-gray-700/30' : 'bg-white/80 dark:bg-emerald-950/80 border-transparent hover:border-emerald-500/30 hover:shadow-xl hover:-translate-y-1'}`}
                             >
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 
+                                <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 transition-transform group-hover:scale-110 
                                     ${isLocked ? 'bg-gray-200 dark:bg-gray-700' : feature.color} ${isLocked ? '' : 'shadow-lg shadow-' + feature.color.split('-')[1] + '-500/30 text-white'}`}>
                                     <feature.icon className={`w-6 h-6 ${isLocked ? 'text-gray-400 dark:text-gray-500' : ''}`} />
                                 </div>
