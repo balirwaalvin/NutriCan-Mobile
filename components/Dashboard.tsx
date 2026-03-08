@@ -428,7 +428,7 @@ const GuestSwapModal: React.FC<{ onSignUp: () => void; onSubscribe: () => void; 
 );
 
 // --- Locked Feature Modal (shown when free user taps restricted items) ---
-const LockedFeatureModal: React.FC<{ featureName: string; isTrialExpired: boolean; onSubscribe: () => void; onClose: () => void }> = ({ featureName, isTrialExpired, onSubscribe, onClose }) => (
+const LockedFeatureModal: React.FC<{ featureName: string; isTrialExpired: boolean; trialNeverStarted?: boolean; onStartTrial?: () => void; onSubscribe: () => void; onClose: () => void }> = ({ featureName, isTrialExpired, trialNeverStarted, onStartTrial, onSubscribe, onClose }) => (
     <div className="fixed inset-0 bg-emerald-950/95 backdrop-blur-3xl z-[300] flex items-center justify-center p-6 animate-fade-in" onClick={onClose}>
         <div className="bg-white dark:bg-emerald-900/60 max-w-sm w-full rounded-[3.5rem] p-10 text-center shadow-2xl relative border-b-8 border-brand-green overflow-hidden glass-panel animate-fade-in-up" onClick={e => e.stopPropagation()}>
             <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-brand-green/20 rounded-full blur-3xl pointer-events-none" />
@@ -445,15 +445,17 @@ const LockedFeatureModal: React.FC<{ featureName: string; isTrialExpired: boolea
                 </div>
             </div>
 
-            <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border mb-5 inline-block ${isTrialExpired ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'}`}>
-                {isTrialExpired ? 'Trial Expired' : 'Premium Feature'}
+            <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border mb-5 inline-block ${!trialNeverStarted && isTrialExpired ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'}`}>
+                {!trialNeverStarted && isTrialExpired ? 'Trial Expired' : 'Premium Feature'}
             </span>
 
             <h2 className="text-2xl font-black text-emerald-950 dark:text-white mb-3 tracking-tighter">
-                {isTrialExpired ? 'Your 7-Day Trial has Ended' : `${featureName} is Locked`}
+                {!trialNeverStarted && isTrialExpired ? 'Your 7-Day Trial has Ended' : `${featureName} is Locked`}
             </h2>
             <p className="text-gray-500 dark:text-gray-300 font-bold text-sm mb-8 leading-relaxed">
-                {isTrialExpired
+                {trialNeverStarted
+                    ? `Start your free 7-day trial to unlock ${featureName} and all premium features.`
+                    : isTrialExpired
                     ? `Subscribe to unlock ${featureName} and keep using all NutriCan features.`
                     : `Subscribe to access ${featureName} and other advanced AI features.`}
             </p>
@@ -470,14 +472,30 @@ const LockedFeatureModal: React.FC<{ featureName: string; isTrialExpired: boolea
             </div>
 
             <div className="space-y-3">
-                <div className="card-button-wrapper">
-                    <button
-                        onClick={onSubscribe}
-                        className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-5"
-                    >
+                {trialNeverStarted && onStartTrial ? (
+                    <div className="card-button-wrapper">
+                        <button
+                            onClick={onStartTrial}
+                            className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-5"
+                        >
+                            Start 7-Day Free Trial — Free
+                        </button>
+                    </div>
+                ) : (
+                    <div className="card-button-wrapper">
+                        <button
+                            onClick={onSubscribe}
+                            className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-5"
+                        >
+                            ✦ Subscribe — 15,000 UGX/mo
+                        </button>
+                    </div>
+                )}
+                {trialNeverStarted && (
+                    <button onClick={onSubscribe} className="block w-full text-center text-xs font-black text-gray-400 uppercase tracking-widest pt-2 active:scale-95 transition-transform">
                         ✦ Subscribe — 15,000 UGX/mo
                     </button>
-                </div>
+                )}
                 <button onClick={onClose} className="block w-full text-center text-xs font-black text-gray-400 uppercase tracking-widest pt-2 active:scale-95 transition-transform">
                     Maybe Later
                 </button>
@@ -923,7 +941,7 @@ const RemindersScreen: React.FC = () => {
     );
 };
 
-const MealPlanScreen: React.FC<{ userProfile: UserProfile; isGuest?: boolean; onSignUpRequest?: () => void; onSubscribeRequest?: () => void }> = ({ userProfile, isGuest, onSignUpRequest, onSubscribeRequest }) => {
+const MealPlanScreen: React.FC<{ userProfile: UserProfile; isGuest?: boolean; onSignUpRequest?: () => void; onSubscribeRequest?: () => void; onStartTrialRequest?: () => void }> = ({ userProfile, isGuest, onSignUpRequest, onSubscribeRequest, onStartTrialRequest }) => {
     const [mealPlan, setMealPlan] = useState<WeeklyMealPlan | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedDayIndex, setSelectedDayIndex] = useState((new Date().getDay() + 6) % 7);
@@ -995,6 +1013,8 @@ const MealPlanScreen: React.FC<{ userProfile: UserProfile; isGuest?: boolean; on
                 <LockedFeatureModal
                     featureName={showLockedFeatureGate}
                     isTrialExpired={!isTrialActive}
+                    trialNeverStarted={!userProfile.trialStartedAt}
+                    onStartTrial={onStartTrialRequest ? () => { setShowLockedFeatureGate(null); onStartTrialRequest(); } : undefined}
                     onClose={() => setShowLockedFeatureGate(null)}
                     onSubscribe={() => { setShowLockedFeatureGate(null); onSubscribeRequest?.(); }}
                 />
@@ -1844,7 +1864,8 @@ const HomeScreen: React.FC<{
     onSignUpRequest: () => void;
     onSubscribeRequest?: () => void;
     isTrialActive: boolean;
-}> = ({ userProfile, setActivePage, setModal, onProfileUpdate, onSignUpRequest, onSubscribeRequest, isTrialActive }) => {
+    onStartTrialRequest?: () => void;
+}> = ({ userProfile, setActivePage, setModal, onProfileUpdate, onSignUpRequest, onSubscribeRequest, isTrialActive, onStartTrialRequest }) => {
     const isGuest = !!userProfile.isGuest;
     const [showLockedFeatureGate, setShowLockedFeatureGate] = useState<string | null>(null);
 
@@ -1863,6 +1884,7 @@ const HomeScreen: React.FC<{
                     userProfile={userProfile}
                     onSignUpRequest={onSignUpRequest}
                     onSubscribeRequest={onSubscribeRequest}
+                    onStartTrialRequest={onStartTrialRequest}
                 />,
                 { fullScreen: true }
             ),
@@ -1989,6 +2011,8 @@ const HomeScreen: React.FC<{
                 <LockedFeatureModal
                     featureName={showLockedFeatureGate}
                     isTrialExpired={!isTrialActive}
+                    trialNeverStarted={!userProfile.trialStartedAt}
+                    onStartTrial={onStartTrialRequest ? () => { setShowLockedFeatureGate(null); onStartTrialRequest(); } : undefined}
                     onClose={() => setShowLockedFeatureGate(null)}
                     onSubscribe={() => { setShowLockedFeatureGate(null); onSubscribeRequest?.(); }}
                 />
@@ -2151,7 +2175,7 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, 
 // --- Main Dashboard Component ---
 
 // *** MANUAL TRIAL ACTIVATION PORTAL ***
-const TrialActivationPortal: React.FC<{ onActivate: () => void }> = ({ onActivate }) => {
+const TrialActivationPortal: React.FC<{ onActivate: () => void; onDismiss: () => void }> = ({ onActivate, onDismiss }) => {
     return (
         <div className="min-h-screen bg-emerald-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-brand-green/20 to-teal-900/40 pointer-events-none"></div>
@@ -2193,6 +2217,9 @@ const TrialActivationPortal: React.FC<{ onActivate: () => void }> = ({ onActivat
                     </button>
                 </div>
                 <p className="mt-6 text-[10px] text-white/40 font-black uppercase tracking-widest text-center">No payment required</p>
+                <button onClick={onDismiss} className="mt-4 text-[11px] font-black text-white/30 uppercase tracking-widest hover:text-white/50 transition-colors active:scale-95">
+                    Maybe Later
+                </button>
             </div>
         </div>
     );
@@ -2273,6 +2300,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     const [showPayment, setShowPayment] = useState(false);
     const [localProfile, setLocalProfile] = useState(userProfile);
     const [lockedFeatureGate, setLockedFeatureGate] = useState<string | null>(null); // feature name user tried to access
+    const [trialPopupDismissed, setTrialPopupDismissed] = useState(false);
 
     const isGuest = !!localProfile.isGuest;
     const isPremium = localProfile.plan === 'Premium';
@@ -2299,13 +2327,16 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
 
     // --- Show Trial Portal on entry if not started ---
     useEffect(() => {
-        if (!isGuest && !isPremium && !localProfile.trialStartedAt && !modalState.content) {
+        if (!isGuest && !isPremium && !localProfile.trialStartedAt && !modalState.content && !trialPopupDismissed) {
             setModalState({
-                content: <TrialActivationPortal onActivate={() => { activateTrial(); setModalState({ content: null, fullScreen: false }); }} />,
+                content: <TrialActivationPortal
+                    onActivate={() => { activateTrial(); setModalState({ content: null, fullScreen: false }); }}
+                    onDismiss={() => { setTrialPopupDismissed(true); setModalState({ content: null, fullScreen: false }); }}
+                />,
                 fullScreen: true,
             });
         }
-    }, [isGuest, isPremium, localProfile.trialStartedAt, modalState.content]);
+    }, [isGuest, isPremium, localProfile.trialStartedAt, modalState.content, trialPopupDismissed]);
 
     const setModal = useCallback((content: React.ReactNode, options?: { fullScreen?: boolean }) => {
         setModalState({ content, fullScreen: options?.fullScreen || false });
@@ -2338,7 +2369,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     const effectivePage: DashboardPage = activePage;
 
     const screens = useMemo(() => ({
-        home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} onProfileUpdate={handleProfileUpdate} onSignUpRequest={onLogout} onSubscribeRequest={() => setShowPayment(true)} isTrialActive={isTrialActive} />,
+        home: <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} onProfileUpdate={handleProfileUpdate} onSignUpRequest={onLogout} onSubscribeRequest={() => setShowPayment(true)} isTrialActive={isTrialActive} onStartTrialRequest={activateTrial} />,
         tracker: <TrackerScreen userProfile={localProfile} setModal={setModal} />,
         live: <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
         library: <LibraryScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
@@ -2362,6 +2393,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
                 <LockedFeatureModal
                     featureName={lockedFeatureGate}
                     isTrialExpired={!isTrialActive}
+                    trialNeverStarted={!localProfile.trialStartedAt}
+                    onStartTrial={() => { setLockedFeatureGate(null); activateTrial(); }}
                     onClose={() => setLockedFeatureGate(null)}
                     onSubscribe={() => { setLockedFeatureGate(null); setShowPayment(true); }}
                 />
