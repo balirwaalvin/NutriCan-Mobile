@@ -1902,6 +1902,15 @@ const HomeScreen: React.FC<{
             trialAllowed: true
         },
         {
+            title: 'Symptom Based Tips',
+            icon: NauseaIcon,
+            color: 'bg-orange-500',
+            bgLight: 'bg-orange-50 dark:bg-orange-900/20',
+            onClick: () => setActivePage('symptom-tips'),
+            premiumOnly: false,
+            trialAllowed: true
+        },
+        {
             title: 'Medical Documents',
             icon: ShieldCheckIcon,
             color: 'bg-violet-500',
@@ -2451,6 +2460,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
         library: <LibraryScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
         profile: <ProfileScreen userProfile={localProfile} onLogout={onLogout} setModal={setModal} onProfileUpdate={handleProfileUpdate} onUpgradeRequest={() => setShowPayment(true)} />,
         'doctor-connect': <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
+        'symptom-tips': <SymptomTipsScreen />,
     }), [localProfile, isGuest, isTrialActive, onLogout, setActivePage, setModal]);
 
     return (
