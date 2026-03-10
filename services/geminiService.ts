@@ -124,6 +124,28 @@ const FOOD_IMAGE_MAP: { [key: string]: string } = {
     'boiled potato': 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=800&q=80',
     'sukuma wiki': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800&q=80',
     'nile': 'https://images.unsplash.com/photo-1519708227418-c8fd9a3a2b7b?w=800&q=80',
+    
+    // --- Exact Meal Mappings (Longest Match) ---
+    'boiled cassava with g-nut sauce': '/Meals/Boiled Cassava with G-nut sauce.png',
+    'boiled cassava with peas': '/Meals/Boiled Cassava with Peas.png',
+    'boiled irish potatoes with peas': '/Meals/Boiled Irish Potatoes with Peas.png',
+    'boiled kalo (millet) with cabbage and carrots': '/Meals/Boiled Kalo (Millet) with Cabbage and Carrots.png',
+    'boiled kalo (millet) with cabbage': '/Meals/Boiled Kalo (Millet) with Cabbage.png',
+    'boiled sweet potatoes with beans': '/Meals/Boiled Sweet Potatoes with Beans.png',
+    'boiled sweet potatoes with groundnuts': '/Meals/Boiled Sweet Potatoes with Groundnuts.png',
+    'grilled beef with roasted yams': '/Meals/Grilled Beef with Roasted Yams.png',
+    'grilled chicken (stew) with boiled yams': '/Meals/Grilled Chicken (Stew) with Boiled Yams.png',
+    'grilled chicken with roasted irish potatoes': '/Meals/Grilled Chicken with Roasted Irish Potatoes.png',
+    'grilled fish (nile perch) with roasted irish potatoes': '/Meals/Grilled Fish (Nile Perch) with Roasted Irish Potatoes.png',
+    'grilled fish (tilapia) with greens (sukuma wiki)': '/Meals/Grilled Fish (Tilapia) with Greens (Sukuma Wiki).png',
+    'grilled fish (tilapia) with greens': '/Meals/Grilled Fish (Tilapia) with Greens.png',
+    'grilled goat with boiled matoke': '/Meals/Grilled Goat with Boiled Matoke.png',
+    'porridge (millet)': '/Meals/Porridge (Millet).png',
+    'scrambled eggs with nakati': '/Meals/Scrambled Eggs with Nakati.png',
+    'scrambled eggs with spinach': '/Meals/Scrambled Eggs with Spinach.png',
+    'steamed pumpkin with groundnuts sauce': '/Meals/Steamed Pumpkin with Groundnuts Sauce.png',
+    'yoghurt with watermelon': '/Meals/Yoghurt with Watermelon.png',
+    'yougurt and avocado': '/Meals/yougurt and avocado.png',
 };
 
 const getMealPhotoUrl = (mealName: string): string => {
