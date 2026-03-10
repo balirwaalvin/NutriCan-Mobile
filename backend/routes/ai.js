@@ -85,8 +85,38 @@ router.post('/meal-plan', async (req, res) => {
 Generate a 7-day weekly meal plan for a patient with ${conditions} and Cervical Cancer.
 ${bmiInfo}
 
-CRITICAL: Only recommend foods from this list: Matoke, Rice, Posho, Sweet Potatoes, Irish Potatoes, Cassava, Yams, Kalo (Millet), Pumpkin, Chapati (only if healthy), Beans, Peas, Groundnuts (G-nut sauce), Fish (Tilapia, Nile Perch, Mukene), Chicken (Stew/Luwombo), Beef, Goat, Eggs, Yoghurt, Greens (Dodo, Nakati, Sukuma Wiki), Cabbage, Spinach, Avocado, Garden Eggs (Ntula), Watermelon, Pineapple, Papaya (Pawpaw), Mango, Passion Fruit, Oranges, Water, Milk Tea, Porridge (Millet/Maize), Fruit Juice.
-Do NOT suggest obscure local dishes not in this list.
+CRITICAL: You MUST ONLY recommend meals from this EXACT list, word-for-word. Do not invent or modify meal names:
+- Boiled Cassava with G-nut sauce
+- Boiled Cassava with Peas
+- Boiled Irish Potatoes with Peas
+- Boiled Kalo (Millet) with Cabbage and Carrots
+- Boiled Kalo (Millet) with Cabbage
+- Boiled Sweet Potatoes with Beans
+- Boiled Sweet Potatoes with Groundnuts
+- Boiled Yams with Groundnuts (G-nut sauce)
+- Grilled Beef with Roasted Irish Potatoes
+- Grilled Beef with Roasted Yams
+- Grilled Chicken (Stew) with Boiled Yams
+- Grilled Chicken with Roasted Irish Potatoes
+- Grilled Fish (Nile Perch) with Roasted Irish Potatoes
+- Grilled Fish (Nile Perch) with Roasted Pumpkin
+- Grilled Fish (Tilapia) with Greens (Sukuma Wiki)
+- Grilled Fish (Tilapia) with Greens
+- Grilled Goat with Boiled Matoke
+- Grilled Goat with Mixed Greens (Sukuma Wiki, Cabbage)
+- Porridge (Millet)
+- Scrambled Eggs with Nakati
+- Scrambled Eggs with Spinach
+- Steamed Fish with Mixed Greens and Sweet Potatoes
+- Steamed Greens with Boiled Sweet Potatoes and Beans
+- Steamed Greens with Boiled Sweet Potatoes
+- Steamed Matoke with Beans and Greens
+- Steamed Matoke with Greens
+- Steamed Pumpkin with Groundnuts Sauce
+- Yoghurt with Watermelon
+- yougurt and avocado
+
+Do NOT suggest obscure local dishes not in this list. Combine them to form a complete 7-day meal plan.
 EXCLUDE sugary foods (sodas, cakes), pastries, and deep-fried items.
 
 For each meal (breakfast, lunch, dinner) of each day provide:
@@ -132,7 +162,37 @@ A patient with ${conditions} (${bmiInfo}) needs a replacement for their ${mealTy
 The current meal is "${mealToSwap.name}".
 Suggest a DIFFERENT healthy Ugandan local dish.
 
-CRITICAL: Only choose from: Matoke, Rice, Posho, Sweet Potatoes, Cassava, Yams, Kalo, Pumpkin, Beans, Peas, G-nut sauce, Fish, Chicken, Beef, Goat, Eggs, Greens, Cabbage, Avocado.
+CRITICAL: You MUST ONLY choose from this EXACT list, word-for-word. Do not invent or modify meal names:
+- Boiled Cassava with G-nut sauce
+- Boiled Cassava with Peas
+- Boiled Irish Potatoes with Peas
+- Boiled Kalo (Millet) with Cabbage and Carrots
+- Boiled Kalo (Millet) with Cabbage
+- Boiled Sweet Potatoes with Beans
+- Boiled Sweet Potatoes with Groundnuts
+- Boiled Yams with Groundnuts (G-nut sauce)
+- Grilled Beef with Roasted Irish Potatoes
+- Grilled Beef with Roasted Yams
+- Grilled Chicken (Stew) with Boiled Yams
+- Grilled Chicken with Roasted Irish Potatoes
+- Grilled Fish (Nile Perch) with Roasted Irish Potatoes
+- Grilled Fish (Nile Perch) with Roasted Pumpkin
+- Grilled Fish (Tilapia) with Greens (Sukuma Wiki)
+- Grilled Fish (Tilapia) with Greens
+- Grilled Goat with Boiled Matoke
+- Grilled Goat with Mixed Greens (Sukuma Wiki, Cabbage)
+- Porridge (Millet)
+- Scrambled Eggs with Nakati
+- Scrambled Eggs with Spinach
+- Steamed Fish with Mixed Greens and Sweet Potatoes
+- Steamed Greens with Boiled Sweet Potatoes and Beans
+- Steamed Greens with Boiled Sweet Potatoes
+- Steamed Matoke with Beans and Greens
+- Steamed Matoke with Greens
+- Steamed Pumpkin with Groundnuts Sauce
+- Yoghurt with Watermelon
+- yougurt and avocado
+
 Must NOT be sugary, a pastry, or deep-fried. Should be low-fat.
 
 Provide: "name", "description", "reason" (why good for their BMI and conditions), "category" ("Protein", "Carbs", "Balanced", or "Veggies"), "recipe" (short step-by-step recipe).
