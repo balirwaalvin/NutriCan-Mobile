@@ -9,17 +9,17 @@ interface OnboardingScreenProps {
 
 const onboardingSlides = [
   {
-    image: 'https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FSlide%20Image%2FPerson%20on%20health%20food.png?alt=media&token=28737d8c-043a-45bf-8c72-bbb28120a143',
+    image: '/screens/precious nutrition.png',
     title: 'Precision Nutrition',
     caption: 'Scientifically crafted meal plans designed for your unique recovery path.',
   },
   {
-    image: 'https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FSlide%20Image%2Fphone%20with%20charts.png?alt=media&token=e44dce9a-0354-4dcd-9ec3-125fa4fe7426',
+    image: '/screens/Progress Intelligence.png',
     title: 'Progress Intelligence',
     caption: 'Track symptoms and wellness trends with AI-driven visual insights.',
   },
   {
-    image: 'https://firebasestorage.googleapis.com/v0/b/studio-3160139606-b516b.firebasestorage.app/o/NutriCan%2FSlide%20Image%2Fdoctor%20on%20phone.png?alt=media&token=afc9b7e2-717a-455d-96b2-47774b046185',
+    image: '/screens/Expert Access.png',
     title: 'Instant Expert Access',
     caption: 'Connect with specialists and get real-time voice guidance whenever needed.',
   },
