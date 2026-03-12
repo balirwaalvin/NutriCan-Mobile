@@ -22,56 +22,56 @@ async function aiPost<T>(endpoint: string, body: Record<string, unknown>): Promi
 
 // --- Comprehensive Image Mapping for Ugandan Meals ---
 const FOOD_IMAGE_MAP: { [key: string]: string } = {
-    // --- Exact Meal Mappings ---
-    'boiled cassava with g-nut sauce': '/Meals/Boiled Cassava with G-nut sauce.png',
-    'boiled cassava with peas': '/Meals/Boiled Cassava with Peas.png',
-    'boiled irish potatoes with peas': '/Meals/Boiled Irish Potatoes with Peas.png',
-    'boiled kalo (millet) with cabbage and carrots': '/Meals/Boiled Kalo (Millet) with Cabbage and Carrots.png',
-    'boiled kalo (millet) with cabbage': '/Meals/Boiled Kalo (Millet) with Cabbage.png',
-    'boiled sweet potatoes with beans': '/Meals/Boiled Sweet Potatoes with Beans.png',
-    'boiled sweet potatoes with groundnuts': '/Meals/Boiled Sweet Potatoes with Groundnuts.png',
-    'boiled yams with groundnuts (g-nut sauce)': '/Meals/Boiled Yams with Groundnuts (G-nut sauce).png',
-    'grilled beef with roasted irish potatoes': '/Meals/Grilled Beef with Roasted Irish Potatoes.png',
-    'grilled beef with roasted yams': '/Meals/Grilled Beef with Roasted Yams.png',
-    'grilled chicken (stew) with boiled yams': '/Meals/Grilled Chicken (Stew) with Boiled Yams.png',
-    'grilled chicken with roasted irish potatoes': '/Meals/Grilled Chicken with Roasted Irish Potatoes.png',
-    'grilled fish (nile perch) with roasted irish potatoes': '/Meals/Grilled Fish (Nile Perch) with Roasted Irish Potatoes.png',
-    'grilled fish (nile perch) with roasted pumpkin': '/Meals/Grilled Fish (Nile Perch) with Roasted Pumpkin.png',
-    'grilled fish (tilapia) with greens (sukuma wiki)': '/Meals/Grilled Fish (Tilapia) with Greens (Sukuma Wiki).png',
-    'grilled fish (tilapia) with greens': '/Meals/Grilled Fish (Tilapia) with Greens.png',
-    'grilled goat with boiled matoke': '/Meals/Grilled Goat with Boiled Matoke.png',
-    'grilled goat with mixed greens (sukuma wiki, cabbage)': '/Meals/Grilled Goat with Mixed Greens (Sukuma Wiki, Cabbage).png',
-    'porridge (millet)': '/Meals/Porridge (Millet).png',
-    'scrambled eggs with nakati': '/Meals/Scrambled Eggs with Nakati.png',
-    'scrambled eggs with spinach': '/Meals/Scrambled Eggs with Spinach.png',
-    'steamed fish with mixed greens and sweet potatoes': '/Meals/Steamed Fish with Mixed Greens and Sweet Potatoes.png',
-    'steamed greens with boiled sweet potatoes and beans': '/Meals/Steamed Greens with Boiled Sweet Potatoes and Beans.png',
-    'steamed greens with boiled sweet potatoes': '/Meals/Steamed Greens with Boiled Sweet Potatoes.png',
-    'steamed matoke with beans and greens': '/Meals/Steamed Matoke with Beans and Greens.png',
-    'steamed matoke with greens': '/Meals/Steamed Matoke with Greens.png',
-    'steamed pumpkin with groundnuts sauce': '/Meals/Steamed Pumpkin with Groundnuts Sauce.png',
-    'yoghurt with watermelon': '/Meals/Yoghurt with Watermelon.png',
-    'yougurt and avocado': '/Meals/yougurt and avocado.png',
+  // --- Exact Meal Mappings ---
+  'boiled cassava with g-nut sauce': '/Meals/Boiled Cassava with G-nut sauce.png',
+  'boiled cassava with peas': '/Meals/Boiled Cassava with Peas.png',
+  'boiled irish potatoes with peas': '/Meals/Boiled Irish Potatoes with Peas.png',
+  'boiled kalo (millet) with cabbage and carrots': '/Meals/Boiled Kalo (Millet) with Cabbage and Carrots.png',
+  'boiled kalo (millet) with cabbage': '/Meals/Boiled Kalo (Millet) with Cabbage.png',
+  'boiled sweet potatoes with beans': '/Meals/Boiled Sweet Potatoes with Beans.png',
+  'boiled sweet potatoes with groundnuts': '/Meals/Boiled Sweet Potatoes with Groundnuts.png',
+  'boiled yams with groundnuts (g-nut sauce)': '/Meals/Boiled Yams with Groundnuts (G-nut sauce).png',
+  'grilled beef with roasted irish potatoes': '/Meals/Grilled Beef with Roasted Irish Potatoes.png',
+  'grilled beef with roasted yams': '/Meals/Grilled Beef with Roasted Yams.png',
+  'grilled chicken (stew) with boiled yams': '/Meals/Grilled Chicken (Stew) with Boiled Yams.png',
+  'grilled chicken with roasted irish potatoes': '/Meals/Grilled Chicken with Roasted Irish Potatoes.png',
+  'grilled fish (nile perch) with roasted irish potatoes': '/Meals/Grilled Fish (Nile Perch) with Roasted Irish Potatoes.png',
+  'grilled fish (nile perch) with roasted pumpkin': '/Meals/Grilled Fish (Nile Perch) with Roasted Pumpkin.png',
+  'grilled fish (tilapia) with greens (sukuma wiki)': '/Meals/Grilled Fish (Tilapia) with Greens (Sukuma Wiki).png',
+  'grilled fish (tilapia) with greens': '/Meals/Grilled Fish (Tilapia) with Greens.png',
+  'grilled goat with boiled matoke': '/Meals/Grilled Goat with Boiled Matoke.png',
+  'grilled goat with mixed greens (sukuma wiki, cabbage)': '/Meals/Grilled Goat with Mixed Greens (Sukuma Wiki, Cabbage).png',
+  'porridge (millet)': '/Meals/Porridge (Millet).png',
+  'scrambled eggs with nakati': '/Meals/Scrambled Eggs with Nakati.png',
+  'scrambled eggs with spinach': '/Meals/Scrambled Eggs with Spinach.png',
+  'steamed fish with mixed greens and sweet potatoes': '/Meals/Steamed Fish with Mixed Greens and Sweet Potatoes.png',
+  'steamed greens with boiled sweet potatoes and beans': '/Meals/Steamed Greens with Boiled Sweet Potatoes and Beans.png',
+  'steamed greens with boiled sweet potatoes': '/Meals/Steamed Greens with Boiled Sweet Potatoes.png',
+  'steamed matoke with beans and greens': '/Meals/Steamed Matoke with Beans and Greens.png',
+  'steamed matoke with greens': '/Meals/Steamed Matoke with Greens.png',
+  'steamed pumpkin with groundnuts sauce': '/Meals/Steamed Pumpkin with Groundnuts Sauce.png',
+  'yoghurt with watermelon': '/Meals/Yoghurt with Watermelon.png',
+  'yougurt and avocado': '/Meals/yougurt and avocado.png',
 };
 
 const getMealPhotoUrl = (mealName: string): string => {
-    // High-quality fallback image (Unsplash) - Healthy Plate
-    const defaultImage = 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=800&q=80';
+  // High-quality fallback image (Unsplash) - Healthy Plate
+  const defaultImage = 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=800&q=80';
 
-    if (!mealName) return defaultImage;
+  if (!mealName) return defaultImage;
 
-    const lowerMealName = mealName.toLowerCase();
+  const lowerMealName = mealName.toLowerCase();
 
-    // Sort keys longest-first so specific phrases like 'sweet potato' beat
-    // shorter overlapping ones like 'potato', and 'garden egg' beats 'egg'.
-    const sortedKeys = Object.keys(FOOD_IMAGE_MAP).sort((a, b) => b.length - a.length);
-    for (const key of sortedKeys) {
-        if (lowerMealName.includes(key)) {
-            return FOOD_IMAGE_MAP[key];
-        }
+  // Sort keys longest-first so specific phrases like 'sweet potato' beat
+  // shorter overlapping ones like 'potato', and 'garden egg' beats 'egg'.
+  const sortedKeys = Object.keys(FOOD_IMAGE_MAP).sort((a, b) => b.length - a.length);
+  for (const key of sortedKeys) {
+    if (lowerMealName.includes(key)) {
+      return FOOD_IMAGE_MAP[key];
     }
+  }
 
-    return defaultImage;
+  return defaultImage;
 };
 
 // ── checkFoodSafety ──────────────────────────────────────────────────────────
@@ -96,8 +96,8 @@ export const generateMealPlan = async (userProfile: UserProfile): Promise<Weekly
       return weekPlan.map((dayPlan: any) => ({
         ...dayPlan,
         breakfast: { ...dayPlan.breakfast, photoUrl: getMealPhotoUrl(dayPlan.breakfast.name) },
-        lunch:     { ...dayPlan.lunch,      photoUrl: getMealPhotoUrl(dayPlan.lunch.name) },
-        dinner:    { ...dayPlan.dinner,     photoUrl: getMealPhotoUrl(dayPlan.dinner.name) },
+        lunch: { ...dayPlan.lunch, photoUrl: getMealPhotoUrl(dayPlan.lunch.name) },
+        dinner: { ...dayPlan.dinner, photoUrl: getMealPhotoUrl(dayPlan.dinner.name) },
       }));
     }
     throw new Error('Invalid meal plan format from API.');
@@ -155,10 +155,10 @@ export const getSymptomTips = async (symptom: SymptomType): Promise<RecommendedF
 
 // ── getDoctorChatResponse ─────────────────────────────────────────────────────
 export const getDoctorChatResponse = async (
-    doctor: DoctorProfile,
-    userProfile: UserProfile,
-    history: ChatMessage[],
-    newMessage: string
+  doctor: DoctorProfile,
+  userProfile: UserProfile,
+  history: ChatMessage[],
+  newMessage: string
 ): Promise<string> => {
   try {
     const { reply } = await aiPost<{ reply: string }>('doctor-chat', { doctor, userProfile, history, newMessage });

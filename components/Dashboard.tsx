@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, SymptomType, RecommendedFood, JournalEntry, LoggedMeal, CancerType, CancerStage, TreatmentStage, OtherCondition } from '../types';
-import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, BowlIcon, PlusIcon, NauseaIcon, BellIcon, VideoCallIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon, DownloadIcon, ShieldCheckIcon, FileTextIcon } from './Icons';
+import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, BowlIcon, PlusIcon, NauseaIcon, BellIcon, VideoCallIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon, DownloadIcon, ShieldCheckIcon, FileTextIcon, ChatBubbleIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips } from '../services/geminiService';
 import { db } from '../services/db';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ThemeContext } from '../contexts/ThemeContext';
+import CommunityChat from './CommunityChat';
 
 // --- Shared Props Interface ---
 interface DashboardProps {
@@ -80,6 +81,7 @@ const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: Das
         { page: 'tracker' as DashboardPage, icon: ChartIcon, label: 'Tracker', premiumOnly: false, trialAllowed: true }, // Allowed in trial
         { page: 'live' as DashboardPage, icon: BroadcastIcon, label: 'Live', premiumOnly: true, trialAllowed: false }, // Premium only
         { page: 'library' as DashboardPage, icon: BookIcon, label: 'Library', premiumOnly: true, trialAllowed: false }, // Premium only
+        { page: 'chat' as DashboardPage, icon: ChatBubbleIcon, label: 'Chat', premiumOnly: true, trialAllowed: false }, // Premium only
         { page: 'profile' as DashboardPage, icon: UserIcon, label: 'Profile', premiumOnly: false, trialAllowed: true }, // Allowed in trial (maybe locked after?)
     ];
 
@@ -2458,6 +2460,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
         tracker: <TrackerScreen userProfile={localProfile} setModal={setModal} />,
         live: <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
         library: <LibraryScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
+        chat: <CommunityChat userProfile={localProfile} />,
         profile: <ProfileScreen userProfile={localProfile} onLogout={onLogout} setModal={setModal} onProfileUpdate={handleProfileUpdate} onUpgradeRequest={() => setShowPayment(true)} />,
         'doctor-connect': <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
         'symptom-tips': <SymptomTipsScreen />,

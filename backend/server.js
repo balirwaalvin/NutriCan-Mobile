@@ -10,6 +10,11 @@ const journalRoutes = require('./routes/journal');
 const mealsRoutes = require('./routes/meals');
 const documentsRoutes = require('./routes/documents');
 const aiRoutes = require('./routes/ai');
+const chatRoutes = require('./routes/chat');
+const { requireAuth } = require('./middleware/auth');
+const { Server } = require('socket.io');
+const Message = require('./models/Message');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 
@@ -50,6 +55,7 @@ app.use('/api/journal', journalRoutes);
 app.use('/api/meals', mealsRoutes);
 app.use('/api/documents', documentsRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/chat', requireAuth, chatRoutes);
 
 // ── Global error handler ──────────────────────────────────────────────────────
 app.use((err, _req, res, _next) => {
@@ -69,6 +75,73 @@ const server = app.listen(PORT, () => {
   connectDB(process.env.MONGODB_URI).catch((err) => {
     console.error('❌ MongoDB connection failed (will retry):', err.message);
     console.error('   Make sure MONGODB_URI is set in the environment.');
+  });
+});
+
+// ── Socket.IO Setup ───────────────────────────────────────────────────────────
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Authentication error: Token missing'));
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = decoded; // { sub: userId }
+    next();
+  } catch (err) {
+    return next(new Error('Authentication error: Invalid token'));
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log(`💬 User connected to chat: ${socket.id}`);
+
+  socket.on('sendMessage', async (data) => {
+    try {
+      const newMessage = new Message({
+        text: data.text,
+        senderName: data.senderName,
+        senderId: data.senderId,
+        replyTo: data.replyTo || null,
+      });
+      await newMessage.save();
+
+      const populatedMessage = await Message.findById(newMessage._id).populate('replyTo', 'text senderName').exec();
+      io.emit('receiveMessage', populatedMessage);
+    } catch (error) {
+      console.error('Error saving message:', error);
+    }
+  });
+
+  socket.on('likeMessage', async (data) => {
+    try {
+      const message = await Message.findById(data.messageId);
+      if (!message) return;
+
+      const userIndex = message.likes.indexOf(data.userId);
+      if (userIndex === -1) {
+        message.likes.push(data.userId);
+      } else {
+        message.likes.splice(userIndex, 1);
+      }
+      await message.save();
+
+      io.emit('messageLiked', { messageId: message._id, likes: message.likes });
+    } catch (error) {
+      console.error('Error liking message:', error);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`💬 User disconnected: ${socket.id}`);
   });
 });
 

@@ -1,7 +1,7 @@
 
 export type Page = 'splash' | 'terms' | 'onboarding' | 'auth' | 'dashboard' | 'guest';
 
-export type DashboardPage = 'home' | 'tracker' | 'live' | 'doctor-connect' | 'profile' | 'library' | 'symptom-tips';
+export type DashboardPage = 'home' | 'tracker' | 'live' | 'doctor-connect' | 'profile' | 'library' | 'symptom-tips' | 'chat';
 
 export enum CancerType {
   CERVICAL = 'Cervical',
@@ -137,4 +137,14 @@ export interface DoctorProfile {
   personality: string; // System instruction nuance
   greeting: string;
   isOnline: boolean;
+}
+
+export interface CommunityMessage {
+  _id: string;
+  text: string;
+  senderName: string;
+  senderId: string;
+  likes: string[];
+  replyTo: CommunityMessage | null;
+  createdAt: string;
 }
