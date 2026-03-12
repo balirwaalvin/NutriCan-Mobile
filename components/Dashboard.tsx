@@ -1944,6 +1944,15 @@ const HomeScreen: React.FC<{
             onClick: () => setActivePage('library'),
             premiumOnly: true,
             trialAllowed: false
+        },
+        {
+            title: 'NutriCan Chat',
+            icon: ChatBubbleIcon,
+            color: 'bg-fuchsia-500',
+            bgLight: 'bg-fuchsia-50 dark:bg-fuchsia-900/20',
+            onClick: () => setActivePage('chat'),
+            premiumOnly: true,
+            trialAllowed: false
         }
     ];
 
