@@ -78,6 +78,33 @@ router.post('/upload', requireAuth, upload.single('document'), async (req, res) 
   }
 });
 
+// ─── GET /api/documents/book-signed-url ──────────────────────────────────────
+// Returns a signed URL for a specific book key (e.g., books/heal-well-guide.pdf)
+router.get('/book-signed-url', requireAuth, async (req, res) => {
+  try {
+    const { key } = req.query;
+    if (!key) {
+      return res.status(400).json({ message: 'Missing key parameter' });
+    }
+
+    // Security check: strictly allow only access to "books/" prefix to prevent arbitrary file access
+    if (!key.startsWith('books/')) {
+      return res.status(403).json({ message: 'Access denied. Only books allowed.' });
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: process.env.DO_SPACES_BUCKET || 'nutrican-store', // Fallback if env not set
+      Key: key,
+    });
+
+    const url = await getSignedUrl(s3, command, { expiresIn: 3600 }); // 1 hour link
+    res.json({ url });
+  } catch (err) {
+    console.error('Book signed URL error:', err);
+    res.status(500).json({ message: 'Failed to generate book link.' });
+  }
+});
+
 // ─── GET /api/documents ───────────────────────────────────────────────────────
 // Returns a list of the user's documents with short-lived signed URLs for download
 router.get('/', requireAuth, async (req, res) => {

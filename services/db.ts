@@ -198,26 +198,35 @@ export const db = {
    * Upload medical documents to DigitalOcean Spaces via the backend.
    */
   uploadMedicalDocs: async (file: File): Promise<void> => {
-    if (file.type !== 'application/pdf') {
-      throw new Error('Only PDF documents are allowed.');
-    }
-
-    const token = getToken();
-    if (!token) throw new Error('Not authenticated.');
-
     const formData = new FormData();
     formData.append('document', file);
 
-    const response = await fetch(`${API_BASE_URL}/api/documents/upload`, {
+    const token = getToken();
+    if (!token) throw new Error('No auth token found. Please sign in.');
+
+    const res = await fetch(`${API_BASE_URL}/api/documents/upload`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
       body: formData,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
     });
 
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error((data as any).message || 'Upload failed.');
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || 'Upload failed');
     }
+  },
+
+  /**
+   * Get a signed download URL for a book.
+   */
+  getBookDownloadUrl: async (bookKey: string): Promise<string> => {
+    const key = bookKey.startsWith('books/') ? bookKey : `books/${bookKey}`;
+    const { url } = await apiFetch<{ url: string }>(`/api/documents/book-signed-url?key=${encodeURIComponent(key)}`, {
+      auth: true,
+    });
+    return url;
   },
 
   /**

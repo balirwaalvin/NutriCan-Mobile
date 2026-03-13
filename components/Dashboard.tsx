@@ -1525,16 +1525,22 @@ const LibraryScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () =
     }
 
     const resources = [
-        { title: 'Nutritional Support Basics', category: 'Recovery', readTime: '5 min', icon: BowlIcon, color: 'text-emerald-500' },
-        { title: 'Hydrating During Treatment', category: 'Wellness', readTime: '4 min', icon: HomeIcon, color: 'text-sky-500' },
-        { title: 'Top Local Superfoods Guide', category: 'Diet', readTime: '7 min', icon: ProteinIcon, color: 'text-amber-500' },
-        { title: 'Mindful Eating Strategies', category: 'Mindset', readTime: '6 min', icon: UserIcon, color: 'text-violet-500' },
-        { title: 'Managing Chemo Side Effects', category: 'Treatment', readTime: '8 min', icon: NauseaIcon, color: 'text-rose-500' },
-        { title: 'Post-Recovery Protein Guide', category: 'Recovery', readTime: '6 min', icon: ProteinIcon, color: 'text-teal-500' },
+        { title: 'HEAL Well: A Cancer Nutrition Guide', category: 'Complete Guide', readTime: '45 min', icon: BookIcon, color: 'text-indigo-500', pdfUrl: 'https://nutrican-store.sfo3.digitaloceanspaces.com/books/heal-well-guide.pdf' },
     ];
 
-    const handleDownload = (title: string) => {
-        alert(`Downloading: "${title}"\n\nThis is a simulated download.`);
+    const handleDownload = (url: string, title: string) => {
+        if (!url) {
+             alert('Download not available.');
+             return;
+        }
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank'; // Open in new tab if download fails or content-disposition not set
+        link.setAttribute('download', `${title}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     return (
@@ -1558,7 +1564,7 @@ const LibraryScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () =
                                     <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">{res.readTime} reading time</p>
                                 </div>
                             </div>
-                            <button onClick={() => handleDownload(res.title)} className="p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-full text-brand-green hover:bg-brand-green hover:text-white transition-all shadow-md active:scale-90 ml-2">
+                            <button onClick={() => handleDownload(res.pdfUrl, res.title)} className="p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-full text-brand-green hover:bg-brand-green hover:text-white transition-all shadow-md active:scale-90 ml-2">
                                 <DownloadIcon className="w-5 h-5" />
                             </button>
                         </div>
