@@ -25,16 +25,8 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (e.g. mobile apps, curl, Postman)
-    if (!origin) return callback(null, true);
-    // In development, allow any localhost port automatically
-    if (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/.test(origin)) {
-      return callback(null, true);
-    }
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    callback(new Error(`CORS: Origin "${origin}" is not allowed.`));
+    // Fully permissive CORS to allow all clients (deployed web apps, mobile apps, etc.)
+    return callback(null, true);
   },
   credentials: true,
 };
