@@ -75,6 +75,8 @@ const io = new Server(server, {
   cors: corsOptions
 });
 
+app.set('io', io);
+
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) {

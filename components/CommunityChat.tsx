@@ -47,7 +47,10 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
         });
 
         newSocket.on('receiveMessage', (msg: CommunityMessage) => {
-            setMessages(prev => [...prev, msg]);
+            setMessages(prev => {
+                if (prev.some(m => m._id === msg._id)) return prev;
+                return [...prev, msg];
+            });
             setTimeout(scrollToBottom, 100);
         });
 
@@ -62,27 +65,70 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
         };
     }, []);
 
-    const handleSendMessage = (e: React.FormEvent) => {
+    const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !socket) return;
+        const textToSend = newMessage.trim();
+        if (!textToSend) return;
 
-        socket.emit('sendMessage', {
-            text: newMessage.trim(),
+        const payload = {
+            text: textToSend,
             senderName: userProfile.name,
-            senderId: userProfile.email || userProfile.name, // Use email as unique id or fallback to name
+            senderId: userProfile.email || userProfile.name,
             replyTo: replyTo?._id || null
-        });
-
+        };
+        
+        // Optimistically clear input
         setNewMessage('');
         setReplyTo(null);
+
+        try {
+            const token = localStorage.getItem('nutrican_token');
+            const res = await fetch(`${API_BASE_URL}/api/chat/message`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const savedMsg = await res.json();
+                setMessages(prev => {
+                    if (prev.some(m => m._id === savedMsg._id)) return prev;
+                    return [...prev, savedMsg];
+                });
+                setTimeout(scrollToBottom, 100);
+            } else {
+                console.error('Failed to send message via API');
+            }
+        } catch (err) {
+            console.error('Error sending message:', err);
+        }
     };
 
-    const handleLike = (messageId: string) => {
-        if (!socket) return;
-        socket.emit('likeMessage', {
-            messageId,
-            userId: userProfile.email || userProfile.name
-        });
+    const handleLike = async (messageId: string) => {
+        try {
+            const token = localStorage.getItem('nutrican_token');
+            const res = await fetch(`${API_BASE_URL}/api/chat/like`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    messageId,
+                    userId: userProfile.email || userProfile.name
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setMessages(prev => prev.map(m => m._id === data.messageId ? { ...m, likes: data.likes } : m));
+            }
+        } catch (err) {
+            console.error('Error liking message:', err);
+        }
     };
 
     return (
