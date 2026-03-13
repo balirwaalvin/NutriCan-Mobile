@@ -41,7 +41,9 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
 
         // Initialize socket connection
         const newSocket = io(API_BASE_URL, {
-            auth: { token }
+            auth: { token },
+            transports: ['websocket'],
+            upgrade: false
         });
 
         newSocket.on('receiveMessage', (msg: CommunityMessage) => {
