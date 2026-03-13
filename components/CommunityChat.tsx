@@ -39,12 +39,33 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
             setLoading(false);
         });
 
-        // Initialize socket connection
+        // Initialize socket connection (allowing default polling fallback)
         const newSocket = io(API_BASE_URL, {
-            auth: { token },
-            transports: ['websocket'],
-            upgrade: false
+            auth: { token }
         });
+
+        // Fallback robust polling every 10 seconds just in case the socket connection completely drops or fails proxying
+        const pollInterval = setInterval(() => {
+            fetch(`${API_BASE_URL}/api/chat/history`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    setMessages(prev => {
+                        // Check if we need to update state to prevent unnecessary re-renders
+                        if (prev.length === 0 || 
+                            data.length !== prev.length || 
+                            data[data.length-1]?._id !== prev[prev.length-1]?._id ||
+                            JSON.stringify(data.map(m => m.likes)) !== JSON.stringify(prev.map(m => m.likes))) {
+                            return data;
+                        }
+                        return prev;
+                    });
+                }
+            })
+            .catch(console.error);
+        }, 10000);
 
         newSocket.on('receiveMessage', (msg: CommunityMessage) => {
             setMessages(prev => {
@@ -61,6 +82,7 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
         setSocket(newSocket);
 
         return () => {
+            clearInterval(pollInterval);
             newSocket.disconnect();
         };
     }, []);
