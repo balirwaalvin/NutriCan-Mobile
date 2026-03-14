@@ -65,6 +65,15 @@ async function apiFetch<T = any>(
 // ── Helper: map a raw API profile to the UserProfile type ────────────────────
 
 function mapProfile(raw: any): UserProfile {
+  let bmi = raw.bmi;
+  
+  if (!bmi && raw.height && raw.weight) {
+    const heightInMeters = raw.height / 100;
+    if (heightInMeters > 0) {
+      bmi = parseFloat((raw.weight / (heightInMeters * heightInMeters)).toFixed(1));
+    }
+  }
+
   return {
     name: raw.name,
     age: raw.age,
@@ -81,7 +90,7 @@ function mapProfile(raw: any): UserProfile {
     isGuest: raw.isGuest ?? false,
     createdAt: raw.createdAt,
     trialStartedAt: raw.trialStartedAt,
-    bmi: raw.bmi,
+    bmi: bmi,
   };
 }
 

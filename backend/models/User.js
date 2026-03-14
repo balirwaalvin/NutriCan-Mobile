@@ -25,6 +25,16 @@ const userSchema = new mongoose.Schema(
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
+  // Auto-calculate BMI if not present or if height/weight are modified
+  if (!this.bmi || this.isModified('height') || this.isModified('weight')) {
+    if (this.height && this.weight) {
+      const heightInMeters = this.height / 100;
+      if (heightInMeters > 0) {
+        this.bmi = parseFloat((this.weight / (heightInMeters * heightInMeters)).toFixed(1));
+      }
+    }
+  }
+
   if (!this.isModified('passwordHash') || !this.passwordHash) return next();
   this.passwordHash = await bcrypt.hash(this.passwordHash, 12);
   next();

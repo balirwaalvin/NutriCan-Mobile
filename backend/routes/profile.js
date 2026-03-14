@@ -22,6 +22,18 @@ router.patch('/', requireAuth, async (req, res) => {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
     });
 
+    // Auto-calculate BMI if not explicitly provided but height and weight are available
+    if (updates.bmi === undefined) {
+      const height = updates.height !== undefined ? updates.height : req.user.height;
+      const weight = updates.weight !== undefined ? updates.weight : req.user.weight;
+      if (height && weight) {
+        const heightInMeters = height / 100;
+        if (heightInMeters > 0) {
+          updates.bmi = parseFloat((weight / (heightInMeters * heightInMeters)).toFixed(1));
+        }
+      }
+    }
+
     const updated = await User.findByIdAndUpdate(
       req.user._id,
       { $set: updates },
