@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
 import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, SymptomType, RecommendedFood, JournalEntry, LoggedMeal, CancerType, CancerStage, TreatmentStage, OtherCondition } from '../types';
-import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, BowlIcon, PlusIcon, NauseaIcon, BellIcon, VideoCallIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon, DownloadIcon, ShieldCheckIcon, FileTextIcon, ChatBubbleIcon } from './Icons';
+import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, BowlIcon, PlusIcon, NauseaIcon, BellIcon, VideoCallIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon, DownloadIcon, ShieldCheckIcon, FileTextIcon, ChatBubbleIcon, MouthSoreIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips } from '../services/geminiService';
 import { db } from '../services/db';
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -892,6 +892,25 @@ const SymptomTipsScreen: React.FC = () => {
         setTips(result);
         setLoading(false);
     };
+    const getSymptomIcon = (symptom: SymptomType) => {
+        switch (symptom) {
+            case SymptomType.APPETITE_LOSS:
+                return <BowlIcon className="w-7 h-7" />;
+            case SymptomType.VOMITING:
+                return <NauseaIcon className="w-7 h-7" />;
+            case SymptomType.MOUTH_WOUNDS:
+            case SymptomType.SOUR_MOUTH:
+                return <MouthSoreIcon className="w-7 h-7" />;
+            case SymptomType.INFECTION_RISK:
+                return <ShieldCheckIcon className="w-7 h-7" />;
+            case SymptomType.DIARRHOEA:
+            case SymptomType.CONSTIPATION:
+                return <FatigueIcon className="w-7 h-7" />;
+            default:
+                return <NauseaIcon className="w-7 h-7" />;
+        }
+    };
+
     return (
         <div className="p-4 pb-16 min-h-[60vh]">
             <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter">Symptom Hub</h2>
@@ -902,7 +921,7 @@ const SymptomTipsScreen: React.FC = () => {
                         <div key={symptom} className="card-button-wrapper">
                             <button onClick={() => handleSymptomSelect(symptom)} className="w-full h-full p-6 flex flex-col items-center gap-3 text-center transition-all active:scale-95 group">
                                 <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl text-brand-green group-hover:rotate-12 transition-transform">
-                                    <NauseaIcon className="w-7 h-7" />
+                                    {getSymptomIcon(symptom)}
                                 </div>
                                 <span className="text-[11px] font-black text-emerald-900 dark:text-emerald-100 uppercase tracking-tighter">{symptom}</span>
                             </button>
