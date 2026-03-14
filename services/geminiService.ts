@@ -52,6 +52,28 @@ const FOOD_IMAGE_MAP: { [key: string]: string } = {
   'steamed pumpkin with groundnuts sauce': '/Meals/Steamed Pumpkin with Groundnuts Sauce.png',
   'yoghurt with watermelon': '/Meals/Yoghurt with Watermelon.png',
   'yougurt and avocado': '/Meals/yougurt and avocado.png',
+
+  // --- Ingredient/Symptom Tips Fallbacks (Unsplash) ---
+  'ginger': 'https://images.unsplash.com/photo-1599940824399-b87987ceb72a?w=800&q=80',
+  'posho': 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=800&q=80',
+  'rice': 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=800&q=80',
+  'yogurt': 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=800&q=80',
+  'yoghurt': 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=800&q=80',
+  'papaya': 'https://images.unsplash.com/photo-1517282009859-f000ec3b26fe?w=800&q=80',
+  'watermelon': 'https://images.unsplash.com/photo-1589332560835-24e6de858b47?w=800&q=80',
+  'greens': 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=800&q=80',
+  'spinach': 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=800&q=80',
+  'beans': 'https://images.unsplash.com/photo-1551462147-ff29053bfc14?w=800&q=80',
+  'fish': 'https://images.unsplash.com/photo-1511259551157-3a7c6b96eec5?w=800&q=80',
+  'matoke': 'https://images.unsplash.com/photo-1603522206412-fcb0ad52f866?w=800&q=80',
+  'banana': 'https://images.unsplash.com/photo-1603522206412-fcb0ad52f866?w=800&q=80',
+  'pumpkin': 'https://images.unsplash.com/photo-1570586437263-bc624738222b?w=800&q=80',
+  'egg': 'https://images.unsplash.com/photo-1506084868230-bb9d95c24759?w=800&q=80',
+  'broth': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=800&q=80',
+  'soup': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=800&q=80',
+  'tea': 'https://images.unsplash.com/photo-1576092762791-dd9e2220afa1?w=800&q=80',
+  'porridge': 'https://images.unsplash.com/photo-1516714435131-44d6b636dc41?w=800&q=80',
+  'water': 'https://images.unsplash.com/photo-1523362628745-0c100150b504?w=800&q=80',
 };
 
 const getMealPhotoUrl = (mealName: string): string => {
