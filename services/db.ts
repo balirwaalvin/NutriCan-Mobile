@@ -129,6 +129,17 @@ export const db = {
   },
 
   /**
+   * Reset current user password.
+   */
+  resetPassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    await apiFetch('/api/profile/password', {
+      method: 'PATCH',
+      auth: true,
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  },
+
+  /**
    * Sign in with email and password.
    */
   signIn: async (email: string, password: string): Promise<UserProfile> => {

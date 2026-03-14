@@ -47,6 +47,34 @@ router.patch('/', requireAuth, async (req, res) => {
   }
 });
 
+// ─── PATCH /api/profile/password ──────────────────────────────────────────────
+router.patch('/password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current and new password are required.' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long.' });
+    }
+
+    // Verify current password
+    const isMatch = await req.user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Incorrect current password.' });
+    }
+
+    req.user.passwordHash = newPassword; // The pre-save hook will hash it
+    await req.user.save();
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ message: err.message || 'Failed to reset password.' });
+  }
+});
+
 // ─── POST /api/profile/upgrade ────────────────────────────────────────────────
 router.post('/upgrade', requireAuth, async (req, res) => {
   try {

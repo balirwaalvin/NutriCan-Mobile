@@ -811,6 +811,76 @@ const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfi
     );
 };
 
+const ResetPasswordForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+
+        if (newPassword !== confirmPassword) {
+            return setError('New passwords do not match');
+        }
+        if (newPassword.length < 6) {
+            return setError('New password must be at least 6 characters');
+        }
+
+        setIsLoading(true);
+        try {
+            await db.resetPassword(currentPassword, newPassword);
+            setSuccess('Password updated successfully!');
+            setTimeout(() => {
+                onClose();
+            }, 1500);
+        } catch (err: any) {
+            setError(err.message || 'Failed to update password');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const inputClass = "w-full p-4 glass-panel rounded-2xl border-2 border-emerald-500/10 focus:border-brand-green outline-none font-bold text-emerald-950 dark:text-white bg-white/50 dark:bg-emerald-900/20";
+    const labelClass = "text-[10px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest block mb-2";
+
+    return (
+        <div className="pb-4">
+            <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter text-center">Reset Password</h2>
+            <p className="text-gray-500 mb-8 font-medium text-center text-sm">Create a new secure password for your account.</p>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {error && <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500 text-sm font-bold text-center">{error}</div>}
+                {success && <div className="p-4 bg-brand-green/10 border border-brand-green/20 rounded-2xl text-brand-green text-sm font-bold text-center">{success}</div>}
+
+                <div>
+                    <label className={labelClass}>Current Password</label>
+                    <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className={inputClass} required />
+                </div>
+                <div>
+                    <label className={labelClass}>New Password</label>
+                    <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className={inputClass} required />
+                </div>
+                <div>
+                    <label className={labelClass}>Confirm New Password</label>
+                    <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className={inputClass} required />
+                </div>
+
+                <div className="pt-4 flex gap-4">
+                    <button type="button" onClick={onClose} className="flex-1 py-4 font-black uppercase text-xs tracking-widest text-gray-500 bg-gray-100 dark:bg-white/5 rounded-2xl">Cancel</button>
+                    <button type="submit" disabled={isLoading} className="flex-[2] btn-primary shadow-glow-primary">
+                        {isLoading ? 'Updating...' : 'Update Password'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
 const SymptomTipsScreen: React.FC = () => {
     const [selectedSymptom, setSelectedSymptom] = useState<SymptomType | null>(null);
     const [tips, setTips] = useState<RecommendedFood[] | null>(null);
@@ -2096,6 +2166,12 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, 
         );
     };
 
+    const openResetPassword = () => {
+        setModal(
+            <ResetPasswordForm onClose={() => setModal(null)} />
+        );
+    };
+
     return (
         <div className="p-8 pb-40">
             <div className="flex flex-col items-center mb-14 animate-fade-in-up">
@@ -2205,6 +2281,14 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, 
                         <ChevronLeftIcon className="w-6 h-6 rotate-180 opacity-40 group-hover:opacity-100 transition-opacity" />
                     </button>
                 </div>
+                {!userProfile.isGuest && (
+                    <div className="card-button-wrapper">
+                        <button onClick={openResetPassword} className="w-full p-6 flex justify-between items-center font-black text-emerald-900 dark:text-white group">
+                            <span>Reset Password</span>
+                            <ChevronLeftIcon className="w-6 h-6 rotate-180 opacity-40 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                    </div>
+                )}
                 <div className="card-button-wrapper">
                     <button onClick={toggleTheme} className="w-full p-6 flex justify-between items-center font-black text-emerald-900 dark:text-white">
                         <span>Dark Appearance</span>
