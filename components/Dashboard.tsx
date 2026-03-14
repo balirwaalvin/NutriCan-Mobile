@@ -1597,6 +1597,7 @@ const LibraryScreen: React.FC<{ userProfile: UserProfile; onUpgradeRequest: () =
     const resources = [
         { title: 'HEAL Well: A Cancer Nutrition Guide', category: 'Complete Guide', readTime: '45 min', icon: BookIcon, color: 'text-indigo-500', pdfUrl: 'https://nutrican-store.sfo3.digitaloceanspaces.com/books/heal-well-guide.pdf' },
         { title: 'Eating Hints: Before, during, and after Cancer Treatment', category: 'Nutrition Guide', readTime: '60 min', icon: BookIcon, color: 'text-brand-green', pdfUrl: 'https://nutrican-store.sfo3.digitaloceanspaces.com/books/EatingHints%202022%20508%20final_0.pdf' },
+        { title: 'Nutrition for People Living with Cancer', category: 'Nutrition Guide', readTime: '50 min', icon: BookIcon, color: 'text-teal-500', pdfUrl: 'https://nutrican-store.sfo3.digitaloceanspaces.com/books/nutrition-and-cancer-booklet.pdf' },
     ];
 
     const handleDownload = (url: string, title: string) => {
