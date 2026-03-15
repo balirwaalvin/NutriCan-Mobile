@@ -160,11 +160,12 @@ export const getNutrientInfo = async (mealName: string): Promise<NutrientInfo | 
 // ── getSymptomTips ────────────────────────────────────────────────────────────
 export const getSymptomTips = async (symptom: SymptomType): Promise<RecommendedFood[] | null> => {
   try {
-    const { recommendations } = await aiPost<{ recommendations: { name: string; description: string }[] }>('symptom-tips', { symptom });
+    const { recommendations } = await aiPost<{ recommendations: { name: string; description: string; howToProvide?: string }[] }>('symptom-tips', { symptom });
     if (Array.isArray(recommendations)) {
       return recommendations.map((food) => ({
         name: food.name,
         description: food.description,
+        howToProvide: food.howToProvide || '',
         photoUrl: getMealPhotoUrl(food.name),
       }));
     }

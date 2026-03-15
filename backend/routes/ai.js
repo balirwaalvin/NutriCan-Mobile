@@ -246,8 +246,8 @@ Generate a list of 4-5 highly specific local Ugandan food recommendations for a 
 Focus on foods scientifically or traditionally known to help with "${symptom}" specifically.
 Use ONLY common foods from: Ginger, Posho, Rice, Yoghurt, Papaya, Watermelon, Greens, Beans, Fish, Matoke, Pumpkin, Eggs.
 
-Respond ONLY as a JSON object with a single key "recommendations" — an array of objects each having "name" (string) and "description" (string, max 20 words).
-Example: {"recommendations": [{"name": "Ginger Tea", "description": "Soothes the stomach and effectively reduces nausea."}]}
+Respond ONLY as a JSON object with a single key "recommendations" — an array of objects each having "name" (string), "description" (string, max 20 words), and "howToProvide" (string, short instructions on how the user can take it).
+Example: {"recommendations": [{"name": "Ginger Tea", "description": "Soothes the stomach and effectively reduces nausea.", "howToProvide": "Steep fresh ginger in hot water and sip slowly."}]}
 `;
 
   try {

@@ -111,6 +111,7 @@ export enum SymptomType {
 export interface RecommendedFood {
   name: string;
   description: string;
+  howToProvide?: string;
   photoUrl: string;
 }
 

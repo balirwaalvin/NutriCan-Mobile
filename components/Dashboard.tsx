@@ -938,12 +938,15 @@ const SymptomTipsScreen: React.FC = () => {
                     ) : (
                         <div className="space-y-6">
                             {tips?.map((tip, idx) => (
-                                <div key={idx} className="glass-panel rounded-[2.5rem] overflow-hidden flex gap-5 p-5 items-center border border-white/40 shadow-xl">
-                                    <img src={tip.photoUrl} alt={tip.name} className="w-24 h-24 object-cover rounded-3xl shadow-md" />
-                                    <div className="flex-grow">
-                                        <p className="font-black text-emerald-950 dark:text-white text-base mb-1">{tip.name}</p>
-                                        <p className="text-xs text-gray-500 dark:text-emerald-100/70 leading-relaxed font-medium">{tip.description}</p>
-                                    </div>
+                                <div key={idx} className="glass-panel rounded-3xl overflow-hidden flex flex-col gap-3 p-6 border border-white/40 shadow-xl">
+                                    <h3 className="font-black text-brand-green text-lg">{tip.name}</h3>
+                                    <p className="text-sm text-emerald-950 dark:text-emerald-50 leading-relaxed font-medium">{tip.description}</p>
+                                    {tip.howToProvide && (
+                                        <div className="mt-2 bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
+                                            <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300 mb-1 uppercase tracking-wider">How to take it</p>
+                                            <p className="text-sm text-emerald-700 dark:text-emerald-100/80 leading-snug font-medium">{tip.howToProvide}</p>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
