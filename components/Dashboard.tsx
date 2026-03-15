@@ -2418,6 +2418,7 @@ const TrialActivationPortal: React.FC<{ onActivate: () => void; onDismiss: () =>
 // and all other screens is NEVER rendered for guests — eliminating any leakage.
 const GuestOnlyDashboard: React.FC<{ userProfile: UserProfile; onSignUp: () => void }> = ({ userProfile, onSignUp }) => {
     const [showPayment, setShowPayment] = useState(false);
+    const [showPremiumWelcome, setShowPremiumWelcome] = useState(false);
 
     const handleSubscribe = () => setShowPayment(true);
 
@@ -2474,9 +2475,13 @@ const GuestOnlyDashboard: React.FC<{ userProfile: UserProfile; onSignUp: () => v
             {/* Payment modal (triggered by Subscribe button) */}
             {showPayment && (
                 <PaymentModal
-                    onPaymentSuccess={() => { setShowPayment(false); onSignUp(); }}
+                    onPaymentSuccess={() => { setShowPayment(false); setShowPremiumWelcome(true); }}
                     closeModal={() => setShowPayment(false)}
                 />
+            )}
+            
+            {showPremiumWelcome && (
+                <PremiumWelcomeModal closeModal={() => { setShowPremiumWelcome(false); onSignUp(); }} />
             )}
         </div>
     );
@@ -2635,9 +2640,12 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
                 <GuestOnlyDashboard userProfile={localProfile} onSignUp={onLogout} />
                 {showPayment && (
                     <PaymentModal
-                        onPaymentSuccess={() => { setLocalProfile(p => ({ ...p, plan: 'Premium', isGuest: false })); setShowPayment(false); onLogout(); }}
+                        onPaymentSuccess={() => { setLocalProfile(p => ({ ...p, plan: 'Premium', isGuest: false })); setShowPayment(false); setShowPremiumWelcome(true); }}
                         closeModal={() => setShowPayment(false)}
                     />
+                )}
+                {showPremiumWelcome && (
+                    <PremiumWelcomeModal closeModal={() => { setShowPremiumWelcome(false); onLogout(); }} />
                 )}
             </>
         );
