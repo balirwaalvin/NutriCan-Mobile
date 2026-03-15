@@ -2482,10 +2482,78 @@ const GuestOnlyDashboard: React.FC<{ userProfile: UserProfile; onSignUp: () => v
     );
 };
 
+// --- Premium Welcome Modal ---
+const PremiumWelcomeModal: React.FC<{ closeModal: () => void }> = ({ closeModal }) => {
+    return (
+        <div className="fixed inset-0 bg-emerald-950/98 backdrop-blur-3xl z-[250] flex items-center justify-center p-6 animate-fade-in">
+            <div className="bg-gradient-to-br from-amber-400 to-amber-600 max-w-sm w-full rounded-[3.5rem] p-1 text-center shadow-[0_0_80px_rgba(251,191,36,0.6)] relative animate-fade-in-up">
+                {/* Inner background */}
+                <div className="bg-white dark:bg-emerald-950 w-full h-full rounded-[3.3rem] p-8 relative overflow-hidden flex flex-col items-center">
+                    {/* Confetti or decorative elements */}
+                    <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20">
+                        <div className="absolute top-10 left-10 w-4 h-4 bg-amber-400 rounded-full animate-bounce"></div>
+                        <div className="absolute top-20 right-12 w-6 h-6 bg-brand-green rounded-full animate-pulse"></div>
+                        <div className="absolute bottom-20 left-1/4 w-5 h-5 bg-teal-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    </div>
+                    
+                    <button onClick={closeModal} className="absolute top-6 right-6 p-2 text-emerald-800 dark:text-emerald-100 hover:scale-110 transition-transform z-10">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+
+                    <div className="w-24 h-24 bg-gradient-to-tr from-amber-300 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-glow-large border-4 border-amber-100 dark:border-amber-900 z-10 relative">
+                        <PremiumIcon className="w-12 h-12 text-white" />
+                        <div className="absolute -inset-2 rounded-full border border-amber-400/50 animate-ping"></div>
+                    </div>
+
+                    <h2 className="text-3xl font-black text-emerald-950 dark:text-white mb-2 tracking-tighter z-10">Welcome to<br/>Premium!</h2>
+                    <p className="text-gray-500 dark:text-gray-400 mb-8 font-bold text-sm z-10">You've unlocked the full potential of your nutrition journey.</p>
+                    
+                    <div className="space-y-4 w-full mb-8 text-left z-10">
+                        <div className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl border border-emerald-100 dark:border-emerald-800/50">
+                            <div className="w-10 h-10 rounded-full bg-brand-green/20 flex items-center justify-center shrink-0">
+                                <BroadcastIcon className="w-5 h-5 text-brand-green outline-none" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="font-black text-xs text-emerald-950 dark:text-white uppercase tracking-wider">Live Consults</p>
+                                <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold">Connect with nutritionists</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl border border-emerald-100 dark:border-emerald-800/50">
+                            <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                                <BookIcon className="w-5 h-5 text-amber-500 outline-none" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="font-black text-xs text-emerald-950 dark:text-white uppercase tracking-wider">Resource Library</p>
+                                <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold">Unlimited premium articles</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl border border-emerald-100 dark:border-emerald-800/50">
+                            <div className="w-10 h-10 rounded-full bg-teal-500/20 flex items-center justify-center shrink-0">
+                                <ChatBubbleIcon className="w-5 h-5 text-teal-500 outline-none" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="font-black text-xs text-emerald-950 dark:text-white uppercase tracking-wider">Community Chat</p>
+                                <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold">Join the conversation</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="w-full card-button-wrapper z-10 !bg-transparent !p-0 !border-0">
+                        <button onClick={closeModal} className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-xs py-4 !bg-gradient-to-r !from-amber-500 !to-amber-600 border-none hover:!from-amber-600 hover:!to-amber-700">
+                            Start Exploring
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     const [activePage, setActivePage] = useState<DashboardPage>('home');
     const [modalState, setModalState] = useState<{ content: React.ReactNode | null; fullScreen: boolean }>({ content: null, fullScreen: false });
     const [showPayment, setShowPayment] = useState(false);
+    const [showPremiumWelcome, setShowPremiumWelcome] = useState(false);
     const [localProfile, setLocalProfile] = useState(userProfile);
     const [lockedFeatureGate, setLockedFeatureGate] = useState<string | null>(null); // feature name user tried to access
     const [trialPopupDismissed, setTrialPopupDismissed] = useState(false);
@@ -2624,9 +2692,12 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
             )}
             {showPayment && (
                 <PaymentModal
-                    onPaymentSuccess={() => { setLocalProfile(p => ({ ...p, plan: 'Premium' })); setShowPayment(false); }}
+                    onPaymentSuccess={() => { setLocalProfile(p => ({ ...p, plan: 'Premium' })); setShowPayment(false); setShowPremiumWelcome(true); }}
                     closeModal={() => setShowPayment(false)}
                 />
+            )}
+            {showPremiumWelcome && (
+                <PremiumWelcomeModal closeModal={() => setShowPremiumWelcome(false)} />
             )}
         </div>
     );
