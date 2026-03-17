@@ -53,6 +53,7 @@ export interface Meal {
   photoUrl: string;
   category: MealCategory;
   recipe?: string;
+  nutrients?: NutrientInfo;
 }
 
 export interface DailyMealPlan {
@@ -79,6 +80,7 @@ export interface NutrientInfo {
   calories: number;
   sugar: number; // in grams
   salt: number; // in grams
+  bmiImpact?: string;
 }
 
 export interface LoggedMeal {

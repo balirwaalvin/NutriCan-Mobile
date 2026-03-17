@@ -113,13 +113,28 @@ export const checkFoodSafety = async (foodName: string, userProfile: UserProfile
 // ── generateMealPlan ─────────────────────────────────────────────────────────
 export const generateMealPlan = async (userProfile: UserProfile): Promise<WeeklyMealPlan | null> => {
   try {
-    const { weekPlan } = await aiPost<{ weekPlan: any[] }>('meal-plan', { userProfile });
+    const { weekPlan } = await aiPost<{ weekPlan: any[] }>('meal-plan', { 
+      userProfile,
+      instructions: "Generate nutrient information (nutrients: { calories, sugar, salt, bmiImpact }) for each meal in the plan."
+    });
     if (Array.isArray(weekPlan) && weekPlan.length === 7) {
       return weekPlan.map((dayPlan: any) => ({
         ...dayPlan,
-        breakfast: { ...dayPlan.breakfast, photoUrl: getMealPhotoUrl(dayPlan.breakfast.name) },
-        lunch: { ...dayPlan.lunch, photoUrl: getMealPhotoUrl(dayPlan.lunch.name) },
-        dinner: { ...dayPlan.dinner, photoUrl: getMealPhotoUrl(dayPlan.dinner.name) },
+        breakfast: { 
+          ...dayPlan.breakfast, 
+          photoUrl: getMealPhotoUrl(dayPlan.breakfast.name),
+          nutrients: dayPlan.breakfast.nutrients || { calories: 0, sugar: 0, salt: 0, bmiImpact: '' }
+        },
+        lunch: { 
+          ...dayPlan.lunch, 
+          photoUrl: getMealPhotoUrl(dayPlan.lunch.name),
+          nutrients: dayPlan.lunch.nutrients || { calories: 0, sugar: 0, salt: 0, bmiImpact: '' }
+        },
+        dinner: { 
+          ...dayPlan.dinner, 
+          photoUrl: getMealPhotoUrl(dayPlan.dinner.name),
+          nutrients: dayPlan.dinner.nutrients || { calories: 0, sugar: 0, salt: 0, bmiImpact: '' }
+        },
       }));
     }
     throw new Error('Invalid meal plan format from API.');
@@ -134,7 +149,11 @@ export const swapMeal = async (userProfile: UserProfile, mealToSwap: Meal, day: 
   try {
     const result = await aiPost<any>('swap-meal', { userProfile, mealToSwap, day, mealType });
     if (result.name && result.description && result.category) {
-      return { ...result, photoUrl: getMealPhotoUrl(result.name) };
+      return { 
+        ...result, 
+        photoUrl: getMealPhotoUrl(result.name),
+        nutrients: result.nutrients || { calories: 0, sugar: 0, salt: 0, bmiImpact: '' }
+      };
     }
     throw new Error('Invalid swap meal format from API.');
   } catch (error) {

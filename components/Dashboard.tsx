@@ -1154,6 +1154,24 @@ const MealPlanScreen: React.FC<{ userProfile: UserProfile; isGuest?: boolean; on
 };
 
 const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () => void, isSwapping: boolean, isGuest?: boolean }> = ({ meal, title, delay, onSwap, isSwapping, isGuest }) => {
+    const [logStatus, setLogStatus] = useState<'idle' | 'logging' | 'success'>('idle');
+
+    const handleLogMeal = async () => {
+        if (isGuest) return;
+        setLogStatus('logging');
+        try {
+            await db.addMealLog({
+                name: meal.name,
+                nutrients: meal.nutrients || { calories: 0, sugar: 0, salt: 0 }
+            });
+            setLogStatus('success');
+            setTimeout(() => setLogStatus('idle'), 3000);
+        } catch (error) {
+            console.error(error);
+            setLogStatus('idle');
+        }
+    };
+
     return (
         <div className="glass-panel rounded-[3rem] shadow-2xl overflow-hidden animate-fade-in-up group relative border border-white/40" style={{ animationDelay: `${delay}ms` }}>
             <div className="relative h-48 overflow-hidden">
@@ -1167,6 +1185,30 @@ const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () 
             </div>
             <div className="p-8">
                 <p className="text-gray-600 text-sm mb-6 dark:text-emerald-100/70 leading-relaxed font-bold">{meal.description}</p>
+                
+                {meal.nutrients && (
+                    <div className="flex items-center justify-between mb-8 bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-[2rem] border border-emerald-500/10">
+                        <div className="text-center flex-1 border-r border-emerald-500/10">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Calories</p>
+                            <p className="font-black text-emerald-950 dark:text-white">{meal.nutrients.calories}</p>
+                        </div>
+                        <div className="text-center flex-1 border-r border-emerald-500/10">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Sugar</p>
+                            <p className="font-black text-emerald-950 dark:text-white">{meal.nutrients.sugar}g</p>
+                        </div>
+                        <div className="text-center flex-1 border-r border-emerald-500/10">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Salt</p>
+                            <p className="font-black text-emerald-950 dark:text-white">{meal.nutrients.salt}g</p>
+                        </div>
+                        {meal.nutrients.bmiImpact !== undefined && (
+                            <div className="text-center flex-1">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">BMI Impact</p>
+                                <p className="font-bold text-xs text-brand-green leading-tight">{meal.nutrients.bmiImpact}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className="mb-8 p-5 bg-emerald-50 dark:bg-emerald-900/30 rounded-[2rem] border-l-4 border-brand-green shadow-inner">
                     <p className="text-xs text-emerald-900 dark:text-emerald-100 italic font-medium leading-relaxed">"{meal.reason}"</p>
                 </div>
@@ -1178,14 +1220,27 @@ const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () 
                         <p className="text-xs text-gray-600 dark:text-emerald-100/70 leading-relaxed whitespace-pre-line">{meal.recipe}</p>
                     </div>
                 )}
-                <div className="card-button-wrapper">
-                    <button
-                        onClick={onSwap}
-                        disabled={isSwapping}
-                        className="btn-primary w-full !text-base shadow-glow-primary flex items-center justify-center gap-2"
-                    >
-                        Swap for something else
-                    </button>
+                <div className="flex flex-col gap-3">
+                    {!isGuest && (
+                        <div className="card-button-wrapper">
+                            <button
+                                onClick={handleLogMeal}
+                                disabled={isSwapping || logStatus !== 'idle'}
+                                className={`btn-primary w-full !text-base shadow-glow-primary flex items-center justify-center gap-2 ${logStatus === 'success' ? '!bg-emerald-500' : ''}`}
+                            >
+                                {logStatus === 'logging' ? 'Logging...' : logStatus === 'success' ? 'Logged Successfully!' : 'Log Meal'}
+                            </button>
+                        </div>
+                    )}
+                    <div className="card-button-wrapper !bg-transparent border-none p-0">
+                        <button
+                            onClick={onSwap}
+                            disabled={isSwapping}
+                            className="btn-secondary w-full !text-sm flex items-center justify-center gap-2 font-black uppercase tracking-widest"
+                        >
+                            Swap Meal
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1303,20 +1358,25 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
     useEffect(() => { fetchData(); }, [fetchData]);
 
     const chartData = useMemo(() => {
-        const dailyStats: Record<string, { calories: number, energy: number | null }> = {};
+        const dailyStats: Record<string, { calories: number, energy: number | null, bmi: number | null }> = {};
 
         // Aggregate Calories from Meals
         loggedMeals.forEach(meal => {
             const date = new Date(meal.timestamp).toLocaleDateString();
-            if (!dailyStats[date]) dailyStats[date] = { calories: 0, energy: null };
+            if (!dailyStats[date]) dailyStats[date] = { calories: 0, energy: null, bmi: null };
             dailyStats[date].calories += meal.nutrients.calories;
         });
 
         // Aggregate Energy from Journal
         journalData.forEach(entry => {
             const date = new Date(entry.timestamp).toLocaleDateString();
-            if (!dailyStats[date]) dailyStats[date] = { calories: 0, energy: 0 };
+            if (!dailyStats[date]) dailyStats[date] = { calories: 0, energy: 0, bmi: null };
             dailyStats[date].energy = entry.energy;
+            
+            if (entry.weight && userProfile.height) {
+                const heightInMeters = userProfile.height / 100;
+                dailyStats[date].bmi = entry.weight / (heightInMeters * heightInMeters);
+            }
         });
 
         // Fill in last 7 days even if empty to make chart look good
@@ -1325,7 +1385,7 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
             const d = new Date(today);
             d.setDate(d.getDate() - i);
             const dateStr = d.toLocaleDateString();
-            if (!dailyStats[dateStr]) dailyStats[dateStr] = { calories: 0, energy: 0 };
+            if (!dailyStats[dateStr]) dailyStats[dateStr] = { calories: 0, energy: 0, bmi: null };
         }
 
         return Object.entries(dailyStats)
@@ -1333,11 +1393,12 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
                 name: new Date(date).toLocaleDateString(undefined, { weekday: 'short' }),
                 fullDate: new Date(date),
                 calories: stats.calories,
-                energy: stats.energy || 0
+                energy: stats.energy || 0,
+                bmi: stats.bmi ? parseFloat(stats.bmi.toFixed(1)) : null
             }))
             .sort((a, b) => a.fullDate.getTime() - b.fullDate.getTime())
             .slice(-7);
-    }, [loggedMeals, journalData]);
+    }, [loggedMeals, journalData, userProfile.height]);
 
     const todaysCalories = useMemo(() => {
         const todayStr = new Date().toLocaleDateString();
@@ -1432,13 +1493,14 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
                             </defs>
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF', fontWeight: 800 }} dy={10} />
                             <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} />
-                            <YAxis yAxisId="right" orientation="right" domain={[0, 10]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#F59E0B' }} hide />
+                            <YAxis yAxisId="right" orientation="right" domain={[0, 'auto']} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#F59E0B' }} hide />
                             <Tooltip
                                 contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', backgroundColor: 'rgba(255,255,255,0.95)' }}
                                 labelStyle={{ fontWeight: 800, color: '#064E3B', marginBottom: '0.5rem' }}
                             />
                             <Bar yAxisId="left" dataKey="calories" fill="url(#barGradient)" radius={[10, 10, 10, 10]} barSize={20} />
                             <Line yAxisId="right" type="monotone" dataKey="energy" stroke="#F59E0B" strokeWidth={3} dot={{ r: 4, fill: '#F59E0B', strokeWidth: 2, stroke: '#fff' }} />
+                            <Line yAxisId="right" type="monotone" dataKey="bmi" name="BMI" stroke="#ec4899" strokeWidth={3} dot={{ r: 4, fill: '#ec4899', strokeWidth: 2, stroke: '#fff' }} />
                         </ComposedChart>
                     </ResponsiveContainer>
                 </div>
@@ -1449,7 +1511,11 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase">Energy Level</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase">Energy</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-pink-500"></div>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase">BMI</span>
                     </div>
                 </div>
             </div>

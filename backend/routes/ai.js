@@ -65,7 +65,7 @@ Example: {"status": "Safe", "reason": "Rich in antioxidants and safe for ${userP
 
 // ── POST /api/ai/meal-plan ────────────────────────────────────────────────────
 router.post('/meal-plan', async (req, res) => {
-  const { userProfile } = req.body;
+  const { userProfile, instructions = '' } = req.body;
   if (!userProfile) return res.status(400).json({ message: 'userProfile is required.' });
 
   const conditions = [userProfile.cancerType, ...(userProfile.otherConditions || [])].join(', ');
@@ -84,6 +84,7 @@ router.post('/meal-plan', async (req, res) => {
   const prompt = `
 Generate a 7-day weekly meal plan for a patient with ${conditions} and Cervical Cancer.
 ${bmiInfo}
+${instructions ? 'ADDITIONAL INSTRUCTIONS: ' + instructions : ''}
 
 CRITICAL: You MUST ONLY recommend meals from this EXACT list, word-for-word. Do not invent or modify meal names:
 - Boiled Cassava with G-nut sauce
@@ -125,6 +126,7 @@ For each meal (breakfast, lunch, dinner) of each day provide:
 3. "reason" (why recommended based on BMI ${bmiValue} and condition, max 2 sentences)
 4. "category" (must be "Protein", "Carbs", "Balanced", or "Veggies")
 5. "recipe" (short step-by-step healthy recipe)
+6. "nutrients" (an object containing "calories" (number), "sugar" (in grams, number), "salt" (in grams, number), and "bmiImpact" (string short explanation))
 
 Respond as a JSON object with a single key "weekPlan" containing an array of 7 day-objects.
 Each day-object has: "day" (e.g. "Monday"), "breakfast", "lunch", "dinner".
@@ -195,9 +197,9 @@ CRITICAL: You MUST ONLY choose from this EXACT list, word-for-word. Do not inven
 
 Must NOT be sugary, a pastry, or deep-fried. Should be low-fat.
 
-Provide: "name", "description", "reason" (why good for their BMI and conditions), "category" ("Protein", "Carbs", "Balanced", or "Veggies"), "recipe" (short step-by-step recipe).
+Provide: "name", "description", "reason" (why good for their BMI and conditions), "category" ("Protein", "Carbs", "Balanced", or "Veggies"), "recipe" (short step-by-step recipe), and "nutrients" (object with "calories", "sugar", "salt", "bmiImpact").
 Respond as a single JSON object.
-Example: {"name": "Boiled Chicken and Yams", "description": "Simple protein and complex carbs.", "reason": "High protein aids tissue repair.", "category": "Protein", "recipe": "1. Boil chicken. 2. Boil yams. 3. Serve together."}
+Example: {"name": "Boiled Chicken and Yams", "description": "Simple protein and complex carbs.", "reason": "High protein aids tissue repair.", "category": "Protein", "recipe": "1. Boil chicken. 2. Boil yams. 3. Serve together.", "nutrients": {"calories": 300, "sugar": 5, "salt": 1, "bmiImpact": "Helps maintain muscle mass without excess calories."}}
 `;
 
   try {
