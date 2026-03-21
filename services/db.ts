@@ -1,15 +1,21 @@
 /**
- * NutriCan API client  –  replaces the old Firebase/Firestore layer.
+ * NutriCan API client – Migrated to Appwrite BaaS
  *
- * All authentication is handled via JWT.  The token is stored in
- * localStorage under the key "nutrican_token" and sent as a Bearer header
- * on every authenticated request.
- *
- * The public interface (`db.*`) is intentionally identical to the old
- * Firebase implementation so that no component code needs to change.
+ * This refactored version uses the Appwrite Web SDK while preserving the exact 
+ * public interface (`db.*`) so that component code doesn't need to change.
  */
 
-import { API_BASE_URL } from './config';
+import { Client, Account, Databases, Storage, ID, Query, OAuthProvider } from 'appwrite';
+import {
+  APPWRITE_ENDPOINT,
+  APPWRITE_PROJECT_ID,
+  APPWRITE_DATABASE_ID,
+  APPWRITE_PROFILES_COLLECTION,
+  APPWRITE_JOURNAL_COLLECTION,
+  APPWRITE_MEALS_COLLECTION,
+  APPWRITE_DOCS_BUCKET,
+  APPWRITE_BOOKS_BUCKET
+} from './config';
 import {
   UserProfile,
   JournalEntry,
@@ -19,50 +25,17 @@ import {
   CancerStage,
 } from '../types';
 
-// ── Token helpers ─────────────────────────────────────────────────────────────
+// ── Appwrite Initialization ───────────────────────────────────────────────────
 
-const TOKEN_KEY = 'nutrican_token';
+export const client = new Client()
+  .setEndpoint(APPWRITE_ENDPOINT)
+  .setProject(APPWRITE_PROJECT_ID);
 
-const saveToken = (token: string) => localStorage.setItem(TOKEN_KEY, token);
-const getToken = (): string | null => localStorage.getItem(TOKEN_KEY);
-export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+export const account = new Account(client);
+export const databases = new Databases(client);
+export const storage = new Storage(client);
 
-// ── Low-level fetch wrapper ───────────────────────────────────────────────────
-
-type FetchOptions = RequestInit & { auth?: boolean };
-
-async function apiFetch<T = any>(
-  path: string,
-  options: FetchOptions = {}
-): Promise<T> {
-  const { auth = false, ...init } = options;
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(init.headers as Record<string, string>),
-  };
-
-  if (auth) {
-    const token = getToken();
-    if (!token) throw new Error('No auth token found. Please sign in.');
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error((data as any).message || `HTTP ${response.status}`);
-  }
-
-  return data as T;
-}
-
-// ── Helper: map a raw API profile to the UserProfile type ────────────────────
+// ── Helper: map a raw Appwrite document to the UserProfile type ───────────────
 
 function mapProfile(raw: any): UserProfile {
   let bmi = raw.bmi;
@@ -82,19 +55,23 @@ function mapProfile(raw: any): UserProfile {
     weight: raw.weight,
     cancerType: raw.cancerType as CancerType,
     cancerStage: raw.cancerStage as CancerStage,
-    otherConditions: raw.otherConditions ?? [],
-    treatmentStages: raw.treatmentStages ?? [],
+    otherConditions: raw.otherConditions && Array.isArray(raw.otherConditions) ? raw.otherConditions : [],
+    treatmentStages: raw.treatmentStages && Array.isArray(raw.treatmentStages) ? raw.treatmentStages : [],
     plan: raw.plan ?? 'Free',
     isVerified: raw.isVerified ?? false,
     documentsSubmitted: raw.documentsSubmitted ?? false,
     isGuest: raw.isGuest ?? false,
-    createdAt: raw.createdAt,
+    createdAt: raw.createdAt || raw.$createdAt,
     trialStartedAt: raw.trialStartedAt,
     bmi: bmi,
   };
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
+
+export const clearToken = () => {
+    // Kept to prevent missing module exported function error, but session management is now cookie-based via Appwrite.
+}
 
 export const db = {
   /**
@@ -105,65 +82,96 @@ export const db = {
     password: string,
     profile: UserProfile
   ): Promise<UserProfile> => {
-    const { token, profile: raw } = await apiFetch<{ token: string; profile: any }>(
-      '/api/auth/signup',
+    const user = await account.create(ID.unique(), email, password, profile.name);
+    await account.createEmailPasswordSession(email, password);
+    
+    // Create profile document natively using the Auth ID so it matches:
+    const profileDoc = await databases.createDocument(
+      APPWRITE_DATABASE_ID,
+      APPWRITE_PROFILES_COLLECTION,
+      user.$id,
       {
-        method: 'POST',
-        body: JSON.stringify({ ...profile, email, password }),
+        ...profile,
+        email,        
       }
     );
-    saveToken(token);
-    return mapProfile(raw);
+
+    return mapProfile(profileDoc);
   },
 
   /**
    * Save profile for an already-authenticated user (kept for API parity).
    */
   saveProfile: async (profile: UserProfile): Promise<UserProfile> => {
-    const { profile: raw } = await apiFetch<{ profile: any }>('/api/profile', {
-      method: 'PATCH',
-      auth: true,
-      body: JSON.stringify(profile),
-    });
-    return mapProfile(raw);
+      const user = await account.get();
+      const profileDoc = await databases.updateDocument(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_PROFILES_COLLECTION,
+          user.$id,
+          profile
+      );
+      return mapProfile(profileDoc);
   },
 
   /**
    * Reset current user password.
    */
   resetPassword: async (currentPassword: string, newPassword: string): Promise<void> => {
-    await apiFetch('/api/profile/password', {
-      method: 'PATCH',
-      auth: true,
-      body: JSON.stringify({ currentPassword, newPassword }),
-    });
+    await account.updatePassword(newPassword, currentPassword);
   },
 
   /**
    * Sign in with email and password.
    */
   signIn: async (email: string, password: string): Promise<UserProfile> => {
-    const { token, profile: raw } = await apiFetch<{ token: string; profile: any }>(
-      '/api/auth/signin',
-      {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      }
-    );
-    saveToken(token);
-    return mapProfile(raw);
+    try {
+        await account.createEmailPasswordSession(email, password);
+    } catch (e: any) {
+        // Handle case where a session already exists
+        if(e.code !== 401) {
+            try { await account.get(); } catch (innerError) { throw e; }
+        } else {
+            throw e;
+        }
+    }
+
+    const user = await account.get();
+    try {
+        const profileDoc = await databases.getDocument(
+            APPWRITE_DATABASE_ID,
+            APPWRITE_PROFILES_COLLECTION,
+            user.$id
+        );
+        return mapProfile(profileDoc);
+    } catch (error) {
+        // Fallback for missing profile
+        return mapProfile({ name: user.name, email: user.email });
+    }
   },
 
   /**
    * Sign in as a guest.
    */
   signInAnonymously: async (): Promise<UserProfile> => {
-    const { token, profile: raw } = await apiFetch<{ token: string; profile: any }>(
-      '/api/auth/guest',
-      { method: 'POST' }
+    await account.createAnonymousSession();
+    const user = await account.get();
+    
+    const profileDoc = await databases.createDocument(
+      APPWRITE_DATABASE_ID,
+      APPWRITE_PROFILES_COLLECTION,
+      user.$id,
+      {
+        name: 'Guest User',
+        email: `guest_${user.$id}@anonymous.local`,
+        age: 0,
+        height: 0,
+        weight: 0,
+        isGuest: true,
+        cancerType: 'Breast',
+        cancerStage: 'Stage I'
+      }
     );
-    saveToken(token);
-    return mapProfile(raw);
+    return mapProfile(profileDoc);
   },
 
   /**
@@ -171,33 +179,32 @@ export const db = {
    * Kept for API parity – will throw a clear error.
    */
   signInWithGoogle: async (): Promise<{ profile: UserProfile; isNewUser: boolean }> => {
-    throw new Error(
-      'Google Sign-In is not available in this version. Please use Email/Password.'
-    );
+    account.createOAuth2Session(OAuthProvider.Google, `${window.location.origin}/`, `${window.location.origin}/`);
+    // Flow requires redirect. In a synchronous block, returning error to indicate redirect logic flow.
+    throw new Error('Redirecting to Google. Ensure you handle the OAuth callback separately.');
   },
 
   /**
-   * Sign out – clears the stored JWT.
+   * Sign out – clears the stored Appwrite cookie session.
    */
   signOut: async (): Promise<void> => {
-    clearToken();
+    await account.deleteSession('current');
   },
 
   /**
-   * Check for an existing session by validating the stored JWT against the
-   * server.  Returns null if no token exists or the token is invalid/expired.
+   * Check for an existing session by validating via Appwrite.
+   * Returns null if no session.
    */
   getSession: async (): Promise<UserProfile | null> => {
-    const token = getToken();
-    if (!token) return null;
-
     try {
-      const { profile: raw } = await apiFetch<{ profile: any }>('/api/auth/me', {
-        auth: true,
-      });
-      return mapProfile(raw);
-    } catch {
-      clearToken(); // Token is invalid or expired
+      const user = await account.get();
+      const profileDoc = await databases.getDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_PROFILES_COLLECTION,
+        user.$id
+      );
+      return mapProfile(profileDoc);
+    } catch (error) {
       return null;
     }
   },
@@ -206,64 +213,71 @@ export const db = {
    * Update the current user's profile.
    */
   updateProfile: async (updates: Partial<UserProfile>): Promise<UserProfile> => {
-    const { profile: raw } = await apiFetch<{ profile: any }>('/api/profile', {
-      method: 'PATCH',
-      auth: true,
-      body: JSON.stringify(updates),
-    });
-    return mapProfile(raw);
+    const user = await account.get();
+    const profileDoc = await databases.updateDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_PROFILES_COLLECTION,
+        user.$id,
+        updates
+    );
+    return mapProfile(profileDoc);
   },
 
   /**
-   * Upload medical documents to DigitalOcean Spaces via the backend.
+   * Upload medical documents to Appwrite Storage Bucket
    */
   uploadMedicalDocs: async (file: File): Promise<void> => {
-    const formData = new FormData();
-    formData.append('document', file);
-
-    const token = getToken();
-    if (!token) throw new Error('No auth token found. Please sign in.');
-
-    const res = await fetch(`${API_BASE_URL}/api/documents/upload`, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.message || 'Upload failed');
-    }
+    // Using simple Appwrite storage bucket method
+    await storage.createFile(
+        APPWRITE_DOCS_BUCKET,
+        ID.unique(),
+        file
+    );
   },
 
   /**
    * Get a signed download URL for a book.
    */
   getBookDownloadUrl: async (bookKey: string): Promise<string> => {
-    const key = bookKey.startsWith('books/') ? bookKey : `books/${bookKey}`;
-    const { url } = await apiFetch<{ url: string }>(`/api/documents/book-signed-url?key=${encodeURIComponent(key)}`, {
-      auth: true,
-    });
-    return url;
+    const url = storage.getFileDownload(APPWRITE_BOOKS_BUCKET, bookKey);
+    return url.toString();
   },
 
   /**
    * Upgrade the current user to the Premium plan.
    */
   upgradeToPremium: async (_uid: string): Promise<void> => {
-    await apiFetch('/api/profile/upgrade', { method: 'POST', auth: true });
+    const user = await account.get();
+    await databases.updateDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_PROFILES_COLLECTION,
+        user.$id,
+        { plan: 'Premium' }
+    );
   },
 
   /**
    * Fetch journal entries for the current user.
    */
   getJournalEntries: async (): Promise<JournalEntry[]> => {
-    const { entries } = await apiFetch<{ entries: JournalEntry[] }>('/api/journal', {
-      auth: true,
-    });
-    return entries;
+    const user = await account.get();
+    const result = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_JOURNAL_COLLECTION,
+        [
+            Query.equal('userId', user.$id),
+            Query.orderDesc('$createdAt')
+        ]
+    );
+    return result.documents.map(doc => ({
+        id: doc.$id,
+        weight: doc.weight,
+        bp: doc.bp,
+        energy: doc.energy,
+        notes: doc.notes,
+        timestamp: doc.createdAt || doc.$createdAt,
+        name: doc.name || 'Entry'
+    }));
   },
 
   /**
@@ -275,33 +289,70 @@ export const db = {
     energy: number;
     notes?: string;
   }): Promise<string> => {
-    const { id } = await apiFetch<{ id: string }>('/api/journal', {
-      method: 'POST',
-      auth: true,
-      body: JSON.stringify(entry),
-    });
-    return id;
+    const user = await account.get();
+    const doc = await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_JOURNAL_COLLECTION,
+        ID.unique(),
+        {
+            ...entry,
+            userId: user.$id,
+            createdAt: new Date().toISOString()
+        }
+    );
+    return doc.$id;
   },
 
   /**
    * Log a meal for the current user.
    */
   addMealLog: async (meal: { name: string; nutrients: NutrientInfo }): Promise<string> => {
-    const { id } = await apiFetch<{ id: string }>('/api/meals', {
-      method: 'POST',
-      auth: true,
-      body: JSON.stringify(meal),
-    });
-    return id;
+    const user = await account.get();
+    // Stringify nutrients object if Appwrite schema does not support nested JSON immediately,
+    // although standard Appwrite databases support String attributes formatted as JSON or object relationships.
+    // Assuming nutrients is an object block or JSON string:
+    const doc = await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_MEALS_COLLECTION,
+        ID.unique(),
+        {
+            name: meal.name,
+            nutrients: JSON.stringify(meal.nutrients), // Safe serialization
+            userId: user.$id,
+            createdAt: new Date().toISOString()
+        }
+    );
+    return doc.$id;
   },
 
   /**
    * Fetch meal logs for the current user.
    */
   getMealLogs: async (): Promise<LoggedMeal[]> => {
-    const { meals } = await apiFetch<{ meals: LoggedMeal[] }>('/api/meals', {
-      auth: true,
+    const user = await account.get();
+    const result = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_MEALS_COLLECTION,
+        [
+            Query.equal('userId', user.$id),
+            Query.orderDesc('$createdAt')
+        ]
+    );
+
+    return result.documents.map(doc => {
+        let parsedNutrients: NutrientInfo = { calories: 0, salt: 0, sugar: 0 };
+        try {
+            parsedNutrients = typeof doc.nutrients === 'string' ? JSON.parse(doc.nutrients) : doc.nutrients;
+        } catch (e) {
+            // Ignore parse errors
+        }
+
+        return {
+            id: doc.$id,
+            name: doc.name,
+            nutrients: parsedNutrients,
+            timestamp: doc.createdAt || doc.$createdAt
+        };
     });
-    return meals;
   },
 };

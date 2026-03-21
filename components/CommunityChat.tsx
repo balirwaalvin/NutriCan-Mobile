@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, CommunityMessage } from '../types';
-import { API_BASE_URL } from '../services/config';
-import { io, Socket } from 'socket.io-client';
+import { client, databases } from '../services/db';
+import { APPWRITE_DATABASE_ID, APPWRITE_CHAT_COLLECTION } from '../services/config';
+import { ID, Query } from 'appwrite';
 
 interface CommunityChatProps {
     userProfile: UserProfile;
@@ -11,7 +12,6 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
     const [messages, setMessages] = useState<CommunityMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [replyTo, setReplyTo] = useState<CommunityMessage | null>(null);
-    const [socket, setSocket] = useState<Socket | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [loading, setLoading] = useState(true);
 
@@ -20,72 +20,62 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
     };
 
     useEffect(() => {
-        const token = localStorage.getItem('nutrican_token');
+        fetchHistory();
         
-        // Fetch initial history
-        fetch(`${API_BASE_URL}/api/chat/history`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (Array.isArray(data)) {
-                setMessages(data);
-            }
-            setLoading(false);
-            setTimeout(scrollToBottom, 100);
-        })
-        .catch(err => {
-            console.error('Failed to load chat history:', err);
-            setLoading(false);
-        });
-
-        // Initialize socket connection (allowing default polling fallback)
-        const newSocket = io(API_BASE_URL, {
-            auth: { token }
-        });
-
-        // Fallback robust polling every 10 seconds just in case the socket connection completely drops or fails proxying
-        const pollInterval = setInterval(() => {
-            fetch(`${API_BASE_URL}/api/chat/history`, {
-                headers: { Authorization: `Bearer ${token}` }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (Array.isArray(data)) {
+        const unsubscribe = client.subscribe(
+            `databases.${APPWRITE_DATABASE_ID}.collections.${APPWRITE_CHAT_COLLECTION}.documents`,
+            (response) => {
+                if (response.events.includes('databases.*.collections.*.documents.*.create')) {
+                    const doc: any = response.payload;
                     setMessages(prev => {
-                        // Check if we need to update state to prevent unnecessary re-renders
-                        if (prev.length === 0 || 
-                            data.length !== prev.length || 
-                            data[data.length-1]?._id !== prev[prev.length-1]?._id ||
-                            JSON.stringify(data.map(m => m.likes)) !== JSON.stringify(prev.map(m => m.likes))) {
-                            return data;
-                        }
-                        return prev;
+                        if (prev.some(m => m._id === doc.$id)) return prev;
+                        return [...prev, {
+                            _id: doc.$id,
+                            text: doc.text,
+                            senderName: doc.senderName,
+                            senderId: doc.senderId,
+                            replyTo: doc.replyToString ? JSON.parse(doc.replyToString) : null,
+                            likes: doc.likes || [],
+                            createdAt: doc.$createdAt
+                        }];
                     });
+                    setTimeout(scrollToBottom, 100);
                 }
-            })
-            .catch(console.error);
-        }, 10000);
-
-        newSocket.on('receiveMessage', (msg: CommunityMessage) => {
-            setMessages(prev => {
-                if (prev.some(m => m._id === msg._id)) return prev;
-                return [...prev, msg];
-            });
-            setTimeout(scrollToBottom, 100);
-        });
-
-        newSocket.on('messageLiked', ({ messageId, likes }: { messageId: string, likes: string[] }) => {
-            setMessages(prev => prev.map(m => m._id === messageId ? { ...m, likes } : m));
-        });
-
-        setSocket(newSocket);
+                if (response.events.includes('databases.*.collections.*.documents.*.update')) {
+                    const doc: any = response.payload;
+                    setMessages(prev => prev.map(m => m._id === doc.$id ? { ...m, likes: doc.likes || [] } : m));
+                }
+            }
+        );
 
         return () => {
-            clearInterval(pollInterval);
-            newSocket.disconnect();
+            unsubscribe();
         };
     }, []);
+
+    const fetchHistory = async () => {
+        try {
+            const data = await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_CHAT_COLLECTION, [
+                Query.orderDesc('$createdAt'),
+                Query.limit(50)
+            ]);
+            const formatted: CommunityMessage[] = data.documents.map(doc => ({
+                _id: doc.$id,
+                text: doc.text,
+                senderName: doc.senderName,
+                senderId: doc.senderId,
+                replyTo: doc.replyToString ? JSON.parse(doc.replyToString) : null,
+                likes: doc.likes || [],
+                createdAt: doc.$createdAt
+            })).reverse();
+            setMessages(formatted);
+        } catch (err) {
+            console.error('Failed to load chat history:', err);
+        } finally {
+            setLoading(false);
+            setTimeout(scrollToBottom, 100);
+        }
+    };
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -96,34 +86,14 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
             text: textToSend,
             senderName: userProfile.name,
             senderId: userProfile.email || userProfile.name,
-            replyTo: replyTo?._id || null
+            replyToString: replyTo ? JSON.stringify(replyTo) : ''
         };
         
-        // Optimistically clear input
         setNewMessage('');
         setReplyTo(null);
 
         try {
-            const token = localStorage.getItem('nutrican_token');
-            const res = await fetch(`${API_BASE_URL}/api/chat/message`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                const savedMsg = await res.json();
-                setMessages(prev => {
-                    if (prev.some(m => m._id === savedMsg._id)) return prev;
-                    return [...prev, savedMsg];
-                });
-                setTimeout(scrollToBottom, 100);
-            } else {
-                console.error('Failed to send message via API');
-            }
+            await databases.createDocument(APPWRITE_DATABASE_ID, APPWRITE_CHAT_COLLECTION, ID.unique(), payload);
         } catch (err) {
             console.error('Error sending message:', err);
         }
@@ -131,23 +101,21 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
 
     const handleLike = async (messageId: string) => {
         try {
-            const token = localStorage.getItem('nutrican_token');
-            const res = await fetch(`${API_BASE_URL}/api/chat/like`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    messageId,
-                    userId: userProfile.email || userProfile.name
-                })
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                setMessages(prev => prev.map(m => m._id === data.messageId ? { ...m, likes: data.likes } : m));
+            const msg = messages.find(m => m._id === messageId);
+            if (!msg) return;
+            
+            const userId = userProfile.email || userProfile.name;
+            let newLikes = [...(msg.likes || [])];
+            
+            if (newLikes.includes(userId)) {
+                newLikes = newLikes.filter(id => id !== userId);
+            } else {
+                newLikes.push(userId);
             }
+
+            await databases.updateDocument(APPWRITE_DATABASE_ID, APPWRITE_CHAT_COLLECTION, messageId, {
+                likes: newLikes
+            });
         } catch (err) {
             console.error('Error liking message:', err);
         }
@@ -190,7 +158,7 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
                                     
                                     <div className={`mt-1 flex items-center gap-3 text-[10px] uppercase font-bold tracking-widest ${isMe ? 'text-white/70' : 'text-gray-400'}`}>
                                         <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                        <button onClick={() => handleLike(msg._id)} className={`flex items-center gap-1 transition-transform active:scale-95 ${hasLiked ? 'text-red-400' : 'hover:opacity-80'}`}>
+                                        <button onClick={() => handleLike(msg._id!)} className={`flex items-center gap-1 transition-transform active:scale-95 ${hasLiked ? 'text-red-400' : 'hover:opacity-80'}`}>
                                             <svg className={`w-3.5 h-3.5 ${hasLiked ? 'fill-current' : ''}`} fill={hasLiked ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                                             </svg>
