@@ -14,5 +14,8 @@ export const APPWRITE_CHAT_COLLECTION = (import.meta as any).env?.VITE_APPWRITE_
 export const APPWRITE_DOCS_BUCKET = (import.meta as any).env?.VITE_APPWRITE_DOCS_BUCKET ?? 'medical_docs';
 export const APPWRITE_BOOKS_BUCKET = (import.meta as any).env?.VITE_APPWRITE_BOOKS_BUCKET ?? 'books';
 
+// Groq AI Configuration
+export const GROQ_API_KEY = (import.meta as any).env?.VITE_GROQ_API_KEY ?? '';
+
 // Backend configuration (Kept for fallback/other tools if needed)
 export const API_BASE_URL = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:4000';
