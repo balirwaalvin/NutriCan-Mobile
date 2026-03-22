@@ -66,6 +66,30 @@ function isAppwriteCode(error: any, code: number): boolean {
   return typeof error?.code === 'number' && error.code === code;
 }
 
+function isActiveSessionError(error: any): boolean {
+  const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
+  return message.includes('session is active') || message.includes('already') && message.includes('session');
+}
+
+async function createEmailPasswordSessionReplacingCurrent(email: string, password: string): Promise<void> {
+  try {
+    await account.createEmailPasswordSession(email, password);
+  } catch (error: any) {
+    if (!isActiveSessionError(error)) {
+      throw error;
+    }
+
+    // Replace the currently active local session (e.g., guest/old login) then retry.
+    try {
+      await account.deleteSession('current');
+    } catch {
+      // Ignore; retrying session creation is still safe.
+    }
+
+    await account.createEmailPasswordSession(email, password);
+  }
+}
+
 function createFallbackProfileFromAccount(user: any): UserProfile {
   return mapProfile({
     name: user?.name || 'NutriCan User',
@@ -222,7 +246,7 @@ export const db = {
       }
       throw error;
     }
-    await account.createEmailPasswordSession(email, password);
+    await createEmailPasswordSessionReplacingCurrent(email, password);
     const trialStartedAt = new Date().toISOString();
     
     // Create profile document natively using the Auth ID so it matches:
@@ -279,7 +303,7 @@ export const db = {
    */
   signIn: async (email: string, password: string): Promise<UserProfile> => {
     try {
-        await account.createEmailPasswordSession(email, password);
+      await createEmailPasswordSessionReplacingCurrent(email, password);
     } catch (e: any) {
         throw e;
     }
