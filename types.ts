@@ -1,7 +1,7 @@
 
 export type Page = 'splash' | 'terms' | 'onboarding' | 'auth' | 'dashboard' | 'guest';
 
-export type DashboardPage = 'home' | 'tracker' | 'live' | 'doctor-connect' | 'profile' | 'library' | 'symptom-tips' | 'chat';
+export type DashboardPage = 'home' | 'tracker' | 'live' | 'doctor-connect' | 'profile' | 'library' | 'symptom-tips' | 'chat' | 'admin';
 
 export enum CancerType {
   CERVICAL = 'Cervical',
@@ -154,4 +154,28 @@ export interface CommunityMessage {
   likes: string[];
   replyTo: CommunityMessage | null;
   createdAt: string;
+}
+
+export interface FollowUpFeedback {
+  id: string;
+  senderName: string;
+  senderId: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface AdminDashboardStats {
+  totalUsers: number;
+  verifiedUsers: number;
+  premiumUsers: number;
+  users: Array<{
+    id: string;
+    name: string;
+    email: string;
+    plan: 'Free' | 'Premium';
+    isVerified: boolean;
+    conditions: string[];
+  }>;
+  conditions: Array<{ condition: string; count: number }>;
+  feedback: FollowUpFeedback[];
 }

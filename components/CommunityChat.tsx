@@ -8,6 +8,12 @@ interface CommunityChatProps {
     userProfile: UserProfile;
 }
 
+const HIDDEN_SYSTEM_PREFIXES = ['[FOLLOWUP_FEEDBACK]', '[FOLLOWUP_TRIGGER]'];
+
+const isSystemUtilityMessage = (text: string): boolean => {
+    return HIDDEN_SYSTEM_PREFIXES.some(prefix => text.startsWith(prefix));
+};
+
 const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
     const [messages, setMessages] = useState<CommunityMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
@@ -28,6 +34,7 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
             (response) => {
                 if (response.events.includes('databases.*.collections.*.documents.*.create')) {
                     const doc: any = response.payload;
+                    if (isSystemUtilityMessage(doc.text || '')) return;
                     setMessages(prev => {
                         if (prev.some(m => m._id === doc.$id)) return prev;
                         return [...prev, {
@@ -68,7 +75,7 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
                 replyTo: doc.replyToString ? JSON.parse(doc.replyToString) : null,
                 likes: doc.likes || [],
                 createdAt: doc.$createdAt
-            })).reverse();
+            })).filter(msg => !isSystemUtilityMessage(msg.text || '')).reverse();
             setMessages(formatted);
         } catch (err) {
             console.error('Failed to load chat history:', err);

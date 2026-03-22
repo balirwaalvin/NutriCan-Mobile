@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useContext, useRef } from 'react';
-import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, SymptomType, RecommendedFood, JournalEntry, LoggedMeal, CancerType, CancerStage, TreatmentStage, OtherCondition } from '../types';
+import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafetyResult, Meal, SymptomType, RecommendedFood, JournalEntry, LoggedMeal, CancerType, CancerStage, TreatmentStage, OtherCondition, AdminDashboardStats } from '../types';
 import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, BowlIcon, PlusIcon, NauseaIcon, BellIcon, VideoCallIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon, DownloadIcon, ShieldCheckIcon, FileTextIcon, ChatBubbleIcon, MouthSoreIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips } from '../services/geminiService';
 import { db } from '../services/db';
@@ -75,12 +75,14 @@ const Modal: React.FC<{ children: React.ReactNode; closeModal: () => void; fullS
 );
 
 const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: DashboardPage) => void; userProfile: UserProfile; isTrialActive: boolean; onLockedNavigate?: (featureName: string) => void }> = ({ activePage, onNavigate, userProfile, isTrialActive, onLockedNavigate }) => {
+    const isAdmin = (userProfile.email || '').toLowerCase() === 'admin@nutrican.app';
     const navItems = [
         { page: 'home' as DashboardPage, icon: HomeIcon, label: 'Home', guestAllowed: true },
         { page: 'tracker' as DashboardPage, icon: ChartIcon, label: 'Tracker', premiumOnly: false, trialAllowed: true }, // Allowed in trial
         { page: 'live' as DashboardPage, icon: BroadcastIcon, label: 'Live', premiumOnly: true, trialAllowed: false }, // Premium only
         { page: 'library' as DashboardPage, icon: BookIcon, label: 'Library', premiumOnly: true, trialAllowed: false }, // Premium only
         { page: 'chat' as DashboardPage, icon: ChatBubbleIcon, label: 'Chat', premiumOnly: true, trialAllowed: false }, // Premium only
+        ...(isAdmin ? [{ page: 'admin' as DashboardPage, icon: ShieldCheckIcon, label: 'Admin', premiumOnly: false, trialAllowed: true }] : []),
         { page: 'profile' as DashboardPage, icon: UserIcon, label: 'Profile', premiumOnly: false, trialAllowed: true }, // Allowed in trial (maybe locked after?)
     ];
 
@@ -94,7 +96,7 @@ const BottomNavBar: React.FC<{ activePage: DashboardPage; onNavigate: (page: Das
                 // Determine lock status:
                 // If Premium or Trial Active: Never locked
                 // If Free + Trial Expired (or not started): Locked if not 'home'
-                const isLocked = !isPremium && !isTrialActive && item.page !== 'home';
+                const isLocked = !isAdmin && !isPremium && !isTrialActive && item.page !== 'home';
 
                 return (
                     <button
@@ -2707,6 +2709,161 @@ const PremiumWelcomeModal: React.FC<{ closeModal: () => void }> = ({ closeModal 
     );
 };
 
+const FollowUpModal: React.FC<{ onClose: () => void; onSubmitted: () => void }> = ({ onClose, onSubmitted }) => {
+    const [message, setMessage] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!message.trim()) {
+            setError('Please share your complaint or request.');
+            return;
+        }
+
+        setSubmitting(true);
+        setError(null);
+        try {
+            await db.submitFollowUpFeedback(message.trim());
+            onSubmitted();
+            onClose();
+        } catch (err: any) {
+            setError(err?.message || 'Failed to submit follow-up feedback. Please try again.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[260] flex items-center justify-center p-6" onClick={onClose}>
+            <div className="bg-white dark:bg-emerald-950 max-w-md w-full rounded-[2.5rem] p-7 shadow-2xl border border-emerald-500/20" onClick={e => e.stopPropagation()}>
+                <h3 className="text-2xl font-black text-emerald-950 dark:text-white mb-2">Follow-up Check-in</h3>
+                <p className="text-sm font-bold text-gray-500 dark:text-emerald-100/70 mb-5">Share any complaint, concern, or request so our team can support you better.</p>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <textarea
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Type your complaint or request here..."
+                        className="w-full min-h-[130px] p-4 rounded-2xl border-2 border-emerald-500/20 focus:border-brand-green outline-none font-medium bg-white/70 dark:bg-emerald-900/30 text-emerald-950 dark:text-white"
+                    />
+                    {error && <p className="text-red-500 text-xs font-bold bg-red-100 p-2 rounded-xl">{error}</p>}
+                    <div className="grid grid-cols-2 gap-3">
+                        <button type="button" onClick={onClose} className="btn-secondary w-full">Later</button>
+                        <button type="submit" disabled={submitting} className="btn-primary w-full">
+                            {submitting ? 'Submitting...' : 'Send'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const AdminDashboardScreen: React.FC<{ onTriggerFollowUp: () => Promise<void> }> = ({ onTriggerFollowUp }) => {
+    const [stats, setStats] = useState<AdminDashboardStats | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [triggering, setTriggering] = useState(false);
+
+    const fetchStats = useCallback(async () => {
+        setLoading(true);
+        try {
+            const data = await db.getAdminDashboardStats();
+            setStats(data);
+        } catch (error) {
+            console.error('Failed to load admin stats:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { fetchStats(); }, [fetchStats]);
+
+    const handleTrigger = async () => {
+        setTriggering(true);
+        try {
+            await onTriggerFollowUp();
+            await fetchStats();
+        } finally {
+            setTriggering(false);
+        }
+    };
+
+    if (loading) {
+        return <div className="p-8 text-center font-black text-emerald-900 dark:text-white">Loading admin dashboard...</div>;
+    }
+
+    if (!stats) {
+        return <div className="p-8 text-center font-black text-red-500">Unable to load admin metrics.</div>;
+    }
+
+    return (
+        <div className="p-5 pb-36 animate-fade-in">
+            <h2 className="text-3xl font-black text-emerald-950 dark:text-white tracking-tight mb-5">Admin Dashboard</h2>
+
+            <div className="grid grid-cols-3 gap-3 mb-5">
+                <div className="glass-panel p-4 rounded-2xl text-center"><p className="text-[10px] font-black uppercase text-gray-400">Users</p><p className="text-2xl font-black text-emerald-950 dark:text-white">{stats.totalUsers}</p></div>
+                <div className="glass-panel p-4 rounded-2xl text-center"><p className="text-[10px] font-black uppercase text-gray-400">Verified</p><p className="text-2xl font-black text-brand-green">{stats.verifiedUsers}</p></div>
+                <div className="glass-panel p-4 rounded-2xl text-center"><p className="text-[10px] font-black uppercase text-gray-400">Premium</p><p className="text-2xl font-black text-amber-500">{stats.premiumUsers}</p></div>
+            </div>
+
+            <div className="card-button-wrapper mb-6">
+                <button onClick={handleTrigger} disabled={triggering} className="btn-primary w-full">
+                    {triggering ? 'Triggering...' : 'Trigger Follow-up Popup For Users'}
+                </button>
+            </div>
+
+            <h3 className="text-xs font-black uppercase tracking-widest text-emerald-900/50 dark:text-white/50 mb-3">Conditions Summary</h3>
+            <div className="space-y-3 mb-6">
+                {stats.conditions.length === 0 && <p className="text-sm text-gray-500 font-bold">No condition data available yet.</p>}
+                {stats.conditions.map((item, idx) => (
+                    <div key={`${item.condition}-${idx}`} className="glass-panel p-4 rounded-2xl flex justify-between items-center">
+                        <p className="font-bold text-emerald-950 dark:text-white text-sm">{item.condition}</p>
+                        <span className="text-brand-green font-black">{item.count}</span>
+                    </div>
+                ))}
+            </div>
+
+            <h3 className="text-xs font-black uppercase tracking-widest text-emerald-900/50 dark:text-white/50 mb-3">Registered Users & Conditions</h3>
+            <div className="space-y-3 mb-6">
+                {stats.users.length === 0 && <p className="text-sm text-gray-500 font-bold">No users found.</p>}
+                {stats.users.map(user => (
+                    <div key={user.id} className="glass-panel p-4 rounded-2xl border-l-4 border-emerald-500">
+                        <div className="flex justify-between items-start gap-3">
+                            <div>
+                                <p className="font-black text-sm text-emerald-950 dark:text-white">{user.name}</p>
+                                <p className="text-[11px] font-bold text-gray-500">{user.email}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-brand-green">{user.plan}</p>
+                                <p className={`text-[10px] font-black uppercase tracking-widest ${user.isVerified ? 'text-emerald-500' : 'text-gray-400'}`}>
+                                    {user.isVerified ? 'Verified' : 'Unverified'}
+                                </p>
+                            </div>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-2 font-bold">
+                            Conditions: {user.conditions.length > 0 ? user.conditions.join(', ') : 'None reported'}
+                        </p>
+                    </div>
+                ))}
+            </div>
+
+            <h3 className="text-xs font-black uppercase tracking-widest text-emerald-900/50 dark:text-white/50 mb-3">User Follow-up Feedback</h3>
+            <div className="space-y-3">
+                {stats.feedback.length === 0 && <p className="text-sm text-gray-500 font-bold">No follow-up submissions yet.</p>}
+                {stats.feedback.map(item => (
+                    <div key={item.id} className="glass-panel p-4 rounded-2xl border-l-4 border-brand-green">
+                        <div className="flex justify-between items-start gap-3">
+                            <p className="font-black text-sm text-emerald-950 dark:text-white">{item.senderName}</p>
+                            <p className="text-[10px] font-bold text-gray-400">{new Date(item.createdAt).toLocaleString()}</p>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-emerald-100/70 mt-2 leading-relaxed">{item.message}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     const [activePage, setActivePage] = useState<DashboardPage>('home');
     const [modalState, setModalState] = useState<{ content: React.ReactNode | null; fullScreen: boolean }>({ content: null, fullScreen: false });
@@ -2718,6 +2875,11 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     const trialActivationInitiated = React.useRef(false);
     const hadTrialOnMount = React.useRef(!!userProfile.trialStartedAt);
     const [showTrialReminder, setShowTrialReminder] = useState(false);
+    const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+
+    const isAdmin = (localProfile.email || '').toLowerCase() === 'admin@nutrican.app';
+    const followUpSubmittedKey = `nutrican_followup_submitted_${localProfile.email || localProfile.name || 'user'}`;
+    const followUpTriggerSeenKey = `nutrican_followup_trigger_seen_${localProfile.email || localProfile.name || 'user'}`;
 
     const isGuest = !!localProfile.isGuest;
     const isPremium = localProfile.plan === 'Premium';
@@ -2774,6 +2936,42 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+    useEffect(() => {
+        if (isGuest || isAdmin) return;
+
+        const alreadySubmitted = localStorage.getItem(followUpSubmittedKey) === 'true';
+        if (alreadySubmitted) return;
+
+        const baselineDate = localProfile.createdAt || localProfile.trialStartedAt;
+        if (!baselineDate) return;
+
+        const daysUsing = Math.floor((Date.now() - new Date(baselineDate).getTime()) / (1000 * 60 * 60 * 24));
+        if (daysUsing >= 2) {
+            setShowFollowUpModal(true);
+        }
+    }, [isGuest, isAdmin, localProfile.createdAt, localProfile.trialStartedAt, followUpSubmittedKey]);
+
+    useEffect(() => {
+        if (isGuest || isAdmin) return;
+
+        const checkAdminTrigger = async () => {
+            try {
+                const latestTriggerAt = await db.getLatestFollowUpTriggerAt();
+                if (!latestTriggerAt) return;
+
+                const seenAt = localStorage.getItem(followUpTriggerSeenKey);
+                if (!seenAt || new Date(latestTriggerAt).getTime() > new Date(seenAt).getTime()) {
+                    setShowFollowUpModal(true);
+                    localStorage.setItem(followUpTriggerSeenKey, latestTriggerAt);
+                }
+            } catch (error) {
+                console.error('Failed to check follow-up trigger:', error);
+            }
+        };
+
+        checkAdminTrigger();
+    }, [isGuest, isAdmin, followUpTriggerSeenKey]);
+
     const setModal = useCallback((content: React.ReactNode, options?: { fullScreen?: boolean }) => {
         setModalState({ content, fullScreen: options?.fullScreen || false });
     }, []);
@@ -2788,6 +2986,14 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
         setLocalProfile(updatedProfile);
         setShowPayment(false);
         setShowPremiumWelcome(true);
+    };
+
+    const handleFollowUpSubmitted = () => {
+        localStorage.setItem(followUpSubmittedKey, 'true');
+    };
+
+    const handleAdminTriggerFollowUp = async () => {
+        await db.triggerFollowUpForUsers();
     };
 
     // --- Random Pop-up Logic for Unverified Users Removed ---
@@ -2820,10 +3026,11 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
         live: <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
         library: <LibraryScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
         chat: <CommunityChat userProfile={localProfile} />,
+        admin: isAdmin ? <AdminDashboardScreen onTriggerFollowUp={handleAdminTriggerFollowUp} /> : <HomeScreen userProfile={localProfile} setActivePage={setActivePage} setModal={setModal} onProfileUpdate={handleProfileUpdate} onSignUpRequest={onLogout} onSubscribeRequest={() => setShowPayment(true)} isTrialActive={isTrialActive} onStartTrialRequest={activateTrial} />,
         profile: <ProfileScreen userProfile={localProfile} onLogout={onLogout} setModal={setModal} onProfileUpdate={handleProfileUpdate} onUpgradeRequest={() => setShowPayment(true)} />,
         'doctor-connect': <LiveScreen userProfile={localProfile} onUpgradeRequest={() => setShowPayment(true)} />,
         'symptom-tips': <SymptomTipsScreen />,
-    }), [localProfile, isGuest, isTrialActive, onLogout, setActivePage, setModal]);
+    }), [localProfile, isAdmin, isGuest, isTrialActive, onLogout, setActivePage, setModal]);
 
     return (
         <div className="min-h-screen bg-transparent relative">
@@ -2831,6 +3038,12 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
                 <TrialReminderPopup
                     daysRemaining={trialDaysRemaining}
                     onClose={() => setShowTrialReminder(false)}
+                />
+            )}
+            {showFollowUpModal && (
+                <FollowUpModal
+                    onClose={() => setShowFollowUpModal(false)}
+                    onSubmitted={handleFollowUpSubmitted}
                 />
             )}
             <div className="animate-fade-in-up">{screens[effectivePage] || screens.home}</div>

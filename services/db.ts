@@ -32,6 +32,7 @@ import {
   APPWRITE_PROFILES_COLLECTION,
   APPWRITE_JOURNAL_COLLECTION,
   APPWRITE_MEALS_COLLECTION,
+  APPWRITE_CHAT_COLLECTION,
   APPWRITE_DOCS_BUCKET,
   APPWRITE_BOOKS_BUCKET
 } from './config';
@@ -42,6 +43,8 @@ import {
   NutrientInfo,
   CancerType,
   CancerStage,
+  AdminDashboardStats,
+  FollowUpFeedback,
 } from '../types';
 
 // ── Appwrite Initialization ───────────────────────────────────────────────────
@@ -53,6 +56,11 @@ export const client = new Client()
 export const account = new Account(client);
 export const databases = new Databases(client);
 export const storage = new Storage(client);
+
+const ADMIN_EMAIL = 'admin@nutrican.app';
+const ADMIN_PASSWORD = 'admin123';
+const FOLLOWUP_FEEDBACK_PREFIX = '[FOLLOWUP_FEEDBACK]';
+const FOLLOWUP_TRIGGER_PREFIX = '[FOLLOWUP_TRIGGER]';
 
 function isAppwriteCode(error: any, code: number): boolean {
   return typeof error?.code === 'number' && error.code === code;
@@ -158,6 +166,43 @@ function mapProfile(raw: any): UserProfile {
 export const clearToken = () => {
     // Kept to prevent missing module exported function error, but session management is now cookie-based via Appwrite.
 }
+
+export const ensureDefaultAdminAccount = async (): Promise<void> => {
+  try {
+    const adminUser = await account.create(ID.unique(), ADMIN_EMAIL, ADMIN_PASSWORD, 'NutriCan Admin');
+    try {
+      await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_PROFILES_COLLECTION,
+        adminUser.$id,
+        {
+          name: 'NutriCan Admin',
+          age: 30,
+          email: ADMIN_EMAIL,
+          height: 170,
+          weight: 70,
+          cancerType: CancerType.CERVICAL,
+          cancerStage: CancerStage.EARLY,
+          otherConditions: [],
+          treatmentStages: [],
+          plan: 'Premium',
+          isGuest: false,
+          isVerified: true,
+          documentsSubmitted: true,
+          trialStartedAt: new Date().toISOString(),
+        }
+      );
+    } catch {
+      // Ignore profile bootstrap errors; account creation is the critical path.
+    }
+  } catch (error: any) {
+    if (isAppwriteCode(error, 409)) {
+      return;
+    }
+    // Non-blocking bootstrap.
+    console.error('Failed to ensure default admin account:', error);
+  }
+};
 
 export const db = {
   /**
@@ -550,5 +595,119 @@ export const db = {
             timestamp: doc.createdAt || doc.$createdAt
         };
     });
+  },
+
+  /**
+   * Submit user follow-up feedback for admin review.
+   */
+  submitFollowUpFeedback: async (message: string): Promise<void> => {
+    const user = await account.get();
+    const profile = await getOrCreateProfileForUser(user);
+
+    await databases.createDocument(
+      APPWRITE_DATABASE_ID,
+      APPWRITE_CHAT_COLLECTION,
+      ID.unique(),
+      {
+        text: `${FOLLOWUP_FEEDBACK_PREFIX} ${message}`,
+        senderName: profile.name || 'User',
+        senderId: user.$id,
+        replyToString: '',
+        likes: [],
+      }
+    );
+  },
+
+  /**
+   * Admin trigger to show follow-up popup for users.
+   */
+  triggerFollowUpForUsers: async (): Promise<void> => {
+    await databases.createDocument(
+      APPWRITE_DATABASE_ID,
+      APPWRITE_CHAT_COLLECTION,
+      ID.unique(),
+      {
+        text: `${FOLLOWUP_TRIGGER_PREFIX} ${new Date().toISOString()}`,
+        senderName: 'NutriCan Admin',
+        senderId: 'admin-system',
+        replyToString: '',
+        likes: [],
+      }
+    );
+  },
+
+  /**
+   * Fetch latest follow-up trigger timestamp.
+   */
+  getLatestFollowUpTriggerAt: async (): Promise<string | null> => {
+    const result = await databases.listDocuments(
+      APPWRITE_DATABASE_ID,
+      APPWRITE_CHAT_COLLECTION,
+      [Query.orderDesc('$createdAt'), Query.limit(100)]
+    );
+
+    const triggerDoc = result.documents.find((doc: any) =>
+      typeof doc.text === 'string' && doc.text.startsWith(FOLLOWUP_TRIGGER_PREFIX)
+    );
+
+    if (!triggerDoc) return null;
+    const iso = String(triggerDoc.text).replace(FOLLOWUP_TRIGGER_PREFIX, '').trim();
+    return iso || triggerDoc.$createdAt || null;
+  },
+
+  /**
+   * Fetch admin dashboard stats and follow-up feedback.
+   */
+  getAdminDashboardStats: async (): Promise<AdminDashboardStats> => {
+    const profilesRes = await databases.listDocuments(
+      APPWRITE_DATABASE_ID,
+      APPWRITE_PROFILES_COLLECTION,
+      [Query.limit(500)]
+    );
+
+    const profiles = profilesRes.documents as any[];
+    const realUsers = profiles.filter((p: any) => !p.isGuest);
+
+    const conditionCounts: Record<string, number> = {};
+    realUsers.forEach((p: any) => {
+      const conditions = Array.isArray(p.otherConditions) ? p.otherConditions : [];
+      conditions.forEach((c: string) => {
+        conditionCounts[c] = (conditionCounts[c] || 0) + 1;
+      });
+    });
+
+    const chatRes = await databases.listDocuments(
+      APPWRITE_DATABASE_ID,
+      APPWRITE_CHAT_COLLECTION,
+      [Query.orderDesc('$createdAt'), Query.limit(300)]
+    );
+
+    const feedback: FollowUpFeedback[] = (chatRes.documents as any[])
+      .filter((doc: any) => typeof doc.text === 'string' && doc.text.startsWith(FOLLOWUP_FEEDBACK_PREFIX))
+      .map((doc: any) => ({
+        id: doc.$id,
+        senderName: doc.senderName || 'User',
+        senderId: doc.senderId || '',
+        message: String(doc.text).replace(FOLLOWUP_FEEDBACK_PREFIX, '').trim(),
+        createdAt: doc.$createdAt,
+      }));
+
+    return {
+      totalUsers: realUsers.length,
+      verifiedUsers: realUsers.filter((u: any) => !!u.isVerified).length,
+      premiumUsers: realUsers.filter((u: any) => u.plan === 'Premium').length,
+      users: realUsers.map((u: any) => ({
+        id: u.$id,
+        name: u.name || 'User',
+        email: u.email || '',
+        plan: u.plan === 'Premium' ? 'Premium' : 'Free',
+        isVerified: !!u.isVerified,
+        conditions: Array.isArray(u.otherConditions) ? u.otherConditions : [],
+      })),
+      conditions: Object.entries(conditionCounts)
+        .map(([condition, count]) => ({ condition, count }))
+        .sort((a, b) => b.count - a.count),
+      feedback,
+    };
   },
 };

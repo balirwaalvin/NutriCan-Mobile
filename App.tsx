@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, Suspense, lazy } from 'react';
 import { Page, UserProfile, CancerType, CancerStage } from './types';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { db } from './services/db';
+import { db, ensureDefaultAdminAccount } from './services/db';
 import { LogoIcon } from './components/Icons';
 
 // Lazy-load page components for better performance and code-splitting.
@@ -31,6 +31,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkSession = async () => {
       try {
+        await ensureDefaultAdminAccount();
         const profile = await db.getSession();
         if (profile) {
           // Restored sessions are always real users — never guests
