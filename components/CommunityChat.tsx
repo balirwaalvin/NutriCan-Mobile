@@ -12,6 +12,7 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
     const [messages, setMessages] = useState<CommunityMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [replyTo, setReplyTo] = useState<CommunityMessage | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [loading, setLoading] = useState(true);
 
@@ -91,11 +92,13 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
         
         setNewMessage('');
         setReplyTo(null);
+        setError(null);
 
         try {
             await databases.createDocument(APPWRITE_DATABASE_ID, APPWRITE_CHAT_COLLECTION, ID.unique(), payload);
-        } catch (err) {
+        } catch (err: any) {
             console.error('Error sending message:', err);
+            setError(err?.message || 'Failed to send message. Please check Appwrite collection permissions.');
         }
     };
 
@@ -177,6 +180,7 @@ const CommunityChat: React.FC<CommunityChatProps> = ({ userProfile }) => {
             </div>
 
             <div className="absolute bottom-[calc(5rem+10px)] sm:bottom-4 left-4 right-4 animate-fade-in-up z-20">
+                {error && <p className="text-red-500 text-center text-xs font-bold bg-red-100 p-2 rounded-xl mb-2">{error}</p>}
                 <form onSubmit={handleSendMessage} className="glass-panel p-2 rounded-[2rem] shadow-xl flex flex-col border border-white/40 dark:border-emerald-500/20 bg-white/80 dark:bg-emerald-950/80 backdrop-blur-xl">
                     {replyTo && (
                         <div className="px-4 py-2 flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">

@@ -32,6 +32,13 @@ Repeat Step 2 for the **meals** collection with permissions:
 ### Step 4: Configure "journal" Collection Permissions
 Repeat Step 2 for the **journal** collection with the same permissions (create, read, update, delete)
 
+### Step 5: Configure "chat" Collection Permissions
+Repeat Step 2 for the **chat** collection with the same permissions:
+- `create` - Allow users to send chat messages
+- `read` - Allow users to view chat history
+- `update` - Allow users to like messages
+- `delete` - Allow users to delete messages
+
 ## Alternative: Document-Level Permissions via API
 
 If collection-level permissions don't work, add document-level permissions in the API:
