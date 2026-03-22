@@ -196,7 +196,7 @@ const PremiumGate: React.FC<{ onUpgrade: () => void; featureName: string }> = ({
     </div>
 );
 
-const PaymentModal: React.FC<{ onPaymentSuccess: () => Promise<void>; closeModal: () => void }> = ({ onPaymentSuccess, closeModal }) => {
+const PaymentModal: React.FC<{ onPaymentSuccess: () => Promise<void> | void; closeModal: () => void }> = ({ onPaymentSuccess, closeModal }) => {
     const [step, setStep] = useState<'method' | 'phone' | 'processing' | 'success'>('method');
     const [selectedProvider, setSelectedProvider] = useState<'MTN' | 'Airtel' | null>(null);
     const [phoneNumber, setPhoneNumber] = useState('');
@@ -227,7 +227,7 @@ const PaymentModal: React.FC<{ onPaymentSuccess: () => Promise<void>; closeModal
         setSuccessError('');
         setIsFinalizing(true);
         try {
-            await onPaymentSuccess();
+            await Promise.resolve(onPaymentSuccess());
             closeModal();
         } catch (error: any) {
             const rawMessage = typeof error?.message === 'string' ? error.message : '';
