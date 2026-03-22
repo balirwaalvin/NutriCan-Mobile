@@ -4,7 +4,6 @@ import { UserProfile, DashboardPage, WeeklyMealPlan, FoodSafetyStatus, FoodSafet
 import { HomeIcon, ChartIcon, BookIcon, PremiumIcon, UserIcon, SearchIcon, LogoIcon, ProteinIcon, BowlIcon, PlusIcon, NauseaIcon, BellIcon, VideoCallIcon, MicIcon, BroadcastIcon, ChevronLeftIcon, FatigueIcon, DownloadIcon, ShieldCheckIcon, FileTextIcon, ChatBubbleIcon, MouthSoreIcon } from './Icons';
 import { checkFoodSafety, generateMealPlan, swapMeal, getNutrientInfo, getSymptomTips } from '../services/geminiService';
 import { db } from '../services/db';
-import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ThemeContext } from '../contexts/ThemeContext';
 import CommunityChat from './CommunityChat';
 
@@ -1364,6 +1363,7 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
     const [loggedMeals, setLoggedMeals] = useState<LoggedMeal[]>([]);
     const [journalData, setJournalData] = useState<JournalEntry[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showAllLogs, setShowAllLogs] = useState(false);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -1380,47 +1380,34 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    const chartData = useMemo(() => {
-        const dailyStats: Record<string, { calories: number, energy: number | null, bmi: number | null }> = {};
+    const weeklySnapshot = useMemo(() => {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
-        // Aggregate Calories from Meals
-        loggedMeals.forEach(meal => {
-            const date = new Date(meal.timestamp).toLocaleDateString();
-            if (!dailyStats[date]) dailyStats[date] = { calories: 0, energy: null, bmi: null };
-            dailyStats[date].calories += meal.nutrients.calories;
-        });
+        const weeklyMeals = loggedMeals.filter(meal => new Date(meal.timestamp) >= sevenDaysAgo);
+        const weeklyCalories = weeklyMeals.reduce((acc, meal) => acc + meal.nutrients.calories, 0);
+        const avgDailyCalories = Math.round(weeklyCalories / 7);
 
-        // Aggregate Energy from Journal
-        journalData.forEach(entry => {
-            const date = new Date(entry.timestamp).toLocaleDateString();
-            if (!dailyStats[date]) dailyStats[date] = { calories: 0, energy: 0, bmi: null };
-            dailyStats[date].energy = entry.energy;
-            
-            if (entry.weight && userProfile.height) {
-                const heightInMeters = userProfile.height / 100;
-                dailyStats[date].bmi = entry.weight / (heightInMeters * heightInMeters);
+        const latestJournal = [...journalData]
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+
+        const latestEnergy = latestJournal?.energy ?? 0;
+        let latestBmi: number | null = userProfile.bmi ?? null;
+
+        if (latestJournal?.weight && userProfile.height) {
+            const heightInMeters = userProfile.height / 100;
+            if (heightInMeters > 0) {
+                latestBmi = parseFloat((latestJournal.weight / (heightInMeters * heightInMeters)).toFixed(1));
             }
-        });
-
-        // Fill in last 7 days even if empty to make chart look good
-        const today = new Date();
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date(today);
-            d.setDate(d.getDate() - i);
-            const dateStr = d.toLocaleDateString();
-            if (!dailyStats[dateStr]) dailyStats[dateStr] = { calories: 0, energy: 0, bmi: null };
         }
 
-        return Object.entries(dailyStats)
-            .map(([date, stats]) => ({
-                name: new Date(date).toLocaleDateString(undefined, { weekday: 'short' }),
-                fullDate: new Date(date),
-                calories: stats.calories,
-                energy: stats.energy || 0,
-                bmi: stats.bmi ? parseFloat(stats.bmi.toFixed(1)) : null
-            }))
-            .sort((a, b) => a.fullDate.getTime() - b.fullDate.getTime())
-            .slice(-7);
+        return {
+            mealCount: weeklyMeals.length,
+            weeklyCalories,
+            avgDailyCalories,
+            latestEnergy,
+            latestBmi,
+        };
     }, [loggedMeals, journalData, userProfile.height]);
 
     const todaysCalories = useMemo(() => {
@@ -1437,6 +1424,10 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
             salt: acc.salt + curr.nutrients.salt
         }), { sugar: 0, salt: 0 });
     }, [loggedMeals]);
+
+    const visibleMeals = useMemo(() => {
+        return showAllLogs ? loggedMeals : loggedMeals.slice(0, 4);
+    }, [loggedMeals, showAllLogs]);
 
     const openLogMeal = () => {
         setModal(<LogMealForm onComplete={() => { setModal(null); fetchData(); }} />);
@@ -1456,24 +1447,24 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
     }
 
     return (
-        <div className="p-6 pb-40 animate-fade-in">
-            <h2 className="text-3xl font-black mb-8 text-emerald-950 dark:text-white tracking-tight">Nutrient Tracker</h2>
+        <div className="p-4 pb-32 animate-fade-in">
+            <h2 className="text-2xl font-black mb-5 text-emerald-950 dark:text-white tracking-tight">Nutrient Tracker</h2>
 
             {/* Today's Summary Card */}
-            <div className="glass-panel p-6 rounded-[2.5rem] mb-10 border-l-8 border-brand-green shadow-xl">
-                <div className="flex items-center justify-between mb-6">
+            <div className="glass-panel p-5 rounded-[2rem] mb-6 border-l-8 border-brand-green shadow-xl">
+                <div className="flex items-center justify-between mb-4">
                     <div>
                         <p className="text-xs font-black uppercase text-gray-400 tracking-widest mb-1">Today's Intake</p>
-                        <p className="text-4xl font-black text-emerald-950 dark:text-white">{todaysCalories} <span className="text-lg font-bold text-brand-green">kcal</span></p>
+                        <p className="text-3xl font-black text-emerald-950 dark:text-white">{todaysCalories} <span className="text-base font-bold text-brand-green">kcal</span></p>
                     </div>
-                    <div className="p-4 bg-brand-green/10 rounded-full">
-                        <ChartIcon className="w-8 h-8 text-brand-green" />
+                    <div className="p-3 bg-brand-green/10 rounded-full">
+                        <ChartIcon className="w-6 h-6 text-brand-green" />
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-emerald-500/10">
-                    <div className="flex items-center gap-4">
-                        <div className="relative w-12 h-12 flex items-center justify-center">
+                <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-emerald-500/10">
+                    <div className="flex items-center gap-3">
+                        <div className="relative w-10 h-10 flex items-center justify-center">
                             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                                 <path className="text-emerald-100 dark:text-emerald-900/30" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                                 <path className="text-amber-400" strokeDasharray={`${Math.min((todaysNutrients.sugar / 50) * 100, 100)}, 100`} strokeWidth="3" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
@@ -1482,11 +1473,11 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
                         </div>
                         <div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Sugar</p>
-                            <p className="text-xs font-bold text-emerald-900/60 dark:text-emerald-100/60">Target: &lt;50g</p>
+                            <p className="text-[11px] font-bold text-emerald-900/60 dark:text-emerald-100/60">&lt;50g target</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <div className="relative w-12 h-12 flex items-center justify-center">
+                    <div className="flex items-center gap-3">
+                        <div className="relative w-10 h-10 flex items-center justify-center">
                             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                                 <path className="text-emerald-100 dark:text-emerald-900/30" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                                 <path className="text-sky-400" strokeDasharray={`${Math.min((todaysNutrients.salt / 5) * 100, 100)}, 100`} strokeWidth="3" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
@@ -1495,81 +1486,82 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
                         </div>
                         <div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-0.5">Salt</p>
-                            <p className="text-xs font-bold text-emerald-900/60 dark:text-emerald-100/60">Target: &lt;5g</p>
+                            <p className="text-[11px] font-bold text-emerald-900/60 dark:text-emerald-100/60">&lt;5g target</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Combined Chart */}
-            <div className="glass-panel p-6 rounded-[3.5rem] shadow-2xl border-b-8 border-brand-green mb-10 overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-green/5 blur-3xl rounded-full"></div>
-                <h3 className="text-[10px] font-black text-emerald-900/40 dark:text-white/30 uppercase tracking-[0.3em] mb-8 text-center">Calories vs Energy</h3>
-                <div className="h-64 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <defs>
-                                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#10B981" stopOpacity={0.8} />
-                                    <stop offset="100%" stopColor="#10B981" stopOpacity={0.3} />
-                                </linearGradient>
-                            </defs>
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF', fontWeight: 800 }} dy={10} />
-                            <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} />
-                            <YAxis yAxisId="right" orientation="right" domain={[0, 'auto']} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#F59E0B' }} hide />
-                            <Tooltip
-                                contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', backgroundColor: 'rgba(255,255,255,0.95)' }}
-                                labelStyle={{ fontWeight: 800, color: '#064E3B', marginBottom: '0.5rem' }}
-                            />
-                            <Bar yAxisId="left" dataKey="calories" fill="url(#barGradient)" radius={[10, 10, 10, 10]} barSize={20} />
-                            <Line yAxisId="right" type="monotone" dataKey="energy" stroke="#F59E0B" strokeWidth={3} dot={{ r: 4, fill: '#F59E0B', strokeWidth: 2, stroke: '#fff' }} />
-                            <Line yAxisId="right" type="monotone" dataKey="bmi" name="BMI" stroke="#ec4899" strokeWidth={3} dot={{ r: 4, fill: '#ec4899', strokeWidth: 2, stroke: '#fff' }} />
-                        </ComposedChart>
-                    </ResponsiveContainer>
+            {/* Weekly Snapshot */}
+            <div className="glass-panel p-4 rounded-[2rem] shadow-xl border border-emerald-500/10 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[10px] font-black text-emerald-900/40 dark:text-white/30 uppercase tracking-[0.25em]">Weekly Snapshot</h3>
+                    <span className="text-[10px] font-bold text-gray-400">Last 7 days</span>
                 </div>
-                <div className="flex justify-center gap-6 mt-4">
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-brand-green"></div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase">Calories</span>
+
+                <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white/60 dark:bg-emerald-900/30 rounded-2xl p-3 border border-emerald-500/10">
+                        <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 mb-1">Meals Logged</p>
+                        <p className="text-xl font-black text-emerald-950 dark:text-white">{weeklySnapshot.mealCount}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase">Energy</span>
+                    <div className="bg-white/60 dark:bg-emerald-900/30 rounded-2xl p-3 border border-emerald-500/10">
+                        <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 mb-1">Avg Calories/Day</p>
+                        <p className="text-xl font-black text-emerald-950 dark:text-white">{weeklySnapshot.avgDailyCalories}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-pink-500"></div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase">BMI</span>
+                    <div className="bg-white/60 dark:bg-emerald-900/30 rounded-2xl p-3 border border-emerald-500/10">
+                        <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 mb-1">Latest Energy</p>
+                        <p className="text-xl font-black text-amber-500">{weeklySnapshot.latestEnergy}<span className="text-[11px] text-gray-400">/10</span></p>
+                    </div>
+                    <div className="bg-white/60 dark:bg-emerald-900/30 rounded-2xl p-3 border border-emerald-500/10">
+                        <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 mb-1">Latest BMI</p>
+                        <p className="text-xl font-black text-pink-500">{weeklySnapshot.latestBmi ?? '--'}</p>
                     </div>
                 </div>
+
+                <p className="text-[10px] text-gray-500 font-bold mt-3">Weekly calories: {weeklySnapshot.weeklyCalories} kcal</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-5 mb-12">
+            <div className="grid grid-cols-2 gap-3 mb-8">
                 <div className="card-button-wrapper">
-                    <button onClick={openLogMeal} className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-brand-green text-white shadow-glow-primary active:scale-95 transition-all">
-                        <PlusIcon className="w-8 h-8" />
+                    <button onClick={openLogMeal} className="w-full py-4 rounded-3xl flex flex-col items-center gap-1 bg-brand-green text-white shadow-glow-primary active:scale-95 transition-all">
+                        <PlusIcon className="w-6 h-6" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Log Meal</span>
                     </button>
                 </div>
                 <div className="card-button-wrapper">
-                    <button onClick={openCheckIn} className="w-full py-6 rounded-3xl flex flex-col items-center gap-2 bg-white dark:bg-emerald-900/30 text-emerald-600 font-black border-2 border-emerald-500/10 active:scale-95 transition-all">
-                        <BookIcon className="w-8 h-8" />
+                    <button onClick={openCheckIn} className="w-full py-4 rounded-3xl flex flex-col items-center gap-1 bg-white dark:bg-emerald-900/30 text-emerald-600 font-black border-2 border-emerald-500/10 active:scale-95 transition-all">
+                        <BookIcon className="w-6 h-6" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Check-In</span>
                     </button>
                 </div>
             </div>
 
-            <h3 className="text-[11px] font-black mb-6 text-emerald-900/60 dark:text-white/30 uppercase tracking-[0.2em] px-2">Recent Logs</h3>
-            <div className="space-y-4">
-                {loggedMeals.length > 0 ? loggedMeals.map(meal => (
-                    <div key={meal.id} className="glass-panel p-6 rounded-[2.5rem] flex items-center gap-5 border-l-4 border-emerald-500 transition-all hover:translate-x-1 shadow-md">
-                        <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl text-brand-green shadow-inner">
-                            <BowlIcon className="w-7 h-7" />
+            <div className="flex items-center justify-between mb-4 px-1">
+                <h3 className="text-[11px] font-black text-emerald-900/60 dark:text-white/30 uppercase tracking-[0.2em]">Recent Logs</h3>
+                {loggedMeals.length > 4 && (
+                    <button
+                        onClick={() => setShowAllLogs(prev => !prev)}
+                        className="text-[10px] font-black uppercase tracking-wider text-brand-green"
+                    >
+                        {showAllLogs ? 'Show Less' : `View All (${loggedMeals.length})`}
+                    </button>
+                )}
+            </div>
+
+            <div className="space-y-3">
+                {loggedMeals.length > 0 ? visibleMeals.map(meal => (
+                    <div key={meal.id} className="glass-panel p-4 rounded-[1.5rem] flex items-center gap-3 border-l-4 border-emerald-500 transition-all hover:translate-x-1 shadow-sm">
+                        <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl text-brand-green shadow-inner">
+                            <BowlIcon className="w-5 h-5" />
                         </div>
                         <div className="flex-grow">
-                            <p className="font-black text-emerald-950 dark:text-white text-lg leading-tight capitalize">{meal.name}</p>
+                            <p className="font-black text-emerald-950 dark:text-white text-base leading-tight capitalize">{meal.name}</p>
                             <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mt-1">{new Date(meal.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
-                        <p className="text-brand-green font-black text-lg">{meal.nutrients.calories}<span className="text-[10px] ml-1">kcal</span></p>
+                        <div className="text-right">
+                            <p className="text-brand-green font-black text-base leading-tight">{meal.nutrients.calories}<span className="text-[10px] ml-1">kcal</span></p>
+                            <p className="text-[10px] font-bold text-gray-400">S: {meal.nutrients.sugar}g | Na: {meal.nutrients.salt}g</p>
+                        </div>
                     </div>
                 )) : (
                     <div className="text-center py-10 opacity-30">
@@ -1638,19 +1630,46 @@ const CheckInForm: React.FC<{ onComplete: () => void, userProfile: UserProfile }
     const [weight, setWeight] = useState(userProfile.weight.toString());
     const [notes, setNotes] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
+        const parsedWeight = parseFloat(weight);
+        if (!Number.isFinite(parsedWeight) || parsedWeight <= 0) {
+            setError('Please enter a valid weight greater than 0.');
+            return;
+        }
+
         setIsLoading(true);
         try {
             await db.addJournalEntry({
                 energy,
-                weight: parseFloat(weight),
+                weight: parsedWeight,
                 notes
             });
+
+            const heightInMeters = userProfile.height / 100;
+            if (heightInMeters > 0) {
+                const calculatedBmi = parseFloat((parsedWeight / (heightInMeters * heightInMeters)).toFixed(1));
+                try {
+                    await db.updateProfile({ weight: parsedWeight, bmi: calculatedBmi });
+                } catch (profileError: any) {
+                    // Backward compatibility if bmi attribute is missing in Appwrite schema.
+                    if (typeof profileError?.message === 'string' && profileError.message.includes('Unknown attribute')) {
+                        await db.updateProfile({ weight: parsedWeight });
+                    } else {
+                        throw profileError;
+                    }
+                }
+            } else {
+                await db.updateProfile({ weight: parsedWeight });
+            }
+
             onComplete();
         } catch (error) {
             console.error(error);
+            setError('Check-in saved partially. Please retry to sync your latest BMI to your profile.');
         } finally {
             setIsLoading(false);
         }
@@ -1692,6 +1711,7 @@ const CheckInForm: React.FC<{ onComplete: () => void, userProfile: UserProfile }
                         className="w-full p-5 glass-panel rounded-2xl border-2 border-emerald-500/20 focus:border-brand-green outline-none font-bold text-sm min-h-[100px]"
                     />
                 </div>
+                {error && <p className="text-red-500 text-center text-sm font-bold bg-red-100 p-3 rounded-xl">{error}</p>}
                 <div className="card-button-wrapper">
                     <button type="submit" disabled={isLoading} className="btn-primary w-full shadow-glow-primary">
                         {isLoading ? 'Logging Health Data...' : 'Submit Check-In'}
