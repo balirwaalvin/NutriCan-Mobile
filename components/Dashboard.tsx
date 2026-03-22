@@ -2246,6 +2246,15 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, 
         return Math.max(0, 7 - daysElapsed);
     }, [userProfile.trialStartedAt]);
     const profileTrialActive = profileTrialDaysRemaining > 0;
+    
+    const subscriptionDaysRemaining = useMemo(() => {
+        if (!userProfile.subscriptionExpiresAt) return 0;
+        const expiresDate = new Date(userProfile.subscriptionExpiresAt);
+        const now = new Date();
+        const diffTime = expiresDate.getTime() - now.getTime();
+        const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return Math.max(0, daysRemaining);
+    }, [userProfile.subscriptionExpiresAt]);
 
     const openEditProfile = () => {
         setModal(
@@ -2365,6 +2374,21 @@ const ProfileScreen: React.FC<{ userProfile: UserProfile, onLogout: () => void, 
                                 <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
                             </div>
                             <span className="text-white/80 text-xs font-bold">All premium features active</span>
+                                        {userProfile.subscriptionExpiresAt && (
+                                            <div className="mt-3 p-3 bg-white/10 rounded-xl">
+                                                <p className="text-white/70 text-xs font-bold">Subscription Expires In:</p>
+                                                <p className="text-white font-black text-lg tracking-tight">
+                                                    {subscriptionDaysRemaining} {subscriptionDaysRemaining === 1 ? 'day' : 'days'}
+                                                </p>
+                                                <p className="text-white/60 text-xs font-bold mt-1">
+                                                    {new Date(userProfile.subscriptionExpiresAt).toLocaleDateString('en-US', { 
+                                                        month: 'short', 
+                                                        day: 'numeric', 
+                                                        year: 'numeric' 
+                                                    })}
+                                                </p>
+                                            </div>
+                                        )}
                         </div>
                     )}
                 </div>

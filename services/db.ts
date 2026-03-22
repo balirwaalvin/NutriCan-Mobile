@@ -1,3 +1,17 @@
+function isSubscriptionExpired(subscriptionExpiresAt: string | undefined): boolean {
+  if (!subscriptionExpiresAt) return true;
+  const expiresDate = new Date(subscriptionExpiresAt);
+  const now = new Date();
+  return now >= expiresDate;
+}
+
+function handleExpiredSubscription(profile: UserProfile): UserProfile {
+  if (profile.plan === 'Premium' && isSubscriptionExpired(profile.subscriptionExpiresAt)) {
+    return { ...profile, plan: 'Free' };
+  }
+  return profile;
+}
+
 /**
  * NutriCan API client – Migrated to Appwrite BaaS
  *
@@ -128,6 +142,8 @@ function mapProfile(raw: any): UserProfile {
     isGuest: raw.isGuest ?? false,
     createdAt: raw.createdAt || raw.$createdAt,
     trialStartedAt: raw.trialStartedAt,
+      subscriptionStartedAt: raw.subscriptionStartedAt,
+      subscriptionExpiresAt: raw.subscriptionExpiresAt,
     bmi: bmi,
   };
 }
@@ -271,7 +287,18 @@ export const db = {
   getSession: async (): Promise<UserProfile | null> => {
     try {
       const user = await account.get();
-      return await getOrCreateProfileForUser(user);
+      const profile = await getOrCreateProfileForUser(user);
+      const checkedProfile = handleExpiredSubscription(profile);
+      // If subscription expired, update to Free plan
+      if (checkedProfile.plan !== profile.plan && checkedProfile.plan === 'Free') {
+        await databases.updateDocument(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_PROFILES_COLLECTION,
+          user.$id,
+          { plan: 'Free' }
+        );
+      }
+      return checkedProfile;
     } catch (error) {
       return null;
     }
@@ -338,12 +365,18 @@ export const db = {
    * Upgrade the current user to the Premium plan.
    */
   upgradeToPremium: async (_uid: string): Promise<void> => {
+      const subscriptionStartedAt = new Date().toISOString();
+      const subscriptionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days from now
     const user = await account.get();
     await databases.updateDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_PROFILES_COLLECTION,
         user.$id,
-        { plan: 'Premium' }
+        { 
+          plan: 'Premium',
+          subscriptionStartedAt,
+          subscriptionExpiresAt
+        }
     );
   },
 

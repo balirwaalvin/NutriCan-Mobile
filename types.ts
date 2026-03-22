@@ -41,6 +41,8 @@ export interface UserProfile {
   isGuest?: boolean;
   createdAt?: string; // For 7-day trial calculation
   trialStartedAt?: string; // When the user actually started their 7-day trial
+    subscriptionStartedAt?: string; // When premium subscription was purchased
+    subscriptionExpiresAt?: string; // When 30-day premium subscription expires
   bmi?: number;
 }
 
