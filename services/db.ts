@@ -35,6 +35,71 @@ export const account = new Account(client);
 export const databases = new Databases(client);
 export const storage = new Storage(client);
 
+function isAppwriteCode(error: any, code: number): boolean {
+  return typeof error?.code === 'number' && error.code === code;
+}
+
+function createFallbackProfileFromAccount(user: any): UserProfile {
+  return mapProfile({
+    name: user?.name || 'NutriCan User',
+    age: 0,
+    email: user?.email || '',
+    height: 0,
+    weight: 0,
+    cancerType: CancerType.CERVICAL,
+    cancerStage: CancerStage.EARLY,
+    otherConditions: [],
+    treatmentStages: [],
+    plan: 'Free',
+    isGuest: false,
+    createdAt: user?.$createdAt,
+    trialStartedAt: user?.$createdAt,
+  });
+}
+
+async function getOrCreateProfileForUser(user: any): Promise<UserProfile> {
+  try {
+    const profileDoc = await databases.getDocument(
+      APPWRITE_DATABASE_ID,
+      APPWRITE_PROFILES_COLLECTION,
+      user.$id
+    );
+    return mapProfile(profileDoc);
+  } catch (error: any) {
+    if (!isAppwriteCode(error, 404)) {
+      throw error;
+    }
+
+    const fallback = createFallbackProfileFromAccount(user);
+    try {
+      const createdProfileDoc = await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_PROFILES_COLLECTION,
+        user.$id,
+        {
+          ...fallback,
+          name: fallback.name,
+          email: fallback.email,
+          age: fallback.age,
+          height: fallback.height,
+          weight: fallback.weight,
+          cancerType: fallback.cancerType,
+          cancerStage: fallback.cancerStage,
+          otherConditions: fallback.otherConditions,
+          treatmentStages: fallback.treatmentStages,
+          plan: fallback.plan,
+          isGuest: false,
+          trialStartedAt: fallback.trialStartedAt,
+        }
+      );
+      return mapProfile(createdProfileDoc);
+    } catch {
+      // If collection permissions block creation, keep auth flow alive with fallback profile.
+      return fallback;
+    }
+  }
+}
+
 // ── Helper: map a raw Appwrite document to the UserProfile type ───────────────
 
 function mapProfile(raw: any): UserProfile {
@@ -82,21 +147,44 @@ export const db = {
     password: string,
     profile: UserProfile
   ): Promise<UserProfile> => {
-    const user = await account.create(ID.unique(), email, password, profile.name);
+    let user: any;
+    try {
+      user = await account.create(ID.unique(), email, password, profile.name);
+    } catch (error: any) {
+      if (isAppwriteCode(error, 409)) {
+        throw new Error('An account with this email already exists. Please sign in instead.');
+      }
+      throw error;
+    }
     await account.createEmailPasswordSession(email, password);
+    const trialStartedAt = new Date().toISOString();
     
     // Create profile document natively using the Auth ID so it matches:
-    const profileDoc = await databases.createDocument(
-      APPWRITE_DATABASE_ID,
-      APPWRITE_PROFILES_COLLECTION,
-      user.$id,
-      {
+    try {
+      const profileDoc = await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_PROFILES_COLLECTION,
+        user.$id,
+        {
+          ...profile,
+          email,
+          isGuest: false,
+          plan: profile.plan ?? 'Free',
+          trialStartedAt,
+        }
+      );
+      return mapProfile(profileDoc);
+    } catch {
+      // Keep signup successful even if profile collection permissions are misconfigured.
+      return mapProfile({
         ...profile,
-        email,        
-      }
-    );
-
-    return mapProfile(profileDoc);
+        email,
+        isGuest: false,
+        plan: profile.plan ?? 'Free',
+        createdAt: user?.$createdAt,
+        trialStartedAt,
+      });
+    }
   },
 
   /**
@@ -127,26 +215,11 @@ export const db = {
     try {
         await account.createEmailPasswordSession(email, password);
     } catch (e: any) {
-        // Handle case where a session already exists
-        if(e.code !== 401) {
-            try { await account.get(); } catch (innerError) { throw e; }
-        } else {
-            throw e;
-        }
+        throw e;
     }
 
     const user = await account.get();
-    try {
-        const profileDoc = await databases.getDocument(
-            APPWRITE_DATABASE_ID,
-            APPWRITE_PROFILES_COLLECTION,
-            user.$id
-        );
-        return mapProfile(profileDoc);
-    } catch (error) {
-        // Fallback for missing profile
-        return mapProfile({ name: user.name, email: user.email });
-    }
+    return getOrCreateProfileForUser(user);
   },
 
   /**
@@ -198,12 +271,7 @@ export const db = {
   getSession: async (): Promise<UserProfile | null> => {
     try {
       const user = await account.get();
-      const profileDoc = await databases.getDocument(
-        APPWRITE_DATABASE_ID,
-        APPWRITE_PROFILES_COLLECTION,
-        user.$id
-      );
-      return mapProfile(profileDoc);
+      return await getOrCreateProfileForUser(user);
     } catch (error) {
       return null;
     }

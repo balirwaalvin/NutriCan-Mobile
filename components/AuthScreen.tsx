@@ -82,8 +82,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
             otherConditions: formData.otherConditions.map(c => formData.conditionDetails[c] ? `${c} (${formData.conditionDetails[c]})` : c),
             treatmentStages: formData.treatmentStages, plan: 'Free',
         };
-        await db.signUp(formData.email, formData.password, profile);
-        onAuthSuccess(profile);
+          const createdProfile = await db.signUp(formData.email, formData.password, profile);
+          onAuthSuccess(createdProfile);
     } catch (err: any) { setError(err.message); } finally { setIsLoading(false); }
   };
   
@@ -97,7 +97,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   const inputClasses = "w-full p-4 border-2 rounded-[1.5rem] glass-panel border-white/40 focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-lg shadow-inner bg-white/50 dark:bg-emerald-900/10 text-emerald-950 dark:text-white placeholder-emerald-900/30 dark:placeholder-white/30";
 
   const renderSignUpStep1 = () => (
-    <form onSubmit={(e) => { e.preventDefault(); if (formData.password.length < 6) setError("Too short"); else handleNextStep(e); }} className="space-y-5 max-w-sm mx-auto animate-fade-in-up">
+      <form onSubmit={(e) => { e.preventDefault(); if (formData.password.length < 8) setError("Password must be at least 8 characters"); else handleNextStep(e); }} className="space-y-5 max-w-sm mx-auto animate-fade-in-up">
       <h1 className="text-3xl font-black text-emerald-900 text-center dark:text-white tracking-tight mb-6">Personal Details</h1>
       <input type="text" name="name" placeholder="Nickname" value={formData.name} onChange={handleChange} className={inputClasses} required />
       
@@ -205,6 +205,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
           {isLoading ? <LogoIcon className="w-6 h-6 animate-spin" /> : 'Create Account'}
         </button>
       </div>
+      {error && <p className="text-red-500 text-center text-sm font-bold bg-red-100 p-3 rounded-xl">{error}</p>}
     </form>
   );
 
