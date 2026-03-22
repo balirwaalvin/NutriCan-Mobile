@@ -18,6 +18,7 @@ const CONDITION_LEVELS: Record<string, string[]> = {
 };
 
 const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGuest, onBack, initialView = 'initial' }) => {
+  const MAX_CONDITIONS = 2;
   const [view, setView] = useState<'initial' | 'signIn' | 'signUp'>(initialView);
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -26,7 +27,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   useEffect(() => { setView(initialView); }, [initialView]);
 
   const [formData, setFormData] = useState({
-    name: '', age: '', height: '', weight: '', email: '', password: '',
+    name: '', age: '', height: '', weight: '', email: '', password: '', confirmPassword: '',
     cancerType: CancerType.CERVICAL,
     otherConditions: [] as string[], conditionDetails: {} as Record<string, string>,
     cancerStage: CancerStage.EARLY, treatmentStages: [] as TreatmentStage[],
@@ -40,10 +41,15 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   const handleCheckboxChange = (condition: string) => {
     setFormData(prev => {
       const isSelected = prev.otherConditions.includes(condition);
+      if (!isSelected && prev.otherConditions.length >= MAX_CONDITIONS) {
+        setError(`Select up to ${MAX_CONDITIONS} conditions only.`);
+        return prev;
+      }
       const newConditions = isSelected ? prev.otherConditions.filter(c => c !== condition) : [...prev.otherConditions, condition];
       const newDetails = { ...prev.conditionDetails };
       if (!isSelected && CONDITION_LEVELS[condition]) newDetails[condition] = CONDITION_LEVELS[condition][0];
       else if (isSelected) delete newDetails[condition];
+      setError(null);
       return { ...prev, otherConditions: newConditions, conditionDetails: newDetails };
     });
   };
@@ -97,7 +103,18 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
   const inputClasses = "w-full p-4 border-2 rounded-[1.5rem] glass-panel border-white/40 focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-bold text-lg shadow-inner bg-white/50 dark:bg-emerald-900/10 text-emerald-950 dark:text-white placeholder-emerald-900/30 dark:placeholder-white/30";
 
   const renderSignUpStep1 = () => (
-      <form onSubmit={(e) => { e.preventDefault(); if (formData.password.length < 8) setError("Password must be at least 8 characters"); else handleNextStep(e); }} className="space-y-5 max-w-sm mx-auto animate-fade-in-up">
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        if (formData.password.length < 8) {
+          setError("Password must be at least 8 characters");
+          return;
+        }
+        if (formData.password !== formData.confirmPassword) {
+          setError("Passwords do not match");
+          return;
+        }
+        handleNextStep(e);
+      }} className="space-y-5 max-w-sm mx-auto animate-fade-in-up">
       <h1 className="text-3xl font-black text-emerald-900 text-center dark:text-white tracking-tight mb-6">Personal Details</h1>
       <input type="text" name="name" placeholder="Nickname" value={formData.name} onChange={handleChange} className={inputClasses} required />
       
@@ -111,6 +128,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
       </div>
       <input type="email" name="email" placeholder="Email" value={formData.email} onChange={handleChange} className={inputClasses} required />
       <input type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} className={inputClasses} required />
+      <input type="password" name="confirmPassword" placeholder="Retype Password" value={formData.confirmPassword} onChange={handleChange} className={inputClasses} required />
       {error && <p className="text-red-500 text-center text-sm font-bold bg-red-100 p-2 rounded-xl">{error}</p>}
       <div className="card-button-wrapper mt-6">
         <button type="submit" className="btn-primary w-full">Next Step</button>
@@ -143,16 +161,18 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, onContinueAsGues
       {/* Other Conditions */}
       <div>
         <label className="text-[10px] font-black uppercase text-emerald-900/40 dark:text-white/30 tracking-widest block mb-3 px-2">Other Conditions</label>
+        <p className="text-[10px] font-bold text-emerald-700/60 dark:text-emerald-200/60 px-2 mb-2">Select up to {MAX_CONDITIONS} conditions</p>
         <div className="space-y-3">
           {Object.values(OtherCondition).map((condition) => {
             const isChecked = formData.otherConditions.includes(condition);
+            const disableSelection = !isChecked && formData.otherConditions.length >= MAX_CONDITIONS;
             return (
-              <div key={condition} className={`p-4 rounded-[1.5rem] border-2 transition-all ${isChecked ? 'bg-brand-green/10 border-brand-green' : 'bg-white/40 dark:bg-emerald-900/20 border-transparent'}`}>
-                <label className="flex items-center gap-3 cursor-pointer">
+              <div key={condition} className={`p-4 rounded-[1.5rem] border-2 transition-all ${isChecked ? 'bg-brand-green/10 border-brand-green' : 'bg-white/40 dark:bg-emerald-900/20 border-transparent'} ${disableSelection ? 'opacity-50' : ''}`}>
+                <label className={`flex items-center gap-3 ${disableSelection ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isChecked ? 'border-brand-green bg-brand-green' : 'border-gray-300 dark:border-gray-600'}`}>
                     {isChecked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
                   </div>
-                  <input type="checkbox" checked={isChecked} onChange={() => handleCheckboxChange(condition)} className="hidden" />
+                  <input type="checkbox" checked={isChecked} onChange={() => handleCheckboxChange(condition)} disabled={disableSelection} className="hidden" />
                   <span className="font-bold text-sm text-emerald-950 dark:text-white">{condition}</span>
                 </label>
                 
