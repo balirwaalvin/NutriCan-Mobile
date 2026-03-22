@@ -4,6 +4,54 @@ import { GROQ_API_KEY } from './config';
 
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
+function getDefaultPortionByCategory(category?: string): string {
+  switch (category) {
+    case 'Protein':
+      return '120-150g cooked serving';
+    case 'Veggies':
+      return '1.5-2 cups cooked vegetables';
+    case 'Carbs':
+      return '1 cup cooked serving';
+    default:
+      return '1 balanced plate';
+  }
+}
+
+type MealFallbackMeta = {
+  category: Meal['category'];
+  portionSize: string;
+  quantityDetails: string;
+  nutrients: NutrientInfo;
+};
+
+const MEAL_FALLBACK_META: Record<string, MealFallbackMeta> = {
+  'porridge (millet)': { category: 'Carbs', portionSize: '1 cup cooked porridge', quantityDetails: 'Take once at breakfast; add no sugar and pair with water or unsweetened tea.', nutrients: { calories: 220, sugar: 3, salt: 0.2, bmiImpact: 'Steady energy with moderate calories.' } },
+  'scrambled eggs with spinach': { category: 'Protein', portionSize: '2 eggs + 1 cup spinach', quantityDetails: 'Take once at breakfast; use minimal oil and avoid extra salt.', nutrients: { calories: 280, sugar: 2, salt: 0.6, bmiImpact: 'Supports satiety and lean protein intake.' } },
+  'scrambled eggs with nakati': { category: 'Protein', portionSize: '2 eggs + 1 cup nakati', quantityDetails: 'Take once at breakfast; cook with little oil and no added sugar.', nutrients: { calories: 270, sugar: 2, salt: 0.6, bmiImpact: 'High protein helps appetite control.' } },
+  'yoghurt with watermelon': { category: 'Balanced', portionSize: '1 cup plain yoghurt + 1 cup watermelon', quantityDetails: 'Best as breakfast or snack once daily; choose unsweetened yoghurt.', nutrients: { calories: 240, sugar: 12, salt: 0.2, bmiImpact: 'Hydrating and moderate calorie load.' } },
+  'yougurt and avocado': { category: 'Balanced', portionSize: '3/4 cup plain yoghurt + 1/2 avocado', quantityDetails: 'Take once daily; use unsweetened yoghurt for lower sugar.', nutrients: { calories: 290, sugar: 8, salt: 0.2, bmiImpact: 'Healthy fats improve fullness.' } },
+  'steamed matoke with beans and greens': { category: 'Balanced', portionSize: '1 cup matoke + 1/2 cup beans + 1 cup greens', quantityDetails: 'Take once at lunch; keep beans portion measured to avoid excess calories.', nutrients: { calories: 430, sugar: 6, salt: 0.7, bmiImpact: 'Balanced carbs, fiber, and protein.' } },
+  'boiled sweet potatoes with beans': { category: 'Balanced', portionSize: '1 medium sweet potato + 1/2 cup beans', quantityDetails: 'Take once at lunch; avoid adding oil-heavy sauces.', nutrients: { calories: 410, sugar: 7, salt: 0.5, bmiImpact: 'High fiber supports steady energy.' } },
+  'grilled fish (tilapia) with greens': { category: 'Protein', portionSize: '150g fish + 1.5 cups greens', quantityDetails: 'Take once at lunch or dinner; grill/steam without deep frying.', nutrients: { calories: 360, sugar: 4, salt: 0.6, bmiImpact: 'Lean protein supports healthy weight goals.' } },
+  'boiled cassava with peas': { category: 'Carbs', portionSize: '1 cup cassava + 1/2 cup peas', quantityDetails: 'Take once at lunch; add greens to increase plate balance.', nutrients: { calories: 440, sugar: 4, salt: 0.5, bmiImpact: 'Energy dense; portion control advised.' } },
+  'steamed fish with mixed greens and sweet potatoes': { category: 'Balanced', portionSize: '130g fish + 1 cup greens + 1/2 cup sweet potatoes', quantityDetails: 'Take once at lunch or dinner; keep sweet potato portion moderate.', nutrients: { calories: 390, sugar: 5, salt: 0.6, bmiImpact: 'Good protein with controlled carbohydrate load.' } },
+  'boiled yams with groundnuts (g-nut sauce)': { category: 'Carbs', portionSize: '1 cup yam + 2 tbsp g-nut sauce', quantityDetails: 'Take once at lunch; avoid oversized sauce portions.', nutrients: { calories: 460, sugar: 5, salt: 0.6, bmiImpact: 'Calorie dense due to sauce, measure carefully.' } },
+  'grilled goat with boiled matoke': { category: 'Protein', portionSize: '120g goat meat + 1 cup matoke', quantityDetails: 'Take once at lunch/dinner; trim visible fat before grilling.', nutrients: { calories: 470, sugar: 4, salt: 0.7, bmiImpact: 'Higher protein meal; pair with vegetables.' } },
+  'grilled chicken (stew) with boiled yams': { category: 'Protein', portionSize: '130g chicken + 3/4 cup yams', quantityDetails: 'Take once at dinner; use light stew with minimal oil.', nutrients: { calories: 420, sugar: 4, salt: 0.7, bmiImpact: 'Supports recovery while controlling portions.' } },
+  'steamed greens with boiled sweet potatoes': { category: 'Veggies', portionSize: '1.5 cups greens + 1/2 cup sweet potatoes', quantityDetails: 'Take once at dinner; prioritize greens over starch.', nutrients: { calories: 300, sugar: 6, salt: 0.4, bmiImpact: 'Lower calorie, high-fiber dinner option.' } },
+  'grilled fish (nile perch) with roasted pumpkin': { category: 'Protein', portionSize: '150g fish + 3/4 cup pumpkin', quantityDetails: 'Take once at dinner; avoid adding extra butter/oil.', nutrients: { calories: 370, sugar: 5, salt: 0.6, bmiImpact: 'Lean protein with moderate carbs.' } },
+  'boiled irish potatoes with peas': { category: 'Carbs', portionSize: '1 cup potatoes + 1/2 cup peas', quantityDetails: 'Take once at dinner; add vegetables for better satiety.', nutrients: { calories: 390, sugar: 4, salt: 0.5, bmiImpact: 'Moderate calories when portions are controlled.' } },
+  'steamed pumpkin with groundnuts sauce': { category: 'Balanced', portionSize: '1 cup pumpkin + 2 tbsp groundnut sauce', quantityDetails: 'Take once at dinner; keep sauce measured to reduce fat load.', nutrients: { calories: 350, sugar: 7, salt: 0.5, bmiImpact: 'Nutrient-rich but sauce raises calories.' } },
+  'grilled beef with roasted yams': { category: 'Protein', portionSize: '120g beef + 3/4 cup yams', quantityDetails: 'Take once at dinner; choose lean beef cuts and limit oil.', nutrients: { calories: 480, sugar: 3, salt: 0.7, bmiImpact: 'Protein dense; pair with vegetables for balance.' } },
+  'steamed matoke with greens': { category: 'Balanced', portionSize: '1 cup matoke + 1.5 cups greens', quantityDetails: 'Take once at dinner; keep matoke portion moderate.', nutrients: { calories: 340, sugar: 5, salt: 0.4, bmiImpact: 'Balanced high-fiber meal option.' } },
+};
+
+function getMealFallbackMeta(name: string): MealFallbackMeta | null {
+  if (!name) return null;
+  const key = name.toLowerCase().trim();
+  return MEAL_FALLBACK_META[key] || null;
+}
+
 // ── Helper: call Groq API directly from the client ────────────────────────────
 async function callGroqJSON<T>(prompt: string, systemPrompt: string = ''): Promise<T> {
   const messages = [];
@@ -112,6 +160,108 @@ const getMealPhotoUrl = (mealName: string): string => {
   return defaultImage;
 };
 
+const FALLBACK_BREAKFASTS = [
+  'Porridge (Millet)',
+  'Scrambled Eggs with Spinach',
+  'Yoghurt with Watermelon',
+  'Scrambled Eggs with Nakati',
+  'yougurt and avocado',
+  'Porridge (Millet)',
+  'Scrambled Eggs with Spinach'
+];
+
+const FALLBACK_LUNCHES = [
+  'Steamed Matoke with Beans and Greens',
+  'Boiled Sweet Potatoes with Beans',
+  'Grilled Fish (Tilapia) with Greens',
+  'Boiled Cassava with Peas',
+  'Steamed Fish with Mixed Greens and Sweet Potatoes',
+  'Boiled Yams with Groundnuts (G-nut sauce)',
+  'Grilled Goat with Boiled Matoke'
+];
+
+const FALLBACK_DINNERS = [
+  'Grilled Chicken (Stew) with Boiled Yams',
+  'Steamed Greens with Boiled Sweet Potatoes',
+  'Grilled Fish (Nile Perch) with Roasted Pumpkin',
+  'Boiled Irish Potatoes with Peas',
+  'Steamed Pumpkin with Groundnuts Sauce',
+  'Grilled Beef with Roasted Yams',
+  'Steamed Matoke with Greens'
+];
+
+const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function normalizeCategory(category: any): Meal['category'] {
+  if (category === 'Protein' || category === 'Carbs' || category === 'Balanced' || category === 'Veggies') {
+    return category;
+  }
+  return 'Balanced';
+}
+
+function toNumber(value: any): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[^0-9.-]/g, '');
+    if (!cleaned) return null;
+    const parsed = Number(cleaned);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function buildMealFromRaw(rawMeal: any, fallbackName: string): Meal {
+  const name = typeof rawMeal?.name === 'string' && rawMeal.name.trim() ? rawMeal.name : fallbackName;
+  const meta = getMealFallbackMeta(name);
+  const category = normalizeCategory(rawMeal?.category || meta?.category);
+
+  const nutrientSource = rawMeal?.nutrients || rawMeal?.nutrition || {};
+  const calories = toNumber(nutrientSource?.calories ?? rawMeal?.calories);
+  const sugar = toNumber(nutrientSource?.sugar ?? rawMeal?.sugar);
+  const salt = toNumber(nutrientSource?.salt ?? rawMeal?.salt);
+  const bmiImpact = typeof nutrientSource?.bmiImpact === 'string'
+    ? nutrientSource.bmiImpact
+    : (typeof rawMeal?.bmiImpact === 'string' ? rawMeal.bmiImpact : '');
+
+  return {
+    name,
+    description: typeof rawMeal?.description === 'string' && rawMeal.description.trim()
+      ? rawMeal.description
+      : 'A recovery-friendly local meal option.',
+    reason: typeof rawMeal?.reason === 'string' && rawMeal.reason.trim()
+      ? rawMeal.reason
+      : 'Chosen to support balanced nutrition during recovery.',
+    category,
+    recipe: typeof rawMeal?.recipe === 'string' ? rawMeal.recipe : 'Prepare with minimal oil and salt, then serve warm.',
+    portionSize: typeof rawMeal?.portionSize === 'string' && rawMeal.portionSize.trim()
+      ? rawMeal.portionSize
+      : (meta?.portionSize || getDefaultPortionByCategory(category)),
+    quantityDetails: typeof rawMeal?.quantityDetails === 'string' && rawMeal.quantityDetails.trim()
+      ? rawMeal.quantityDetails
+      : (meta?.quantityDetails || 'Take one measured serving for this meal time and drink water alongside.'),
+    photoUrl: getMealPhotoUrl(name),
+    nutrients: {
+      calories: calories ?? meta?.nutrients.calories ?? 0,
+      sugar: sugar ?? meta?.nutrients.sugar ?? 0,
+      salt: salt ?? meta?.nutrients.salt ?? 0,
+      bmiImpact: bmiImpact || meta?.nutrients.bmiImpact || ''
+    }
+  };
+}
+
+function buildFallbackWeekPlan(): WeeklyMealPlan {
+  return WEEK_DAYS.map((day, index) => ({
+    day,
+    breakfast: buildMealFromRaw({ name: FALLBACK_BREAKFASTS[index], category: 'Balanced' }, FALLBACK_BREAKFASTS[index]),
+    lunch: buildMealFromRaw({ name: FALLBACK_LUNCHES[index], category: 'Balanced' }, FALLBACK_LUNCHES[index]),
+    dinner: buildMealFromRaw({ name: FALLBACK_DINNERS[index], category: 'Balanced' }, FALLBACK_DINNERS[index]),
+  }));
+}
+
 // ── checkFoodSafety ──────────────────────────────────────────────────────────
 export const checkFoodSafety = async (foodName: string, userProfile: UserProfile): Promise<FoodSafetyResult> => {
   const conditions = [userProfile.cancerType, ...(userProfile.otherConditions || [])].join(', ');
@@ -196,39 +346,54 @@ For each meal (breakfast, lunch, dinner) of each day provide:
 3. "reason" (why recommended based on BMI ${bmiValue} and condition, max 2 sentences)
 4. "category" (must be "Protein", "Carbs", "Balanced", or "Veggies")
 5. "recipe" (short step-by-step healthy recipe)
-6. "nutrients" (an object containing "calories" (number), "sugar" (in grams, number), "salt" (in grams, number), and "bmiImpact" (string short explanation))
+6. "portionSize" (specific quantity per serving, e.g. "1 cup", "150g", "2 medium pieces")
+7. "quantityDetails" (detailed guidance: frequency, plate composition, and practical serving tips in 1-2 short sentences)
+8. "nutrients" (an object containing "calories" (number), "sugar" (in grams, number), "salt" (in grams, number), and "bmiImpact" (string short explanation))
 
 Respond as a JSON object with a single key "weekPlan" containing an array of 7 day-objects.
 Each day-object has: "day" (e.g. "Monday"), "breakfast", "lunch", "dinner".
 `;
 
-  try {
-    const { weekPlan } = await callGroqJSON<{ weekPlan: any[] }>(prompt);
-    if (Array.isArray(weekPlan) && weekPlan.length === 7) {
-      return weekPlan.map((dayPlan: any) => ({
-        ...dayPlan,
-        breakfast: { 
-          ...dayPlan.breakfast, 
-          photoUrl: getMealPhotoUrl(dayPlan.breakfast.name),
-          nutrients: dayPlan.breakfast.nutrients || { calories: 0, sugar: 0, salt: 0, bmiImpact: '' }
-        },
-        lunch: { 
-          ...dayPlan.lunch, 
-          photoUrl: getMealPhotoUrl(dayPlan.lunch.name),
-          nutrients: dayPlan.lunch.nutrients || { calories: 0, sugar: 0, salt: 0, bmiImpact: '' }
-        },
-        dinner: { 
-          ...dayPlan.dinner, 
-          photoUrl: getMealPhotoUrl(dayPlan.dinner.name),
-          nutrients: dayPlan.dinner.nutrients || { calories: 0, sugar: 0, salt: 0, bmiImpact: '' }
-        },
-      }));
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await callGroqJSON<any>(prompt);
+      const rawWeekPlan = Array.isArray(response?.weekPlan)
+        ? response.weekPlan
+        : Array.isArray(response?.mealPlan)
+          ? response.mealPlan
+          : Array.isArray(response?.plan)
+            ? response.plan
+            : [];
+
+      if (!Array.isArray(rawWeekPlan) || rawWeekPlan.length === 0) {
+        throw new Error('Invalid meal plan format from API.');
+      }
+
+      return WEEK_DAYS.map((dayName, index) => {
+        const dayPlan = rawWeekPlan[index] || {};
+        return {
+          day: typeof dayPlan?.day === 'string' && dayPlan.day.trim() ? dayPlan.day : dayName,
+          breakfast: buildMealFromRaw(dayPlan?.breakfast, FALLBACK_BREAKFASTS[index]),
+          lunch: buildMealFromRaw(dayPlan?.lunch, FALLBACK_LUNCHES[index]),
+          dinner: buildMealFromRaw(dayPlan?.dinner, FALLBACK_DINNERS[index]),
+        };
+      });
+    } catch (error: any) {
+      const message = typeof error?.message === 'string' ? error.message : '';
+      const isRateLimited = message.includes('rate_limit_exceeded') || message.includes('429');
+
+      if (attempt < 2 && isRateLimited) {
+        await delay(4500);
+        continue;
+      }
+
+      console.error('Error generating meal plan:', error);
+      break;
     }
-    throw new Error('Invalid meal plan format from API.');
-  } catch (error) {
-    console.error('Error generating meal plan:', error);
-    return null;
   }
+
+  // Guaranteed fallback so the UI never gets stuck without meal plans.
+  return buildFallbackWeekPlan();
 };
 
 // ── swapMeal ─────────────────────────────────────────────────────────────────
@@ -279,9 +444,9 @@ CRITICAL: You MUST ONLY choose from this EXACT list, word-for-word. Do not inven
 
 Must NOT be sugary, a pastry, or deep-fried. Should be low-fat.
 
-Provide: "name", "description", "reason" (why good for their BMI and conditions), "category" ("Protein", "Carbs", "Balanced", or "Veggies"), "recipe" (short step-by-step recipe), and "nutrients" (object with "calories", "sugar", "salt", "bmiImpact").
+Provide: "name", "description", "reason" (why good for their BMI and conditions), "category" ("Protein", "Carbs", "Balanced", or "Veggies"), "recipe" (short step-by-step recipe), "portionSize" (specific quantity), "quantityDetails" (detailed serving guidance), and "nutrients" (object with "calories", "sugar", "salt", "bmiImpact").
 Respond as a single JSON object.
-Example: {"name": "Boiled Chicken and Yams", "description": "Simple protein and complex carbs.", "reason": "High protein aids tissue repair.", "category": "Protein", "recipe": "1. Boil chicken. 2. Boil yams. 3. Serve together.", "nutrients": {"calories": 300, "sugar": 5, "salt": 1, "bmiImpact": "Helps maintain muscle mass without excess calories."}}
+Example: {"name": "Boiled Chicken and Yams", "description": "Simple protein and complex carbs.", "reason": "High protein aids tissue repair.", "category": "Protein", "recipe": "1. Boil chicken. 2. Boil yams. 3. Serve together.", "portionSize": "150g chicken + 1 cup yams", "quantityDetails": "Take once at this meal time; fill half the plate with vegetables and avoid extra salt.", "nutrients": {"calories": 300, "sugar": 5, "salt": 1, "bmiImpact": "Helps maintain muscle mass without excess calories."}}
 `;
 
   try {
@@ -290,6 +455,8 @@ Example: {"name": "Boiled Chicken and Yams", "description": "Simple protein and 
       return { 
         ...result, 
         photoUrl: getMealPhotoUrl(result.name),
+        portionSize: result.portionSize || getDefaultPortionByCategory(result.category),
+        quantityDetails: result.quantityDetails || 'Use one measured serving for this meal time and keep oil minimal.',
         nutrients: result.nutrients || { calories: 0, sugar: 0, salt: 0, bmiImpact: '' }
       };
     }

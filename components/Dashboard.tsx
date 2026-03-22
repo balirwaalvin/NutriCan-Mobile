@@ -1207,6 +1207,22 @@ const MealCard: React.FC<{ meal: Meal, title: string, delay: number, onSwap: () 
             </div>
             <div className="p-8">
                 <p className="text-gray-600 text-sm mb-6 dark:text-emerald-100/70 leading-relaxed font-bold">{meal.description}</p>
+
+                {(meal.portionSize || meal.quantityDetails) && (
+                    <div className="mb-6 p-5 bg-white dark:bg-emerald-900/20 rounded-[2rem] border border-emerald-500/20 shadow-sm">
+                        <h4 className="text-sm font-black text-emerald-950 dark:text-white mb-3 flex items-center gap-2">
+                            <ProteinIcon className="w-4 h-4 text-brand-green" /> Recommended Quantity
+                        </h4>
+                        {meal.portionSize && (
+                            <p className="text-xs font-black text-emerald-900 dark:text-emerald-100 mb-2">
+                                Portion: <span className="text-brand-green">{meal.portionSize}</span>
+                            </p>
+                        )}
+                        {meal.quantityDetails && (
+                            <p className="text-xs text-gray-600 dark:text-emerald-100/70 leading-relaxed whitespace-pre-line">{meal.quantityDetails}</p>
+                        )}
+                    </div>
+                )}
                 
                 {meal.nutrients && (
                     <div className="flex items-center justify-between mb-8 bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-[2rem] border border-emerald-500/10">

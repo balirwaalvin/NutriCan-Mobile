@@ -52,6 +52,8 @@ export interface Meal {
   name: string;
   description: string;
   reason: string; // Explanation for recommendation
+  portionSize?: string; // Quick portion recommendation e.g. "1 cup" or "150g"
+  quantityDetails?: string; // Detailed serving guidance and frequency
   photoUrl: string;
   category: MealCategory;
   recipe?: string;
