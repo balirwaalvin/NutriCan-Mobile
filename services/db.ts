@@ -279,16 +279,39 @@ export const db = {
 
   /**
    * Update the current user's profile.
+   * If the profile document doesn't exist, creates it with the updates.
    */
   updateProfile: async (updates: Partial<UserProfile>): Promise<UserProfile> => {
     const user = await account.get();
-    const profileDoc = await databases.updateDocument(
-        APPWRITE_DATABASE_ID,
-        APPWRITE_PROFILES_COLLECTION,
-        user.$id,
-        updates
-    );
-    return mapProfile(profileDoc);
+    try {
+      const profileDoc = await databases.updateDocument(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_PROFILES_COLLECTION,
+          user.$id,
+          updates
+      );
+      return mapProfile(profileDoc);
+    } catch (error: any) {
+      // If profile document is missing (404), create it with the updates
+      if (isAppwriteCode(error, 404)) {
+        try {
+          const fallbackProfile = createFallbackProfileFromAccount(user);
+          const merged = { ...fallbackProfile, ...updates };
+          const createdProfileDoc = await databases.createDocument(
+            APPWRITE_DATABASE_ID,
+            APPWRITE_PROFILES_COLLECTION,
+            user.$id,
+            merged
+          );
+          return mapProfile(createdProfileDoc);
+        } catch (createError) {
+          // If creation also fails, return merged result in memory
+          const fallbackProfile = createFallbackProfileFromAccount(user);
+          return mapProfile({ ...fallbackProfile, ...updates });
+        }
+      }
+      throw error;
+    }
   },
 
   /**

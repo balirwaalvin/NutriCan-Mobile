@@ -695,13 +695,13 @@ const EditProfileForm: React.FC<{ user: UserProfile; onSave: (profile: UserProfi
             const bmi = parseFloat((formData.weight / (heightInMeters * heightInMeters)).toFixed(1));
             const submissionData = { ...formData, bmi };
 
-            // Update database
-            await db.updateProfile(submissionData);
-            // Update local state in Dashboard
-            onSave(submissionData);
-        } catch (error) {
+            // Update database and use the returned profile for state consistency
+            const updatedProfile = await db.updateProfile(submissionData);
+            // Update local state in Dashboard with server-returned profile
+            onSave(updatedProfile);
+        } catch (error: any) {
             console.error("Failed to update profile", error);
-            alert("Failed to update profile. Please try again.");
+            alert(error?.message || "Failed to update profile. Please try again.");
         } finally {
             setIsLoading(false);
         }
