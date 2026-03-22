@@ -396,24 +396,30 @@ export const db = {
 
   /**
    * Log a meal for the current user.
+   * Handles permission errors gracefully with clear messaging.
    */
   addMealLog: async (meal: { name: string; nutrients: NutrientInfo }): Promise<string> => {
     const user = await account.get();
-    // Stringify nutrients object if Appwrite schema does not support nested JSON immediately,
-    // although standard Appwrite databases support String attributes formatted as JSON or object relationships.
-    // Assuming nutrients is an object block or JSON string:
-    const doc = await databases.createDocument(
-        APPWRITE_DATABASE_ID,
-        APPWRITE_MEALS_COLLECTION,
-        ID.unique(),
-        {
-            name: meal.name,
-            nutrients: JSON.stringify(meal.nutrients), // Safe serialization
-            userId: user.$id,
-            createdAt: new Date().toISOString()
-        }
-    );
-    return doc.$id;
+    try {
+      const doc = await databases.createDocument(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_MEALS_COLLECTION,
+          ID.unique(),
+          {
+              name: meal.name,
+              nutrients: JSON.stringify(meal.nutrients),
+              userId: user.$id,
+              createdAt: new Date().toISOString()
+          }
+      );
+      return doc.$id;
+    } catch (error: any) {
+      // Handle permission errors with clear message
+      if (error?.code === 401 || error?.message?.includes('unauthorized') || error?.message?.includes('permissions')) {
+        throw new Error('Unable to save meal. Please ensure your profile is fully set up and try again.');
+      }
+      throw error;
+    }
   },
 
   /**

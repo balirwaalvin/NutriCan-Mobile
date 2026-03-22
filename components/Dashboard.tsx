@@ -1561,21 +1561,24 @@ const TrackerScreen: React.FC<{ userProfile: UserProfile, setModal: (content: Re
 const LogMealForm: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const [mealName, setMealName] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!mealName.trim()) return;
         setIsLoading(true);
+        setError(null);
         try {
             const nutrients = await getNutrientInfo(mealName);
             if (nutrients) {
                 await db.addMealLog({ name: mealName, nutrients });
                 onComplete();
             } else {
-                alert("Could not calculate nutrition. Please try again.");
+                setError("Could not calculate nutrition. Please try again.");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
+            setError(error?.message || "Failed to log meal. Please try again.");
         } finally {
             setIsLoading(false);
         }
@@ -1596,6 +1599,7 @@ const LogMealForm: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                         autoFocus
                     />
                 </div>
+                {error && <p className="text-red-500 text-center text-sm font-bold bg-red-100 p-3 rounded-xl">{error}</p>}
                 <div className="card-button-wrapper">
                     <button type="submit" disabled={isLoading} className="btn-primary w-full shadow-glow-primary">
                         {isLoading ? 'Estimating Calories...' : 'Save Meal Log'}
