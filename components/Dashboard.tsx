@@ -196,7 +196,7 @@ const PremiumGate: React.FC<{ onUpgrade: () => void; featureName: string }> = ({
     </div>
 );
 
-const PaymentModal: React.FC<{ onPaymentSuccess: () => void; closeModal: () => void }> = ({ onPaymentSuccess, closeModal }) => {
+const PaymentModal: React.FC<{ onPaymentSuccess: () => Promise<void>; closeModal: () => void }> = ({ onPaymentSuccess, closeModal }) => {
     const [step, setStep] = useState<'method' | 'phone' | 'processing' | 'success'>('method');
     const [selectedProvider, setSelectedProvider] = useState<'MTN' | 'Airtel' | null>(null);
     const [phoneNumber, setPhoneNumber] = useState('');
@@ -218,8 +218,8 @@ const PaymentModal: React.FC<{ onPaymentSuccess: () => void; closeModal: () => v
         setTimeout(() => setStep('success'), 3500);
     };
 
-    const handleFinish = () => {
-        onPaymentSuccess();
+    const handleFinish = async () => {
+        await onPaymentSuccess();
         closeModal();
     };
 
@@ -2724,6 +2724,13 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
         // Force meal plan regeneration by updating the state that is passed to MealPlanScreen
     };
 
+    const handlePremiumUpgrade = async () => {
+        const updatedProfile = await db.upgradeToPremium();
+        setLocalProfile(updatedProfile);
+        setShowPayment(false);
+        setShowPremiumWelcome(true);
+    };
+
     // --- Random Pop-up Logic for Unverified Users Removed ---
 
     // *** GUEST GUARD — placed after all hooks to comply with rules-of-hooks ***
@@ -2734,7 +2741,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
                 <GuestOnlyDashboard userProfile={localProfile} onSignUp={onLogout} />
                 {showPayment && (
                     <PaymentModal
-                        onPaymentSuccess={() => { setLocalProfile(p => ({ ...p, plan: 'Premium', isGuest: false })); setShowPayment(false); setShowPremiumWelcome(true); }}
+                        onPaymentSuccess={handlePremiumUpgrade}
                         closeModal={() => setShowPayment(false)}
                     />
                 )}
@@ -2794,7 +2801,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
             )}
             {showPayment && (
                 <PaymentModal
-                    onPaymentSuccess={() => { setLocalProfile(p => ({ ...p, plan: 'Premium' })); setShowPayment(false); setShowPremiumWelcome(true); }}
+                    onPaymentSuccess={handlePremiumUpgrade}
                     closeModal={() => setShowPayment(false)}
                 />
             )}

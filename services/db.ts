@@ -364,20 +364,44 @@ export const db = {
   /**
    * Upgrade the current user to the Premium plan.
    */
-  upgradeToPremium: async (_uid: string): Promise<void> => {
+  upgradeToPremium: async (): Promise<UserProfile> => {
       const subscriptionStartedAt = new Date().toISOString();
       const subscriptionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days from now
     const user = await account.get();
-    await databases.updateDocument(
+
+    try {
+      const profileDoc = await databases.updateDocument(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_PROFILES_COLLECTION,
+          user.$id,
+          {
+            plan: 'Premium',
+            subscriptionStartedAt,
+            subscriptionExpiresAt
+          }
+      );
+      return mapProfile(profileDoc);
+    } catch (error: any) {
+      if (!isAppwriteCode(error, 404)) {
+        throw error;
+      }
+
+      const fallbackProfile = createFallbackProfileFromAccount(user);
+      const premiumProfile = {
+        ...fallbackProfile,
+        plan: 'Premium' as const,
+        subscriptionStartedAt,
+        subscriptionExpiresAt,
+      };
+
+      const createdProfileDoc = await databases.createDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_PROFILES_COLLECTION,
         user.$id,
-        { 
-          plan: 'Premium',
-          subscriptionStartedAt,
-          subscriptionExpiresAt
-        }
-    );
+        premiumProfile
+      );
+      return mapProfile(createdProfileDoc);
+    }
   },
 
   /**
