@@ -1,8 +1,13 @@
 function isSubscriptionExpired(subscriptionExpiresAt: string | undefined): boolean {
-  if (!subscriptionExpiresAt) return true;
+  // If expiry is missing, keep Premium active for backward compatibility with older schemas.
+  if (!subscriptionExpiresAt) return false;
   const expiresDate = new Date(subscriptionExpiresAt);
   const now = new Date();
   return now >= expiresDate;
+}
+
+function isUnknownAttributeError(error: any): boolean {
+  return isAppwriteCode(error, 400) && typeof error?.message === 'string' && error.message.includes('Unknown attribute');
 }
 
 function handleExpiredSubscription(profile: UserProfile): UserProfile {
@@ -365,42 +370,79 @@ export const db = {
    * Upgrade the current user to the Premium plan.
    */
   upgradeToPremium: async (): Promise<UserProfile> => {
-      const subscriptionStartedAt = new Date().toISOString();
-      const subscriptionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days from now
+    const subscriptionStartedAt = new Date().toISOString();
+    const subscriptionExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days from now
     const user = await account.get();
 
     try {
       const profileDoc = await databases.updateDocument(
-          APPWRITE_DATABASE_ID,
-          APPWRITE_PROFILES_COLLECTION,
-          user.$id,
-          {
-            plan: 'Premium',
-            subscriptionStartedAt,
-            subscriptionExpiresAt
-          }
+        APPWRITE_DATABASE_ID,
+        APPWRITE_PROFILES_COLLECTION,
+        user.$id,
+        {
+          plan: 'Premium',
+          subscriptionStartedAt,
+          subscriptionExpiresAt
+        }
       );
       return mapProfile(profileDoc);
     } catch (error: any) {
+      // Backward compatibility for collections that don't yet have subscription attributes.
+      if (isUnknownAttributeError(error)) {
+        const planOnlyDoc = await databases.updateDocument(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_PROFILES_COLLECTION,
+          user.$id,
+          { plan: 'Premium' }
+        );
+        return mapProfile(planOnlyDoc);
+      }
+
       if (!isAppwriteCode(error, 404)) {
         throw error;
       }
 
       const fallbackProfile = createFallbackProfileFromAccount(user);
-      const premiumProfile = {
-        ...fallbackProfile,
+      const basePremiumProfile = {
+        name: fallbackProfile.name,
+        age: fallbackProfile.age,
+        email: fallbackProfile.email,
+        height: fallbackProfile.height,
+        weight: fallbackProfile.weight,
+        cancerType: fallbackProfile.cancerType,
+        cancerStage: fallbackProfile.cancerStage,
+        otherConditions: fallbackProfile.otherConditions,
+        treatmentStages: fallbackProfile.treatmentStages,
+        isGuest: false,
+        trialStartedAt: fallbackProfile.trialStartedAt,
         plan: 'Premium' as const,
-        subscriptionStartedAt,
-        subscriptionExpiresAt,
       };
 
-      const createdProfileDoc = await databases.createDocument(
-        APPWRITE_DATABASE_ID,
-        APPWRITE_PROFILES_COLLECTION,
-        user.$id,
-        premiumProfile
-      );
-      return mapProfile(createdProfileDoc);
+      try {
+        const createdProfileDoc = await databases.createDocument(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_PROFILES_COLLECTION,
+          user.$id,
+          {
+            ...basePremiumProfile,
+            subscriptionStartedAt,
+            subscriptionExpiresAt,
+          }
+        );
+        return mapProfile(createdProfileDoc);
+      } catch (createError: any) {
+        if (!isUnknownAttributeError(createError)) {
+          throw createError;
+        }
+
+        const createdProfileDoc = await databases.createDocument(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_PROFILES_COLLECTION,
+          user.$id,
+          basePremiumProfile
+        );
+        return mapProfile(createdProfileDoc);
+      }
     }
   },
 

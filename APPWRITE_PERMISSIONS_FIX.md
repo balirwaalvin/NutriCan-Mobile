@@ -74,6 +74,23 @@ After configuring permissions:
 
 ## Common Issues
 
+### Premium upgrade fails with "Unknown attribute: subscriptionStartedAt"
+If payment succeeds but Premium is not fully activated, your `profiles` collection schema is missing subscription fields.
+
+Add these attributes in Appwrite:
+1. Go to **Databases** -> **nutrican_db** -> **profiles** -> **Attributes**
+2. Create attribute: `subscriptionStartedAt`
+    - Type: `string`
+    - Size: `64`
+    - Required: `no`
+3. Create attribute: `subscriptionExpiresAt`
+    - Type: `string`
+    - Size: `64`
+    - Required: `no`
+4. Deploy attributes and retry Premium activation
+
+Note: The app now has a compatibility fallback that can still set `plan = Premium` when these fields are missing, but adding both attributes is required for full 30-day countdown and automatic expiry behavior.
+
 ### Still seeing 401 errors?
 - **Clear browser cache** and hard refresh (Ctrl+Shift+R)
 - **Check Appwrite API logs** for detailed permission errors

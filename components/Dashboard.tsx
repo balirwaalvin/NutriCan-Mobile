@@ -201,6 +201,8 @@ const PaymentModal: React.FC<{ onPaymentSuccess: () => Promise<void>; closeModal
     const [selectedProvider, setSelectedProvider] = useState<'MTN' | 'Airtel' | null>(null);
     const [phoneNumber, setPhoneNumber] = useState('');
     const [phoneError, setPhoneError] = useState('');
+    const [successError, setSuccessError] = useState('');
+    const [isFinalizing, setIsFinalizing] = useState(false);
 
     const handleSelectProvider = (provider: 'MTN' | 'Airtel') => {
         setSelectedProvider(provider);
@@ -214,13 +216,29 @@ const PaymentModal: React.FC<{ onPaymentSuccess: () => Promise<void>; closeModal
             return;
         }
         setPhoneError('');
+        setSuccessError('');
         setStep('processing');
         setTimeout(() => setStep('success'), 3500);
     };
 
     const handleFinish = async () => {
-        await onPaymentSuccess();
-        closeModal();
+        if (isFinalizing) return;
+
+        setSuccessError('');
+        setIsFinalizing(true);
+        try {
+            await onPaymentSuccess();
+            closeModal();
+        } catch (error: any) {
+            const rawMessage = typeof error?.message === 'string' ? error.message : '';
+            if (rawMessage.includes('Unknown attribute')) {
+                setSuccessError('Premium activated, but your Appwrite profiles schema is missing subscription fields. Add the fields and try again.');
+            } else {
+                setSuccessError('Payment succeeded but we could not activate Premium right now. Please try again.');
+            }
+        } finally {
+            setIsFinalizing(false);
+        }
     };
 
     const providerColor = selectedProvider === 'MTN' ? 'bg-yellow-400' : 'bg-red-600';
@@ -355,8 +373,13 @@ const PaymentModal: React.FC<{ onPaymentSuccess: () => Promise<void>; closeModal
                             <p className="text-[10px] font-black uppercase text-brand-green tracking-widest">Subscription Active</p>
                             <p className="font-black text-emerald-950 dark:text-white mt-1">Valid for 30 days</p>
                         </div>
+                        {successError && (
+                            <p className="text-red-500 text-xs font-bold mb-4">{successError}</p>
+                        )}
                         <div className="card-button-wrapper">
-                            <button onClick={handleFinish} className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-sm">Start Exploring</button>
+                            <button onClick={handleFinish} disabled={isFinalizing} className="btn-primary w-full shadow-glow-large uppercase tracking-widest text-sm disabled:opacity-60 disabled:cursor-not-allowed">
+                                {isFinalizing ? 'Activating Premium...' : 'Start Exploring'}
+                            </button>
                         </div>
                     </div>
                 )}
