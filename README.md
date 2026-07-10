@@ -15,8 +15,7 @@
   <p>
     <img src="https://img.shields.io/badge/React_18-61DAFB?style=flat-square&logo=react&logoColor=black" />
     <img src="https://img.shields.io/badge/TypeScript_5-3178C6?style=flat-square&logo=typescript&logoColor=white" />
-    <img src="https://img.shields.io/badge/Node.js_Express-339933?style=flat-square&logo=node.js&logoColor=white" />
-    <img src="https://img.shields.io/badge/MongoDB_Atlas-47A248?style=flat-square&logo=mongodb&logoColor=white" />
+    <img src="https://img.shields.io/badge/Appwrite-FD366E?style=flat-square&logo=appwrite&logoColor=white" />
     <img src="https://img.shields.io/badge/Google_Gemini_AI-4285F4?style=flat-square&logo=google&logoColor=white" />
     <img src="https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white" />
   </p>
@@ -91,7 +90,7 @@ Powered by **Google Gemini AI**, NutriCan doesn't offer generic advice — it un
     </td>
     <td>
       <h4>📎 Document Upload</h4>
-      <p>Securely upload medical PDFs (lab reports, prescriptions, scan results) to a <strong>private DigitalOcean Space</strong>. Documents are protected behind short-lived signed URLs.</p>
+      <p>Securely upload medical PDFs (lab reports, prescriptions, scan results) to a <strong>private Appwrite Storage Bucket</strong>. Documents are protected behind short-lived signed URLs.</p>
     </td>
   </tr>
   <tr>
@@ -112,14 +111,10 @@ Powered by **Google Gemini AI**, NutriCan doesn't offer generic advice — it un
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                       FRONTEND                          │
+│                    FRONTEND & BAAS                      │
 │  React 18 · TypeScript 5 · Vite · Recharts             │
-│  Google Gemini AI (@google/genai)                       │
-├─────────────────────────────────────────────────────────┤
-│                       BACKEND                           │
-│  Node.js · Express · MongoDB Atlas · Mongoose           │
-│  JWT Authentication · bcryptjs · Multer                 │
-│  DigitalOcean Spaces (S3-compatible)                    │
+│  Appwrite (Database, Auth, Storage)                    │
+│  Google Gemini / Groq AI                                │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -128,11 +123,8 @@ Powered by **Google Gemini AI**, NutriCan doesn't offer generic advice — it un
 | UI Framework | React 18 + TypeScript | Component-based, type-safe frontend |
 | Build Tool | Vite | Lightning-fast HMR and production builds |
 | Charts | Recharts | Health journal visualisations |
-| AI Engine | Google Gemini AI | Meal plans, food safety, doctor chat |
-| API Server | Node.js + Express | RESTful backend |
-| Database | MongoDB Atlas + Mongoose | Persistent data with schema validation |
-| Auth | JWT + bcryptjs | Stateless auth with secure password hashing |
-| File Storage | DigitalOcean Spaces | HIPAA-friendly private document storage |
+| AI Engine | Google Gemini / Groq AI | Meal plans, food safety, doctor chat |
+| Backend-as-a-Service | Appwrite | Database, Authentication, and Storage |
 
 ---
 
@@ -153,9 +145,9 @@ NutriCan-Mobile/
 │   └── ThemeContext.tsx      ← Dark / light mode provider
 │
 ├── 📂 services/
-│   ├── db.ts                 ← REST API client layer
-│   ├── config.ts             ← API base URL configuration
-│   └── geminiService.ts      ← All Gemini AI call wrappers
+│   ├── db.ts                 ← Appwrite Database service layer
+│   ├── config.ts             ← Appwrite configuration constants
+│   └── geminiService.ts      ← Gemini AI & Groq AI client wrappers
 │
 ├── 📂 public/
 │   └── NutriCan-README.png   ← Project banner image
@@ -163,26 +155,6 @@ NutriCan-Mobile/
 ├── types.ts                  ← Shared TypeScript type definitions
 ├── App.tsx                   ← Top-level router
 └── .env.example              ← Frontend environment template
-│
-└── 📂 backend/
-    ├── server.js             ← Express entry point
-    ├── 📂 db/
-    │   ├── connection.js     ← MongoDB connection + index setup
-    │   └── seed.js           ← Dev seed script
-    ├── 📂 middleware/
-    │   └── auth.js           ← JWT verification middleware
-    ├── 📂 models/
-    │   ├── User.js
-    │   ├── JournalEntry.js
-    │   ├── Meal.js
-    │   └── Document.js
-    ├── 📂 routes/
-    │   ├── auth.js           ← POST /signup · /signin · /guest · GET /me
-    │   ├── profile.js        ← GET/PATCH /profile · POST /upgrade
-    │   ├── journal.js        ← GET/POST /journal
-    │   ├── meals.js          ← GET/POST /meals
-    │   └── documents.js      ← POST /upload · GET /documents
-    └── package.json
 ```
 
 ---
@@ -194,9 +166,8 @@ NutriCan-Mobile/
 Before you begin, ensure you have the following:
 
 - **[Node.js](https://nodejs.org/) v18+**
-- A **[MongoDB Atlas](https://cloud.mongodb.com)** account — free tier is more than enough
-- A **[Google Gemini API key](https://aistudio.google.com/app/apikey)** — free at Google AI Studio
-- *(Optional)* A **[DigitalOcean Space](https://cloud.digitalocean.com/spaces)** for medical document uploads
+- An **[Appwrite](https://appwrite.io)** account & project
+- A **[Groq AI API key](https://console.groq.com)** or Google Gemini key
 
 ---
 
@@ -210,54 +181,34 @@ cd NutriCan-Mobile
 ### Step 2 — Install Dependencies
 
 ```bash
-# Install frontend dependencies
 npm install
-
-# Install backend dependencies
-cd backend && npm install && cd ..
 ```
 
 ### Step 3 — Configure Environment Variables
 
-**Frontend** — create `.env` in the project root:
+Create `.env` in the project root:
 
 ```bash
 cp .env.example .env
 ```
 
-```env
-VITE_API_URL=http://localhost:4000
-VITE_API_KEY=your_gemini_api_key_here
-```
-
-**Backend** — create `backend/.env`:
-
-```bash
-cp backend/.env.example backend/.env
-```
+Edit `.env` and fill in your details:
 
 ```env
-# ── Database ──────────────────────────────────────────────
-MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/nutrican?retryWrites=true&w=majority
+# ── Appwrite Configuration ──────────────────────────────────────────
+VITE_APPWRITE_ENDPOINT=https://fra.cloud.appwrite.io/v1
+VITE_APPWRITE_PROJECT_ID=your_appwrite_project_id
+VITE_APPWRITE_DATABASE_ID=nutrican_db
+VITE_APPWRITE_PROFILES_COLLECTION=profiles
+VITE_APPWRITE_JOURNAL_COLLECTION=journal
+VITE_APPWRITE_MEALS_COLLECTION=meals
+VITE_APPWRITE_CHAT_COLLECTION=chat
+VITE_APPWRITE_DOCS_BUCKET=medical_docs
+VITE_APPWRITE_BOOKS_BUCKET=books
 
-# ── Authentication ────────────────────────────────────────
-JWT_SECRET=your_super_secret_key_here    # Use a long random string
-JWT_EXPIRES_IN=7d
-
-# ── DigitalOcean Spaces (optional) ───────────────────────
-DO_SPACES_ENDPOINT=https://nyc3.digitaloceanspaces.com
-DO_SPACES_REGION=nyc3
-DO_SPACES_BUCKET=your-space-name
-DO_SPACES_KEY=your-access-key
-DO_SPACES_SECRET=your-secret-key
-
-# ── Server ────────────────────────────────────────────────
-PORT=4000
-ALLOWED_ORIGINS=http://localhost:5173
-NODE_ENV=development
+# ── Groq AI Configuration ───────────────────────────────────────────
+VITE_GROQ_API_KEY=your_groq_api_key_here
 ```
-
-> **MongoDB Atlas tip:** Navigate to **Security → Network Access** and whitelist your IP address (or `0.0.0.0/0` for local development).
 
 ### Step 4 — Run the App
 
@@ -265,12 +216,9 @@ NODE_ENV=development
 npm run dev
 ```
 
-One command spins up both servers simultaneously:
-
 | Server | URL | Description |
 |---|---|---|
 | 🌐 Frontend | `http://localhost:5173` | Vite dev server with HMR |
-| ⚙️ Backend | `http://localhost:4000` | Express REST API |
 
 ---
 
@@ -341,63 +289,21 @@ GET /health
 **From the project root:**
 
 ```bash
-npm run dev             # ▶  Start frontend + backend together
-npm run dev:frontend    # ▶  Vite dev server only
-npm run dev:backend     # ▶  Express server only
+npm run dev             # ▶  Start Vite development server
 npm run build           # 📦  Production build (outputs to dist/)
-```
-
-**From the `backend/` directory:**
-
-```bash
-npm run dev    # ▶  Start with nodemon (auto-restart on changes)
-npm run start  # ▶  Start server (production mode)
-npm run seed   # 🌱  Seed database with demo data
-```
-
----
-
-## 🌱 Seed Data (Development)
-
-Quickly populate the database with a demo user and sample records:
-
-```bash
-cd backend
-npm run seed
-```
-
-Login with the seeded demo account:
-
-```
-Email:     demo@nutrican.app
-Password:  password123
 ```
 
 ---
 
 ## ☁️ Deployment
 
-### Frontend
-
 Build and deploy the `dist/` folder to any static host:
 
 | Platform | Notes |
 |---|---|
-| **[Vercel](https://vercel.com)** | Recommended — connect your GitHub repo and add `VITE_API_URL` as an env var |
+| **[Vercel](https://vercel.com)** | Recommended — connect your GitHub repo and add environment variables |
 | **[Netlify](https://netlify.com)** | Drag-and-drop or Git-connected deployments |
 | **[GitHub Pages](https://pages.github.com)** | Free static hosting via GitHub Actions |
-
-### Backend
-
-Deploy the `backend/` folder to a Node.js-compatible host:
-
-| Platform | Notes |
-|---|---|
-| **[Railway](https://railway.app)** | Recommended — free tier, automatic deploys from GitHub |
-| **[Render](https://render.com)** | Free tier with sleep on inactivity |
-| **VPS** | DigitalOcean Droplet, AWS EC2, or any Linux server with Node.js |
-
-> Set all variables from `backend/.env.example` in your hosting platform's environment settings before deploying.
 
 ---
 
@@ -406,10 +312,8 @@ Deploy the `backend/` folder to a Node.js-compatible host:
 NutriCan takes patient data seriously:
 
 - **`.env` files are git-ignored** — secrets never leave your machine
-- **JWT-based auth** — stateless, short-lived tokens sent via `Authorization: Bearer`
-- **bcryptjs password hashing** — 12 salt rounds, passwords never stored in plaintext and never returned in API responses
-- **Private document storage** — medical files live in a private DigitalOcean Space; download links are **signed URLs that expire in 15 minutes**
-- **CORS control** — only whitelisted origins can reach the backend
+- **Appwrite Security Policies** — authentication, database access, and document creation permissions are managed using Appwrite security roles.
+- **Private document storage** — medical files live in a private Appwrite Storage Bucket, protected behind secure access control list (ACL) rules.
 
 ---
 

@@ -1,57 +1,6 @@
 name: nutrican
 region: nyc
 
-services:
-  - name: backend
-    source_dir: backend
-    github:
-      repo: balirwaalvin/NutriCan-Mobile
-      branch: main
-      deploy_on_push: true
-    dockerfile_path: backend/Dockerfile
-    instance_count: 1
-    instance_size_slug: basic-xxs
-    http_port: 8080
-    health_check:
-      http_path: /health
-    envs:
-      - key: NODE_ENV
-        value: "production"
-        scope: RUN_TIME
-      - key: PORT
-        value: "8080"
-        scope: RUN_TIME
-      - key: MONGODB_URI
-        scope: RUN_TIME
-        type: SECRET
-      - key: JWT_SECRET
-        scope: RUN_TIME
-        type: SECRET
-      - key: JWT_EXPIRES_IN
-        value: "7d"
-        scope: RUN_TIME
-      - key: GROQ_API_KEY
-        scope: RUN_TIME
-        type: SECRET
-      - key: DO_SPACES_ENDPOINT
-        value: "https://sfo3.digitaloceanspaces.com"
-        scope: RUN_TIME
-      - key: DO_SPACES_REGION
-        value: "sfo3"
-        scope: RUN_TIME
-      - key: DO_SPACES_BUCKET
-        value: "nutrican-store"
-        scope: RUN_TIME
-      - key: DO_SPACES_KEY
-        scope: RUN_TIME
-        type: SECRET
-      - key: DO_SPACES_SECRET
-        scope: RUN_TIME
-        type: SECRET
-      - key: ALLOWED_ORIGINS
-        value: "${frontend.PUBLIC_URL}"
-        scope: RUN_TIME
-
 static_sites:
   - name: frontend
     source_dir: /
@@ -64,19 +13,33 @@ static_sites:
     index_document: index.html
     error_document: index.html
     envs:
-      - key: VITE_API_URL
-        value: "${backend.PUBLIC_URL}"
+      - key: VITE_APPWRITE_ENDPOINT
+        value: "https://fra.cloud.appwrite.io/v1"
         scope: BUILD_TIME
-
-ingress:
-  rules:
-    - component:
-        name: backend
-      match:
-        path:
-          prefix: /api
-    - component:
-        name: frontend
-      match:
-        path:
-          prefix: /
+      - key: VITE_APPWRITE_PROJECT_ID
+        value: "69be824c0009f8aaccd5"
+        scope: BUILD_TIME
+      - key: VITE_APPWRITE_DATABASE_ID
+        value: "nutrican_db"
+        scope: BUILD_TIME
+      - key: VITE_APPWRITE_PROFILES_COLLECTION
+        value: "profiles"
+        scope: BUILD_TIME
+      - key: VITE_APPWRITE_JOURNAL_COLLECTION
+        value: "journal"
+        scope: BUILD_TIME
+      - key: VITE_APPWRITE_MEALS_COLLECTION
+        value: "meals"
+        scope: BUILD_TIME
+      - key: VITE_APPWRITE_CHAT_COLLECTION
+        value: "chat"
+        scope: BUILD_TIME
+      - key: VITE_APPWRITE_DOCS_BUCKET
+        value: "medical_docs"
+        scope: BUILD_TIME
+      - key: VITE_APPWRITE_BOOKS_BUCKET
+        value: "books"
+        scope: BUILD_TIME
+      - key: VITE_GROQ_API_KEY
+        scope: BUILD_TIME
+        type: SECRET
